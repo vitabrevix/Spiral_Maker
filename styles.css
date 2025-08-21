@@ -1,0 +1,388 @@
+body {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    margin: 0;
+    padding: 20px;
+    background: #1a1a1a;
+    color: #ffffff;
+    min-height: 100vh;
+}
+
+.editor-panel {
+    display: flex;
+    flex-direction: column;
+    margin-right: 340px; /* Make space for fixed preview panel */
+}
+
+.controls {
+    margin-bottom: 15px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.export-controls {
+    margin-bottom: 15px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.animation-controls {
+    margin-bottom: 15px;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    background: #2d2d2d;
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 10px 15px;
+}
+
+.control-group {
+    align-items: center;
+    gap: 8px;
+}
+
+.control-group label {
+    font-size: 12px;
+    color: #ccc;
+}
+
+.control-group input {
+    background: #1a1a1a;
+    border: 1px solid #555;
+    border-radius: 3px;
+    color: #fff;
+    padding: 4px 8px;
+    width: 60px;
+    font-size: 12px;
+    font-family: inherit;
+}
+
+.control-group input:focus {
+    outline: none;
+    border-color: #0066cc;
+}
+
+button {
+    background: #0066cc;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s;
+}
+
+button:hover {
+    background: #0052a3;
+}
+
+button:disabled {
+    background: #555;
+    cursor: not-allowed;
+}
+
+textarea {
+    flex: 1;
+    background: #2d2d2d;
+    color: #ffffff;
+    border: 1px solid #555;
+    padding: 15px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 14px;
+    line-height: 1.4;
+    border-radius: 4px;
+    resize: vertical;
+    min-height: 500px;
+    tab-size: 2;
+}
+
+textarea:focus {
+    outline: none;
+    border-color: #0066cc;
+}
+
+.preview-panel {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    width: 320px !important;
+    height: auto !important;
+    z-index: 9999 !important;
+    background: transparent !important;
+}
+
+.preview-container {
+    background: #2d2d2d;
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 10px;
+    position: relative;
+}
+
+.pip-canvas {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    background: #000;
+}
+
+.progress-bars {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.frame-controls {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    margin: 2px 0;
+}
+
+.frame-btn {
+    background: #333;
+    color: #ccc;
+    border: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    transition: background 0.2s;
+}
+
+.frame-btn:hover {
+    background: #444;
+    color: #fff;
+}
+
+.frame-btn:disabled {
+    background: #222;
+    color: #555;
+    cursor: not-allowed;
+}
+
+.pause-btn {
+    width: 28px !important;
+    font-size: 12px !important;
+    margin-left: 2px;
+}
+
+#frameSlider {
+    flex: 1;
+    height: 4px;
+    background: #1a1a1a;
+    border-radius: 2px;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+#frameSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #00cc66;
+    cursor: pointer;
+    border: 2px solid #1a1a1a;
+}
+
+#frameSlider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #00cc66;
+    cursor: pointer;
+    border: 2px solid #1a1a1a;
+}
+
+.frame-counter {
+    font-size: 10px;
+    color: #ccc;
+    min-width: 45px;
+    text-align: center;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.progress-container {
+    position: relative;
+    width: 100%;
+    height: 6px;
+    background: #1a1a1a;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.1s ease;
+}
+
+.loop-progress {
+    background: linear-gradient(90deg, #00cc66, #66ff99);
+}
+
+.export-progress {
+    background: linear-gradient(90deg, #0066cc, #3399ff);
+}
+
+.progress-label {
+    font-size: 10px;
+    color: #ccc;
+    margin-bottom: 3px;
+}
+
+.error-display {
+    background: #4a1a1a;
+    border: 1px solid #aa3333;
+    border-radius: 4px;
+    padding: 10px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: #ff9999;
+    white-space: pre-wrap;
+    display: none;
+}
+
+h1 {
+    margin: 0 0 20px 0;
+    color: #0066cc;
+    font-size: 24px;
+}
+
+.info {
+    background: #2d2d2d;
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.info h3 {
+    margin: 0 0 10px 0;
+    color: #00cc66;
+}
+
+.preset-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+}
+
+.preset-btn {
+    background: #333;
+    color: #ccc;
+    font-size: 12px;
+    padding: 6px 12px;
+}
+
+.preset-btn:hover {
+    background: #444;
+}
+
+.size-controls {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #444;
+}
+
+.size-controls > div:first-child {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 8px;
+}
+
+.size-btn {
+    background: #333;
+    color: #ccc;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 10px;
+    transition: background 0.2s;
+}
+
+.size-btn:hover {
+    background: #444;
+    color: #fff;
+}
+
+.size-btn.active {
+    background: #0066cc;
+    color: white;
+}
+
+.size-slider-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+}
+
+.size-slider {
+    width: 100px;
+    height: 4px;
+    background: #1a1a1a;
+    border-radius: 2px;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.size-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #0066cc;
+    cursor: pointer;
+    border: 2px solid #1a1a1a;
+}
+
+.size-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #0066cc;
+    cursor: pointer;
+    border: 2px solid #1a1a1a;
+}
+
+.size-input {
+    background: #1a1a1a;
+    border: 1px solid #555;
+    border-radius: 3px;
+    color: #fff;
+    padding: 3px 6px;
+    width: 50px;
+    font-size: 10px;
+    font-family: inherit;
+    text-align: center;
+}
+
+.size-input:focus {
+    outline: none;
+    border-color: #0066cc;
+}
+
+.size-label {
+    font-size: 10px;
+    color: #ccc;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
