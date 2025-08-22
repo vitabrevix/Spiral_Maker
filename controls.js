@@ -1,3 +1,17 @@
+function toggleCollapse() {
+	const previewPanel = document.querySelector('.preview-panel');
+	const collapseBtn = document.getElementById('collapseBtn');
+	const icon = collapseBtn.querySelector('.collapse-icon');
+	
+	previewPanel.classList.toggle('collapsed');
+	
+	if (previewPanel.classList.contains('collapsed')) {
+		icon.textContent = '‹';
+	} else {
+		icon.textContent = '›';
+	}
+}
+
 // Animation control functions
 function runWithoutLag() {
     clearP5();
@@ -118,24 +132,9 @@ function setCanvasRatio(ratio) {
     
     // Update button states
     document.querySelectorAll('.size-btn').forEach(btn => btn.classList.remove('active'));
-    // Find the button that was clicked and make it active
-    const clickedButton = Array.from(document.querySelectorAll('.size-btn')).find(btn => 
-        btn.textContent.includes(ratio.replace(':', ':'))
-    );
-    if (clickedButton) {
-        clickedButton.classList.add('active');
-    }
+    event.target.classList.add('active');
     
-    // Recalculate dimensions with current base size
-    updateCanvasSize(baseSize);
-}
-
-function updateCanvasSize(size) {
-    baseSize = parseInt(size);
-    document.getElementById('sizeSlider').value = baseSize;
-    document.getElementById('sizeInput').value = baseSize;
-    
-    // Calculate dimensions based on ratio
+    // Recalculate dimensions
     switch(canvasRatio) {
         case '1:1':
             canvasWidth = baseSize;
@@ -151,35 +150,58 @@ function updateCanvasSize(size) {
             break;
     }
     
-    // Ensure canvas container has proper positioning for absolute-positioned children
+    // Update the main canvas container
     const canvasContainer = document.getElementById('canvasContainer');
-    canvasContainer.style.position = 'relative';
     canvasContainer.style.width = canvasWidth + 'px';
     canvasContainer.style.height = canvasHeight + 'px';
     
-    // Update all preset codes to use dynamic canvas size (if function exists)
-    if (typeof updatePresetCanvasSizes === 'function') {
-        updatePresetCanvasSizes();
-    }
-	
-	clearP5();
-    
-    // Only restart animation if it's currently running
+    // Restart animation if running to apply new canvas size
     if (isRunning) {
-        console.log('Restarting animation with new size...'); // Debug log
         stopAnimation();
-        setTimeout(() => {
-            runAnimation();
-        }, 100);
-    } else {
-        // If not running, just update any existing canvas elements
-        const existingCanvases = canvasContainer.querySelectorAll('canvas');
-        existingCanvases.forEach(canvas => {
-            canvas.width = canvasWidth;
-            canvas.height = canvasHeight;
-            canvas.style.width = canvasWidth + 'px';
-            canvas.style.height = canvasHeight + 'px';
-        });
+        setTimeout(runAnimation, 100);
+    }
+    
+    // Update PiP window size if open
+    if (pipWindow && !pipWindow.closed) {
+        pipWindow.resizeTo(canvasWidth + 40, canvasHeight + 80);
+    }
+}
+
+function updateCanvasSize(size) {
+    baseSize = parseInt(size);
+    document.getElementById('sizeSlider').value = baseSize;
+    document.getElementById('sizeInput').value = baseSize;
+    
+    // Recalculate canvas dimensions based on current ratio
+    switch(canvasRatio) {
+        case '1:1':
+            canvasWidth = baseSize;
+            canvasHeight = baseSize;
+            break;
+        case '4:3':
+            canvasWidth = baseSize;
+            canvasHeight = Math.round(baseSize * 3 / 4);
+            break;
+        case '3:4':
+            canvasWidth = Math.round(baseSize * 3 / 4);
+            canvasHeight = baseSize;
+            break;
+    }
+    
+    // Update the main canvas container
+    const canvasContainer = document.getElementById('canvasContainer');
+    canvasContainer.style.width = canvasWidth + 'px';
+    canvasContainer.style.height = canvasHeight + 'px';
+    
+    // Restart animation if running to apply new canvas size
+    if (isRunning) {
+        stopAnimation();
+        setTimeout(runAnimation, 100);
+    }
+    
+    // Update PiP window size if open
+    if (pipWindow && !pipWindow.closed) {
+        pipWindow.resizeTo(canvasWidth + 40, canvasHeight + 80);
     }
 }
 

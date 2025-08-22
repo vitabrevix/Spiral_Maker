@@ -6,6 +6,7 @@
     <title>Spiral Editor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="collapse.css">
 </head>
 <body>
     <div class="editor-panel">
@@ -20,22 +21,27 @@
         </div>
         
         <div class="layers-container">
-			<div class="layer-controls-top">
-				<button class="add-layer-btn" onclick="addLayer()">+ Add Layer</button>
-				<div class="background-color-control">
-					<label for="backgroundColorPicker">Background:</label>
-					<input type="color" id="backgroundColorPicker" value="#000000" onchange="updateBackgroundColor(this.value)">
-				</div>
-			</div>
-			<div id="layersContainer">
-				<!-- Layers will be added here dynamically -->
-			</div>
-		</div>
+            <div class="layer-controls-top">
+                <button class="add-layer-btn" onclick="addLayer()">+ Add Layer</button>
+                <div class="background-color-control">
+                    <label for="backgroundColorPicker">Background:</label>
+                    <input type="color" id="backgroundColorPicker" value="#000000" onchange="updateBackgroundColor(this.value)">
+                </div>
+                <button class="pip-btn" onclick="openPipWindow()" id="pipBtn">Open PiP</button>
+            </div>
+            <div id="layersContainer">
+                <!-- Layers will be added here dynamically -->
+            </div>
+        </div>
         <div id="errorDisplay" class="error-display"></div>
         <div id="canvasContainer"></div>
     </div>
     
     <div class="preview-panel">
+        <button class="collapse-btn" id="collapseBtn" onclick="toggleCollapse()">
+            <span class="collapse-icon">›</span>
+        </button>
+        <div class="collapsible-content">
         <div class="preview-container">
             <div class="controls">
                 <button onclick="runWithoutLag()">Run</button>
