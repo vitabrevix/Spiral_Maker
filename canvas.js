@@ -43,11 +43,36 @@ function renderLayerDOM(layer) {
     layerDiv.setAttribute('data-layer-id', layer.id);
     layerDiv.draggable = true;
     
+    // Add color properties to layer if they don't exist
+    if (!layer.hasOwnProperty('hue')) layer.hue = 360;
+    if (!layer.hasOwnProperty('saturation')) layer.saturation = 100;
+    if (!layer.hasOwnProperty('brightness')) layer.brightness = 100;
+    
     layerDiv.innerHTML = `
         <div class="layer-header">
             <span class="drag-handle">⋮⋮</span>
             <button class="layer-toggle">${layer.collapsed ? '▶' : '▼'}</button>
             <div class="layer-name">${layer.name}</div>
+            <div class="layer-color-controls">
+                <div class="color-control">
+                    <label>H:</label>
+                    <input type="range" class="color-slider hue-slider" min="0" max="360" value="${layer.hue}" 
+                           oninput="updateLayerColor(${layer.id}, 'hue', this.value)">
+                    <span class="color-value">${layer.hue}</span>
+                </div>
+                <div class="color-control">
+                    <label>S:</label>
+                    <input type="range" class="color-slider sat-slider" min="0" max="100" value="${layer.saturation}" 
+                           oninput="updateLayerColor(${layer.id}, 'saturation', this.value)">
+                    <span class="color-value">${layer.saturation}</span>
+                </div>
+                <div class="color-control">
+                    <label>B:</label>
+                    <input type="range" class="color-slider bright-slider" min="0" max="100" value="${layer.brightness}" 
+                           oninput="updateLayerColor(${layer.id}, 'brightness', this.value)">
+                    <span class="color-value">${layer.brightness}</span>
+                </div>
+            </div>
             <div class="layer-controls">
                 <button class="layer-btn" onclick="moveLayerUp(${layer.id})" ${layers.indexOf(layer) === 0 ? 'disabled' : ''}>↑</button>
                 <button class="layer-btn" onclick="moveLayerDown(${layer.id})" ${layers.indexOf(layer) === layers.length - 1 ? 'disabled' : ''}>↓</button>
@@ -135,6 +160,29 @@ function updateBackgroundColor(color) {
     }
 }
 
+function updateLayerColor(layerId, property, value) {
+    const layer = layers.find(l => l.id === layerId);
+    if (layer) {
+        layer[property] = parseInt(value);
+        
+        // Update the display value
+        const layerDiv = document.querySelector(`[data-layer-id="${layerId}"]`);
+        const valueSpan = layerDiv.querySelector(`.color-control:has(.${property === 'hue' ? 'hue' : property === 'saturation' ? 'sat' : 'bright'}-slider) .color-value`);
+        if (valueSpan) {
+            valueSpan.textContent = value;
+        }
+        
+        // Restart animation if running to apply changes
+        if (isRunning) {
+            clearTimeout(window.layerColorUpdateTimeout);
+            window.layerColorUpdateTimeout = setTimeout(() => {
+                stopAnimation();
+                setTimeout(runAnimation, 100);
+            }, 300);
+        }
+    }
+}
+
 function runAnimation() {
     // Clean up existing sketches
     canvasLayers.forEach(sketch => {
@@ -204,6 +252,17 @@ function runAnimation() {
                     get: () => p.pixels,
                     set: (value) => p.pixels = value
                 });
+				
+				// Inside the sketch function, replace the property definitions with this safer approach:
+				const layerHue = layer.hue || 0;
+				const layerSaturation = layer.saturation || 100;
+				const layerBrightness = layer.brightness || 100;
+
+				// Make these available to the layer's code
+				window.layerHue = layerHue;
+				window.layerSaturation = layerSaturation;
+				window.layerBrightness = layerBrightness;
+
                 
                 try {
                     eval(layer.code);
@@ -211,9 +270,7 @@ function runAnimation() {
                     throw new Error(`Layer ${layer.name}: ${e.message}`);
                 }
                 
-                p.setup = function() {
-					console.log(`Layer ${layer.name}: Creating canvas ${canvasWidth}x${canvasHeight}`);
-					
+                p.setup = function() {					
 					// Create canvas without parent to avoid p5's default behavior
 					const canvas = p.createCanvas(canvasWidth, canvasHeight);
 					
@@ -239,8 +296,9 @@ function runAnimation() {
 					const container = document.getElementById('canvasContainer');
 					container.appendChild(canvasElement);
 					
-					console.log(`Layer ${layer.name} canvas appended with z-index: ${layerIndex}`);
-					
+					// Set HSB color mode for this layer
+					p.colorMode(p.HSB, layer.hue, layer.saturation, layer.brightness);
+										
 					// Make canvas transparent by default
 					p.clear();
 					p.frameRate(animationFPS);
@@ -249,7 +307,7 @@ function runAnimation() {
 						setup();
 					}
 				};
-                
+				
                 p.draw = function() {
                     const shouldDraw = Date.now() - lastFrameTime >= (1000 / (animationFPS * animationSpeed));
                     if (shouldDraw && typeof draw === 'function') {
@@ -311,6 +369,10 @@ function clearP5() {
             delete window[func];
         }
     });
+	
+	delete window.layerHue;
+    delete window.layerSaturation;
+    delete window.layerBrightness;
 }
 
 function stopAnimation() {
@@ -618,7 +680,7 @@ function initializeFromDOMValues() {
     }
 }
 
-// Add updateLoopProgress function (referenced but missing from original)
+// Add updateLoopProgress function
 function updateLoopProgress() {
     if (!isRunning) return;
     
@@ -644,152 +706,6 @@ function updateLoopProgress() {
     }
     
     animationLoopId = requestAnimationFrame(updateLoopProgress);
-}
-
-// PiP
-function openPipWindow() {
-    if (pipWindow && !pipWindow.closed) {
-        pipWindow.focus();
-        return;
-    }
-    
-    const pipBtn = document.getElementById('pipBtn');
-    pipBtn.textContent = 'Opening...';
-    pipBtn.disabled = true;
-    
-    // Create a new window
-    pipWindow = window.open('', 'PiPWindow', `
-        width=${canvasWidth + 40},
-        height=${canvasHeight + 80},
-        scrollbars=no,
-        resizable=yes,
-        status=no,
-        toolbar=no,
-        menubar=no
-    `);
-    
-    // Set up the PiP window content
-    pipWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Animation Preview</title>
-            <style>
-                body { 
-                    margin: 0; 
-                    padding: 20px; 
-                    background: #1a1a1a; 
-                    display: flex; 
-                    justify-content: center; 
-                    align-items: center;
-                    min-height: 100vh;
-                }
-                #pipCanvas { 
-                    position: relative;
-                    border: 1px solid #333;
-                    background: ${backgroundColor};
-                }
-            </style>
-        </head>
-        <body>
-            <div id="pipCanvas" style="width: ${canvasWidth}px; height: ${canvasHeight}px;"></div>
-        </body>
-        </html>
-    `);
-    
-    pipWindow.document.close();
-    
-    // Update button state
-    pipBtn.textContent = 'Close PiP';
-    pipBtn.onclick = closePipWindow;
-    pipBtn.disabled = false;
-    
-    // Start updating the PiP window
-    startPipUpdates();
-    
-    // Handle window closing
-    pipWindow.onbeforeunload = function() {
-        closePipWindow();
-    };
-}
-
-function closePipWindow() {
-    if (pipWindow && !pipWindow.closed) {
-        pipWindow.close();
-    }
-    stopPipUpdates();
-    
-    const pipBtn = document.getElementById('pipBtn');
-    pipBtn.textContent = 'Open PiP';
-    pipBtn.onclick = openPipWindow;
-    pipWindow = null;
-}
-
-function startPipUpdates() {
-    if (pipUpdateInterval) {
-        clearInterval(pipUpdateInterval);
-    }
-    
-    pipUpdateInterval = setInterval(() => {
-        updatePipWindow();
-    }, 100); // Update every 100ms
-}
-
-function stopPipUpdates() {
-    if (pipUpdateInterval) {
-        clearInterval(pipUpdateInterval);
-        pipUpdateInterval = null;
-    }
-}
-
-function updatePipWindow() {
-    if (!pipWindow || pipWindow.closed) {
-        closePipWindow();
-        return;
-    }
-    
-    const mainCanvasContainer = document.getElementById('canvasContainer');
-    if (!mainCanvasContainer) return;
-    
-    const pipCanvas = pipWindow.document.getElementById('pipCanvas');
-    if (!pipCanvas) return;
-    
-    // Update background color
-    pipCanvas.style.backgroundColor = backgroundColor;
-    pipCanvas.style.width = canvasWidth + 'px';
-    pipCanvas.style.height = canvasHeight + 'px';
-    
-    // Clear existing canvases in PiP
-    pipCanvas.innerHTML = '';
-    
-    // Get all canvas elements from the main window
-    const mainCanvases = mainCanvasContainer.querySelectorAll('canvas');
-    
-    mainCanvases.forEach((sourceCanvas, index) => {
-        // Create a new canvas in the PiP window with the correct display dimensions
-        const pipCanvasElement = pipWindow.document.createElement('canvas');
-        pipCanvasElement.width = canvasWidth;  // Set to display width
-        pipCanvasElement.height = canvasHeight; // Set to display height
-        pipCanvasElement.style.position = 'absolute';
-        pipCanvasElement.style.top = '0px';
-        pipCanvasElement.style.left = '0px';
-        pipCanvasElement.style.width = canvasWidth + 'px';   // CSS display size
-        pipCanvasElement.style.height = canvasHeight + 'px'; // CSS display size
-        pipCanvasElement.style.zIndex = sourceCanvas.style.zIndex || index;
-        pipCanvasElement.style.pointerEvents = 'none';
-        pipCanvasElement.id = `pip-${sourceCanvas.id || 'canvas-' + index}`;
-        
-        // Copy the pixel data from source to PiP canvas, scaling if necessary
-        const pipCtx = pipCanvasElement.getContext('2d');
-        pipCtx.clearRect(0, 0, pipCanvasElement.width, pipCanvasElement.height);
-        
-        // Scale the image to fit the target canvas dimensions
-        pipCtx.drawImage(sourceCanvas, 0, 0, sourceCanvas.width, sourceCanvas.height, 
-                        0, 0, canvasWidth, canvasHeight);
-        
-        // Add the canvas to the PiP container
-        pipCanvas.appendChild(pipCanvasElement);
-    });
 }
 
 window.onload = function() {

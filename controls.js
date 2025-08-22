@@ -1,15 +1,18 @@
 function toggleCollapse() {
-	const previewPanel = document.querySelector('.preview-panel');
-	const collapseBtn = document.getElementById('collapseBtn');
-	const icon = collapseBtn.querySelector('.collapse-icon');
-	
-	previewPanel.classList.toggle('collapsed');
-	
-	if (previewPanel.classList.contains('collapsed')) {
-		icon.textContent = '‹';
-	} else {
-		icon.textContent = '›';
-	}
+    const previewPanel = document.querySelector('.preview-panel');
+    const editorPanel = document.querySelector('.editor-panel');
+    const collapseIcon = document.querySelector('.collapse-icon');
+    
+    previewPanel.classList.toggle('collapsed');
+    
+    // Toggle editor panel expansion
+    if (previewPanel.classList.contains('collapsed')) {
+        editorPanel.classList.add('expanded');
+        collapseIcon.style.transform = 'rotate(180deg)';
+    } else {
+        editorPanel.classList.remove('expanded');
+        collapseIcon.style.transform = 'rotate(0deg)';
+    }
 }
 
 // Animation control functions

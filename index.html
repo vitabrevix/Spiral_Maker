@@ -12,12 +12,72 @@
     <div class="editor-panel">
         <h1>Spiral Editor</h1>
         
-        <div class="preset-buttons">
-            <button class="preset-btn" onclick="loadPreset('spiral')">Hypnotic Spiral</button>
-            <button class="preset-btn" onclick="loadPreset('waves')">Wave Pattern</button>
-            <button class="preset-btn" onclick="loadPreset('tunnel')">Tunnel Effect</button>
-            <button class="preset-btn" onclick="loadPreset('mandala')">Rotating Mandala</button>
-            <button class="preset-btn" onclick="loadPreset('plasma')">Plasma Field</button>
+        <!-- New categorized preset layout -->
+        <div class="preset-categories">
+            <div class="preset-category">
+                <div class="category-title">Spirals</div>
+                <button class="main-preset-btn" onclick="loadPreset('spiral')">Dot Spiral</button>
+                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this, 'spirals')">
+                    <option value="">More spirals...</option>
+                    <option value="golden_spiral">Golden Spiral</option>
+                    <option value="double_spiral">Double Spiral</option>
+                    <option value="fibonacci_spiral">Fibonacci Spiral</option>
+                    <option value="galaxy_spiral">Galaxy Spiral</option>
+                    <option value="vortex">Vortex</option>
+                </select>
+            </div>
+            
+            <div class="preset-category">
+                <div class="category-title">Circles</div>
+                <button class="main-preset-btn" onclick="loadPreset('tunnel')">Tunnel</button>
+                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this, 'circles')">
+                    <option value="">More circles...</option>
+                    <option value="concentric_circles">Concentric Circles</option>
+                    <option value="orbit_dance">Orbit Dance</option>
+                    <option value="ripple_effect">Ripple Effect</option>
+                    <option value="kaleidoscope">Kaleidoscope</option>
+                    <option value="flower_circles">Flower Circles</option>
+                </select>
+            </div>
+            
+            <div class="preset-category">
+                <div class="category-title">Objects</div>
+                <button class="main-preset-btn" onclick="loadPreset('mandala')">Mandala</button>
+                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this, 'objects')">
+                    <option value="">More objects...</option>
+                    <option value="flying_cubes">Flying Cubes</option>
+                    <option value="particle_system">Particle System</option>
+                    <option value="geometric_dance">Geometric Dance</option>
+                    <option value="crystal_formation">Crystal Formation</option>
+                    <option value="floating_spheres">Floating Spheres</option>
+                </select>
+            </div>
+            
+            <div class="preset-category">
+                <div class="category-title">Chill</div>
+                <button class="main-preset-btn" onclick="loadPreset('waves')">Wave Pattern</button>
+                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this, 'chill')">
+                    <option value="">More chill...</option>
+                    <option value="aurora_waves">Aurora Waves</option>
+                    <option value="breathing_light">Breathing Light</option>
+                    <option value="zen_garden">Zen Garden</option>
+                    <option value="ocean_flow">Ocean Flow</option>
+                    <option value="meditation_orb">Meditation Orb</option>
+                </select>
+            </div>
+            
+            <div class="preset-category">
+                <div class="category-title">Others</div>
+                <button class="main-preset-btn" onclick="loadPreset('plasma')">Plasma Field</button>
+                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this, 'others')">
+                    <option value="">More effects...</option>
+                    <option value="matrix_rain">Matrix Rain</option>
+                    <option value="electric_storm">Electric Storm</option>
+                    <option value="neon_grid">Neon Grid</option>
+                    <option value="glitch_art">Glitch Art</option>
+                    <option value="cosmic_dust">Cosmic Dust</option>
+                </select>
+            </div>
         </div>
         
         <div class="layers-container">
@@ -108,5 +168,6 @@
     <script src="controls.js"></script>
     <script src="export.js"></script>
     <script src="presets.js"></script>
+    <script src="pip.js"></script>
 </body>
 </html>
