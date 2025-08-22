@@ -21,11 +21,10 @@ let backgroundColor = '#000000';
 let pipWindow = null;
 let pipUpdateInterval = null;
 
-function createLayer(name = null, code = '') {
+function createLayer(code = '') {
     const layerId = ++layerCounter;
     const layer = {
         id: layerId,
-        name: name || `Layer ${layerId}`,
         code: code,
         collapsed: false,
         sketch: null
@@ -47,12 +46,12 @@ function renderLayerDOM(layer) {
     if (!layer.hasOwnProperty('hue')) layer.hue = 360;
     if (!layer.hasOwnProperty('saturation')) layer.saturation = 100;
     if (!layer.hasOwnProperty('brightness')) layer.brightness = 100;
+    if (!layer.hasOwnProperty('opacity')) layer.opacity = 1;
     
     layerDiv.innerHTML = `
         <div class="layer-header">
             <span class="drag-handle">⋮⋮</span>
             <button class="layer-toggle">${layer.collapsed ? '▶' : '▼'}</button>
-            <div class="layer-name">${layer.name}</div>
             <div class="layer-color-controls">
                 <div class="color-control">
                     <label>H:</label>
@@ -62,15 +61,21 @@ function renderLayerDOM(layer) {
                 </div>
                 <div class="color-control">
                     <label>S:</label>
-                    <input type="range" class="color-slider sat-slider" min="0" max="100" value="${layer.saturation}" 
+                    <input type="range" class="color-slider sat-slider" min="1" max="100" value="${layer.saturation}" 
                            oninput="updateLayerColor(${layer.id}, 'saturation', this.value)">
                     <span class="color-value">${layer.saturation}</span>
                 </div>
                 <div class="color-control">
                     <label>B:</label>
-                    <input type="range" class="color-slider bright-slider" min="0" max="100" value="${layer.brightness}" 
+                    <input type="range" class="color-slider bright-slider" min="1" max="100" value="${layer.brightness}" 
                            oninput="updateLayerColor(${layer.id}, 'brightness', this.value)">
                     <span class="color-value">${layer.brightness}</span>
+                </div>
+				<div class="color-control">
+                    <label>O:</label>
+                    <input type="range" class="color-slider bright-slider" min="1" max="100" value="${layer.opacity}" 
+                           oninput="updateLayerColor(${layer.id}, 'opacity', this.value)">
+                    <span class="color-value">${layer.opacity}</span>
                 </div>
             </div>
             <div class="layer-controls">
@@ -167,7 +172,7 @@ function updateLayerColor(layerId, property, value) {
         
         // Update the display value
         const layerDiv = document.querySelector(`[data-layer-id="${layerId}"]`);
-        const valueSpan = layerDiv.querySelector(`.color-control:has(.${property === 'hue' ? 'hue' : property === 'saturation' ? 'sat' : 'bright'}-slider) .color-value`);
+        const valueSpan = layerDiv.querySelector(`.color-control:has(.${property === 'hue' ? 'hue' : property === 'saturation' ? 'sat' : property === 'brightness' ? 'bright' : 'opacity'}-slider) .color-value`);
         if (valueSpan) {
             valueSpan.textContent = value;
         }
@@ -209,7 +214,6 @@ function runAnimation() {
 		canvasContainer.style.position = 'relative';
 		canvasContainer.style.width = canvasWidth + 'px';
 		canvasContainer.style.height = canvasHeight + 'px';
-		// Add this line to ensure proper stacking context:
 		canvasContainer.style.zIndex = '0';
         
         // Create sketches for each layer in proper order (bottom to top)
@@ -253,21 +257,17 @@ function runAnimation() {
                     set: (value) => p.pixels = value
                 });
 				
-				// Inside the sketch function, replace the property definitions with this safer approach:
-				const layerHue = layer.hue || 0;
-				const layerSaturation = layer.saturation || 100;
-				const layerBrightness = layer.brightness || 100;
-
-				// Make these available to the layer's code
-				window.layerHue = layerHue;
-				window.layerSaturation = layerSaturation;
-				window.layerBrightness = layerBrightness;
+				window.layer = layer; // Pass the entire layer object
+				window.hue = layer.hue || 360;
+				window.saturation = layer.saturation || 100;
+				window.brightness = layer.brightness || 100;
+				window.opacity = layer.opacity / 100 || 100;
 
                 
                 try {
                     eval(layer.code);
                 } catch (e) {
-                    throw new Error(`Layer ${layer.name}: ${e.message}`);
+                    throw new Error(`${e.message}`);
                 }
                 
                 p.setup = function() {					
@@ -297,7 +297,7 @@ function runAnimation() {
 					container.appendChild(canvasElement);
 					
 					// Set HSB color mode for this layer
-					p.colorMode(p.HSB, layer.hue, layer.saturation, layer.brightness);
+					p.colorMode(p.HSB, layer.hue, 100, 100);
 										
 					// Make canvas transparent by default
 					p.clear();
@@ -516,7 +516,7 @@ function moveLayerDown(layerId) {
 function duplicateLayer(layerId) {
     const layer = layers.find(l => l.id === layerId);
     if (layer) {
-        createLayer(layer.name + ' Copy', layer.code);
+        createLayer(layer.code);
         if (isRunning) {
             stopAnimation();
             setTimeout(runAnimation, 100);
@@ -716,7 +716,7 @@ window.onload = function() {
     const initialCode = typeof getPresetCode === 'function' ? getPresetCode('tunnel') : 
         'function setup() {\n  background(0);\n}\n\nfunction draw() {\n  // Your animation code here\n}';
     
-    const initialLayer = createLayer('Main Layer', initialCode);
+    const initialLayer = createLayer(initialCode);
     selectLayer(initialLayer.id);
 };
 

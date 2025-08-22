@@ -11,24 +11,22 @@ function loadPresetFromDropdown(selectElement, category) {
 // Main preset codes
 const presets = {
     spiral: `function draw() {
-  // Remove background() call to keep layer transparent
   translate(width/2, height/2);
   
-  // Perfect loop: complete one cycle per animation loop
   let time = (frameCount / 20) * TWO_PI;
   
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 400; i++) {
     let angle = i * 0.1 + time;
-    let radius = i * 0.8;
+    let radius = i * 1;
     
-    let x = cos(angle) * radius;
-    let y = sin(angle) * radius;
+    let x = cos(angle) * radius/2;
+    let y = sin(angle) * radius/2;
     
     let hue = (i * 2 + frameCount * 3) % 360;
-    fill(hue, 80, 90, 0.8);
+    fill(hue, saturation, brightness, 0.3);
     noStroke();
     
-    ellipse(x, y, 8, 8);
+    ellipse(x, y, 10, 10);
   }
 }`,
 
@@ -51,17 +49,15 @@ const presets = {
 }`,
 
     tunnel: `function draw() {
-  // Remove background() call to keep layer transparent
   translate(width/2, height/2);
   
-  // Create perfect loop by using frameCount with TWO_PI
   let time = (frameCount / 120) * TWO_PI;
   
   for (let i = 0; i < 50; i++) {
     let size = 300 - i * 6 + sin(time + i * 0.2) * 20;
     let hue = (i * 10 + (frameCount * 2)) % 360;
     
-    stroke(hue, 80, 90);
+    stroke(hue, saturation, brightness, opacity);
     strokeWeight(2);
     noFill();
     
@@ -70,7 +66,6 @@ const presets = {
 }`,
 
     mandala: `function draw() {
-  // Remove background() call to keep layer transparent
   translate(width/2, height/2);
   
   let time = frameCount * 0.01;
@@ -123,7 +118,6 @@ const presets = {
 }`,
 
     tunnel_2: `function draw() {
-  // Remove background() call to keep layer transparent
   translate(width/2, height/2);
   
   let time = frameCount * 0.03;
