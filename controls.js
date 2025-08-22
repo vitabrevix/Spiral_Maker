@@ -31,6 +31,11 @@ function pauseAnimation() {
     const status = document.getElementById('status');
     
     if (isPaused) {
+        // Cancel the animation loop when pausing
+        if (animationLoopId) {
+            cancelAnimationFrame(animationLoopId);
+            animationLoopId = null;
+        }
         pauseBtn.textContent = '▶';
         status.textContent = 'Paused';
         status.style.color = '#ffaa00';
@@ -39,6 +44,8 @@ function pauseAnimation() {
         status.textContent = 'Running...';
         status.style.color = '#00cc66';
         lastFrameTime = Date.now();
+        // Restart the animation loop when unpausing
+        updateLoopProgress();
     }
 }
 

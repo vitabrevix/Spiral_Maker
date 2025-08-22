@@ -498,7 +498,7 @@ h1 {
 .add-layer-btn {
     background: #00cc66;
     color: white;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
 }
 
 .add-layer-btn:hover {
@@ -547,7 +547,7 @@ h1 {
 .background-color-control {
     display: flex;
     align-items: center;
-    gap: 8px;
+    margin-bottom: 10px;
 }
 
 .background-color-control label {
