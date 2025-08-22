@@ -46,7 +46,7 @@ function renderLayerDOM(layer) {
     if (!layer.hasOwnProperty('hue')) layer.hue = 360;
     if (!layer.hasOwnProperty('saturation')) layer.saturation = 100;
     if (!layer.hasOwnProperty('brightness')) layer.brightness = 100;
-    if (!layer.hasOwnProperty('opacity')) layer.opacity = 1;
+    if (!layer.hasOwnProperty('opacity')) layer.opacity = 100;
     
     layerDiv.innerHTML = `
         <div class="layer-header">
@@ -73,7 +73,7 @@ function renderLayerDOM(layer) {
                 </div>
 				<div class="color-control">
                     <label>O:</label>
-                    <input type="range" class="color-slider bright-slider" min="1" max="100" value="${layer.opacity}" 
+                    <input type="range" class="color-slider opacity-slider" min="1" max="100" value="${layer.opacity}" 
                            oninput="updateLayerColor(${layer.id}, 'opacity', this.value)">
                     <span class="color-value">${layer.opacity}</span>
                 </div>
@@ -86,7 +86,7 @@ function renderLayerDOM(layer) {
             </div>
         </div>
         <div class="layer-content ${layer.collapsed ? 'collapsed' : 'expanded'}">
-            <textarea class="layer-textarea" placeholder="// Layer ${layer.id} code here..." oninput="updateLayerCode(${layer.id}, this.value)">${layer.code}</textarea>
+            <textarea class="layer-textarea" placeholder="// Layer code here..." oninput="updateLayerCode(${layer.id}, this.value)">${layer.code}</textarea>
         </div>
     `;
     
@@ -370,9 +370,10 @@ function clearP5() {
         }
     });
 	
-	delete window.layerHue;
-    delete window.layerSaturation;
-    delete window.layerBrightness;
+	delete window.hue;
+    delete window.saturation;
+    delete window.brightness;
+    delete window.opacity;
 }
 
 function stopAnimation() {

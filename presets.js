@@ -36,7 +36,7 @@ const presets = {
   noFill();
 
   for (let y = 0; y < height; y += 8) {
-    stroke(180 + 60 * sin(time + y * 0.01), 80, 90);
+    stroke(180 + 60 * sin(time + y * 0.01), saturation, brightness, opacity);
     
     beginShape();
     
@@ -79,7 +79,7 @@ const presets = {
       
       let hue = (layer * 60 + frameCount) % 360;
       fill(hue, 60, 90, 0.7);
-      stroke(hue, 80, 100);
+      stroke(hue, saturation, brightness, opacity);
       strokeWeight(1);
       
       let size = 30 + layer * 15;
@@ -102,8 +102,8 @@ const presets = {
                   sin(sqrt(x*x + y*y) * 0.02 + time * 1.5);
       
       let hue = (plasma * 50 + frameCount) % 360;
-      let sat = 70 + plasma * 30;
-      let bright = 60 + plasma * 40;
+      let sat = saturation + plasma * 30;
+      let bright = brightness + plasma * 40;
       
       let c = color(hue, sat, bright);
       let index = (x + y * width) * 4;
@@ -129,7 +129,7 @@ const presets = {
     push();
     rotate(time + i * 0.1);
     
-    stroke(hue, 70, 80);
+    stroke(hue, saturation, brightness, opacity);
     strokeWeight(2);
     noFill();
     
