@@ -386,3 +386,193 @@ h1 {
     color: #ccc;
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 }
+
+.layers-container {
+    margin-bottom: 20px;
+}
+
+.layer-item {
+    background: #2d2d2d;
+    border: 1px solid #555;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.layer-header {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    cursor: pointer;
+    background: #333;
+    border-radius: 4px 4px 0 0;
+    user-select: none;
+}
+
+.layer-toggle {
+    background: none;
+    border: none;
+    color: #ccc;
+    font-size: 12px;
+    margin-right: 8px;
+    cursor: pointer;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.layer-name {
+    flex: 1;
+    color: #fff;
+    font-size: 14px;
+}
+
+.layer-controls {
+    display: flex;
+    gap: 5px;
+}
+
+.layer-btn {
+    background: #555;
+    color: #ccc;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: background 0.2s;
+}
+
+.layer-btn:hover {
+    background: #666;
+    color: #fff;
+}
+
+.layer-btn:disabled {
+    background: #444;
+    color: #666;
+    cursor: not-allowed;
+}
+
+.layer-content {
+    padding: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.layer-content.collapsed {
+    max-height: 0;
+}
+
+.layer-content.expanded {
+    max-height: 600px;
+}
+
+.layer-textarea {
+    width: 100%;
+    background: #1a1a1a;
+    color: #ffffff;
+    border: none;
+    padding: 15px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    resize: vertical;
+    min-height: 200px;
+    tab-size: 2;
+    box-sizing: border-box;
+}
+
+.layer-textarea:focus {
+    outline: none;
+    background: #222;
+}
+
+.add-layer-btn {
+    background: #00cc66;
+    color: white;
+    margin-bottom: 15px;
+}
+
+.add-layer-btn:hover {
+    background: #00aa55;
+}
+
+.drag-handle {
+    cursor: move;
+    padding: 0 5px;
+    color: #888;
+}
+
+.drag-handle:hover {
+    color: #ccc;
+}
+
+.layer-item.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+}
+
+.layer-item.drag-over {
+    border-top: 3px solid #00cc66;
+}
+
+.layer-item.selected {
+    border-color: #00cc66;
+    box-shadow: 0 0 0 2px rgba(0, 204, 102, 0.3);
+}
+
+.layer-header.selected {
+    background: #2a4a2a;
+}
+
+.layer-name.selected {
+    color: #00ff88;
+}
+
+.layer-controls-top {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.background-color-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.background-color-control label {
+    font-size: 12px;
+    color: #888;
+    white-space: nowrap;
+}
+
+#backgroundColorPicker {
+    width: 40px;
+    height: 32px;
+    border: 1px solid #333;
+    border-radius: 4px;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+#backgroundColorPicker::-webkit-color-swatch {
+    border: none;
+    border-radius: 3px;
+}
+
+#backgroundColorPicker::-webkit-color-swatch-wrapper {
+    padding: 2px;
+    border-radius: 3px;
+}
+
+#canvasContainer {
+    position: relative;
+    display: inline-block;
+    border-radius: 8px;
+    overflow: hidden;
+}

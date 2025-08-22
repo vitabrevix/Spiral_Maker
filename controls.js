@@ -1,6 +1,6 @@
 // Animation control functions
 function runWithoutLag() {
-    stopAnimation();
+    clearP5();
     setTimeout(() => {
         runAnimation();
     }, 100);
@@ -118,7 +118,13 @@ function setCanvasRatio(ratio) {
     
     // Update button states
     document.querySelectorAll('.size-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
+    // Find the button that was clicked and make it active
+    const clickedButton = Array.from(document.querySelectorAll('.size-btn')).find(btn => 
+        btn.textContent.includes(ratio.replace(':', ':'))
+    );
+    if (clickedButton) {
+        clickedButton.classList.add('active');
+    }
     
     // Recalculate dimensions with current base size
     updateCanvasSize(baseSize);
@@ -145,18 +151,36 @@ function updateCanvasSize(size) {
             break;
     }
     
-    // Update all preset codes to use dynamic canvas size
-    updatePresetCanvasSizes();
+    // Ensure canvas container has proper positioning for absolute-positioned children
+    const canvasContainer = document.getElementById('canvasContainer');
+    canvasContainer.style.position = 'relative';
+    canvasContainer.style.width = canvasWidth + 'px';
+    canvasContainer.style.height = canvasHeight + 'px';
     
-    // Restart animation with new size if currently running
-    if (isRunning) {
-        runAnimation();
+    // Update all preset codes to use dynamic canvas size (if function exists)
+    if (typeof updatePresetCanvasSizes === 'function') {
+        updatePresetCanvasSizes();
     }
+	
+	clearP5();
     
-    stopAnimation();
-    setTimeout(() => {
-        runAnimation();
-    }, 100);
+    // Only restart animation if it's currently running
+    if (isRunning) {
+        console.log('Restarting animation with new size...'); // Debug log
+        stopAnimation();
+        setTimeout(() => {
+            runAnimation();
+        }, 100);
+    } else {
+        // If not running, just update any existing canvas elements
+        const existingCanvases = canvasContainer.querySelectorAll('canvas');
+        existingCanvases.forEach(canvas => {
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+            canvas.style.width = canvasWidth + 'px';
+            canvas.style.height = canvasHeight + 'px';
+        });
+    }
 }
 
 function updateCanvasSizeFromInput(size) {
