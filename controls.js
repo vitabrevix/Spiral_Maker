@@ -1,3 +1,6 @@
+let wasRunningBeforeSlider = false;
+let isSliderActive = false;
+
 function toggleCollapse() {
     const previewPanel = document.querySelector('.preview-panel');
     const editorPanel = document.querySelector('.editor-panel');
@@ -78,15 +81,9 @@ function updateLoopProgress() {
 
 function updateUI() {
     document.getElementById('frameSlider').value = loopFrameCount;
-    // Format frame numbers with leading zeros to maintain consistent width
     const currentFrameStr = String(loopFrameCount).padStart(3, '0');
     const totalFrameStr = String(framesPerLoop).padStart(3, '0');
     document.getElementById('frameDisplay').textContent = `${currentFrameStr}/${totalFrameStr}`;
-    
-    // Trigger a redraw if animation is loaded
-    if (currentSketch && typeof draw === 'function') {
-        draw();
-    }
 }
 
 function scrubToFrame(frameNum) {
@@ -95,6 +92,17 @@ function scrubToFrame(frameNum) {
         virtualFrameCount = frameNum;
         loopFrameCount = frameNum;
         updateUI();
+        
+        // When scrubbing, calculate proportional position for each layer
+        const globalProgress = frameNum / framesPerLoop;
+        canvasLayers.forEach(sketch => {
+            if (sketch && sketch.layerControls) {
+                const layer = sketch.layerControls.layer;
+                const layerFrame = Math.floor(globalProgress * layer.maxFrames);
+                sketch.layerControls.setFrameCount(layerFrame % layer.maxFrames);
+                sketch.redraw();
+            }
+        });
     }
 }
 
@@ -102,20 +110,114 @@ function nextFrame() {
     if (virtualFrameCount < framesPerLoop - 1) {
         virtualFrameCount++;
     } else {
-        virtualFrameCount = 0; // Loop back to start
+        virtualFrameCount = 0;
+        // Reset all layers when looping
+        canvasLayers.forEach(sketch => {
+            if (sketch && sketch.layerControls) {
+                sketch.layerControls.resetTiming();
+            }
+        });
     }
     loopFrameCount = virtualFrameCount;
     updateUI();
+    
+    // Update layers proportionally for manual stepping
+    const globalProgress = virtualFrameCount / framesPerLoop;
+    canvasLayers.forEach(sketch => {
+        if (sketch && sketch.layerControls) {
+            const layer = sketch.layerControls.layer;
+            const layerFrame = Math.floor(globalProgress * layer.maxFrames);
+            sketch.layerControls.setFrameCount(layerFrame % layer.maxFrames);
+            sketch.redraw();
+        }
+    });
 }
 
 function previousFrame() {
     if (virtualFrameCount > 0) {
         virtualFrameCount--;
     } else {
-        virtualFrameCount = framesPerLoop - 1; // Loop to end
+        virtualFrameCount = framesPerLoop - 1;
     }
     loopFrameCount = virtualFrameCount;
     updateUI();
+    
+    // Update layers proportionally for manual stepping
+    const globalProgress = virtualFrameCount / framesPerLoop;
+    canvasLayers.forEach(sketch => {
+        if (sketch && sketch.layerControls) {
+            const layer = sketch.layerControls.layer;
+            const layerFrame = Math.floor(globalProgress * layer.maxFrames);
+            sketch.layerControls.setFrameCount(layerFrame % layer.maxFrames);
+            sketch.redraw();
+        }
+    });
+}
+
+// Function to pause animation when slider interaction starts
+function pauseForSliderInteraction() {
+    if (isRunning && !isPaused && !isSliderActive) {
+        wasRunningBeforeSlider = true;
+        isSliderActive = true;
+        // Pause the animation loop without changing the pause button state
+        if (animationLoopId) {
+            cancelAnimationFrame(animationLoopId);
+            animationLoopId = null;
+        }
+        
+        // Update status to show slider interaction
+        const status = document.getElementById('status');
+        status.textContent = 'Scrubbing...';
+        status.style.color = '#ffaa00';
+    }
+}
+
+// Function to resume animation when slider interaction ends
+function resumeAfterSliderInteraction() {
+    if (wasRunningBeforeSlider && isSliderActive) {
+        isSliderActive = false;
+        wasRunningBeforeSlider = false;
+        
+        // Resume the animation loop
+        lastFrameTime = Date.now();
+        updateLoopProgress();
+        
+        // Update status back to running
+        const status = document.getElementById('status');
+        status.textContent = 'Running...';
+        status.style.color = '#00cc66';
+    }
+}
+
+// Function to initialize slider interaction listeners
+function initializeSliderInteraction() {
+    const frameSlider = document.getElementById('frameSlider');
+    if (frameSlider) {
+        // Mouse events
+        frameSlider.addEventListener('mousedown', pauseForSliderInteraction);
+        frameSlider.addEventListener('mouseup', resumeAfterSliderInteraction);
+        
+        // Touch events for mobile
+        frameSlider.addEventListener('touchstart', pauseForSliderInteraction);
+        frameSlider.addEventListener('touchend', resumeAfterSliderInteraction);
+        
+        // Handle case where user drags outside the slider and releases
+        document.addEventListener('mouseup', () => {
+            if (isSliderActive) {
+                resumeAfterSliderInteraction();
+            }
+        });
+        
+        document.addEventListener('touchend', () => {
+            if (isSliderActive) {
+                resumeAfterSliderInteraction();
+            }
+        });
+        
+        // Handle keyboard interaction (arrow keys, etc.)
+        frameSlider.addEventListener('keydown', pauseForSliderInteraction);
+        frameSlider.addEventListener('keyup', resumeAfterSliderInteraction);
+    }
 }
 
 function updateAnimationSettings() {

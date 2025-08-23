@@ -46,133 +46,7 @@ function runAnimation() {
 		canvasContainer.style.zIndex = '0';
         
         // Create sketches for each layer in proper order (bottom to top)
-        layers.forEach((layer, layerIndex) => {
-            if (!layer.code.trim() || !layer.visible) return;
-            
-            const sketch = function(p) {
-                const p5Functions = ['createCanvas', 'background', 'fill', 'stroke', 'noStroke', 'noFill', 
-                                    'ellipse', 'rect', 'line', 'point', 'triangle', 'quad', 'arc',
-                                    'translate', 'rotate', 'scale', 'push', 'pop', 'frameCount',
-                                    'width', 'height', 'mouseX', 'mouseY', 'sin', 'cos', 'tan',
-                                    'map', 'lerp', 'dist', 'random', 'noise', 'TWO_PI', 'PI', 'HALF_PI',
-                                    'colorMode', 'HSB', 'RGB', 'strokeWeight', 'textSize', 'text',
-                                    'sqrt', 'pow', 'abs', 'floor', 'ceil', 'round', 'radians', 'degrees',
-                                    'clear', 'loadPixels', 'updatePixels', 'pixels', 'color', 'red', 'green', 'blue',
-                                    'beginShape', 'endShape', 'vertex'];
-                
-                p5Functions.forEach(func => {
-                    if (typeof p[func] !== 'undefined') {
-                        window[func] = p[func].bind ? p[func].bind(p) : p[func];
-                    }
-                });
-                
-                // Override background function to make it transparent when called without arguments
-                const originalBackground = p.background;
-                window.background = function(...args) {
-                    if (args.length === 0) {
-                        p.clear();
-                    } else {
-                        originalBackground.apply(p, args);
-                    }
-                };
-				
-				// Calculate effective settings for this layer
-				const effectiveFPS = Math.min(layer.fps, animationFPS); // Limited by global FPS
-				const effectiveSpeed = layer.speed * animationSpeed; // Multiplied by global speed
-				const effectiveMaxFrames = Math.min(layer.maxFrames, framesPerLoop); // Limited by global frames
-				
-				let layerFrameCount = 0;
-				let layerLastFrameTime = Date.now();
-                
-                Object.defineProperty(window, 'frameCount', { get: () => virtualFrameCount });
-                Object.defineProperty(window, 'width', { get: () => p.width });
-                Object.defineProperty(window, 'height', { get: () => p.height });
-                Object.defineProperty(window, 'mouseX', { get: () => p.mouseX });
-                Object.defineProperty(window, 'mouseY', { get: () => p.mouseY });
-                Object.defineProperty(window, 'pixels', { 
-                    get: () => p.pixels,
-                    set: (value) => p.pixels = value
-                });
-				
-				window.layer = layer; // Pass the entire layer object
-				window.hue = layer.hue || 360;
-				window.saturation = layer.saturation || 100;
-				window.brightness = layer.brightness || 100;
-				window.opacity = layer.opacity / 100 || 100;
-				
-				
-				// Layer-specific frame count
-				Object.defineProperty(window, 'frameCount', { 
-					get: () => layerFrameCount
-				});
-
-                
-                try {
-                    eval(layer.code);
-                } catch (e) {
-                    throw new Error(`${e.message}`);
-                }
-                
-                p.setup = function() {					
-					// Create canvas without parent to avoid p5's default behavior
-					const canvas = p.createCanvas(canvasWidth, canvasHeight);
-					
-					// Get the actual canvas DOM element
-					const canvasElement = canvas.canvas;
-					
-					// Remove from any existing parent
-					if (canvasElement.parentNode) {
-						canvasElement.parentNode.removeChild(canvasElement);
-					}
-					
-					// Style the canvas element for proper layering
-					canvasElement.style.position = 'absolute';
-					canvasElement.style.top = '0px';
-					canvasElement.style.left = '0px';
-					canvasElement.style.zIndex = layerIndex.toString();
-					canvasElement.style.pointerEvents = 'none';
-					
-					// Create a unique ID for debugging
-					canvasElement.id = `layer-canvas-${layer.id}`;
-					
-					// Add the canvas to our container IMMEDIATELY
-					const container = document.getElementById('canvasContainer');
-					container.appendChild(canvasElement);
-					
-					// Set HSB color mode for this layer
-					p.colorMode(p.HSB, layer.hue, 100, 100);
-										
-					// Make canvas transparent by default
-					p.clear();					
-					p.frameRate(effectiveFPS);
-					layerLastFrameTime = Date.now();
-					
-					if (typeof setup === 'function') {
-						setup();
-					}
-				};
-				
-                p.draw = function() {
-					// Always call draw, but only update frame count based on timing
-					if (typeof draw === 'function') {
-						p.clear();
-						draw();
-					}
-					
-					// Update frame count based on effective speed
-					const currentTime = Date.now();
-					const frameInterval = 1000 / (effectiveFPS * effectiveSpeed); // This now properly uses global speed
-					
-					if (currentTime - layerLastFrameTime >= frameInterval) {
-						layerFrameCount = (layerFrameCount + 1) % effectiveMaxFrames;
-						layerLastFrameTime = currentTime;
-					}
-				};
-            };
-
-            const layerSketch = new p5(sketch);
-            canvasLayers.push(layerSketch);
-        });
+        createLayerSketch();
         
         isRunning = true;
         status.textContent = 'Running...';
@@ -256,27 +130,28 @@ function stopAnimation() {
 }
 
 function updateLoopProgress() {
-    if (!isRunning) return;
+    if (!isRunning || isPaused || isSliderActive) return;
     
     const currentTime = Date.now();
-    const timeSinceLastFrame = currentTime - lastFrameTime;
+    const frameInterval = 1000 / (animationFPS * animationSpeed);
     
-    if (timeSinceLastFrame >= (1000 / (animationFPS * animationSpeed))) {
+    if (currentTime - lastFrameTime >= frameInterval) {
         virtualFrameCount++;
-        loopFrameCount = virtualFrameCount % framesPerLoop;
         lastFrameTime = currentTime;
         
-        // Update frame display
-        const frameDisplay = document.getElementById('frameDisplay');
-        const frameSlider = document.getElementById('frameSlider');
-        if (frameDisplay) {
-            const frameStr = String(loopFrameCount).padStart(3, '0');
-            const totalStr = String(framesPerLoop).padStart(3, '0');
-            frameDisplay.textContent = `${frameStr}/${totalStr}`;
+        if (virtualFrameCount >= framesPerLoop) {
+            virtualFrameCount = 0; // Reset global counter
+            
+            // Reset all layers when global loop completes
+            canvasLayers.forEach(sketch => {
+                if (sketch && sketch.layerControls) {
+                    sketch.layerControls.resetTiming();
+                }
+            });
         }
-        if (frameSlider) {
-            frameSlider.value = loopFrameCount;
-        }
+        
+        loopFrameCount = virtualFrameCount;
+        updateUI();
     }
     
     animationLoopId = requestAnimationFrame(updateLoopProgress);
@@ -316,6 +191,135 @@ function updateBackgroundColor(color) {
             pipCanvas.style.backgroundColor = color;
         }
     }
+}
+
+function createLayerSketch(){
+	layers.forEach((layer, layerIndex) => {
+		if (!layer.code.trim() || !layer.visible) return;
+		
+		// Layer control object to be shared between sketch and external functions
+		const layerControls = {
+			layer: layer,
+			frameCount: 0,
+			lastFrameTime: Date.now(),
+			startTime: Date.now(),
+			getFrameCount: function() { return this.frameCount; },
+			setFrameCount: function(frame) { this.frameCount = frame; },
+			resetTiming: function() {
+				this.frameCount = 0;
+				this.lastFrameTime = Date.now();
+				this.startTime = Date.now();
+			}
+		};
+		
+		const sketch = function(p) {
+			const p5Functions = ['createCanvas', 'background', 'fill', 'stroke', 'noStroke', 'noFill', 
+								'ellipse', 'rect', 'line', 'point', 'triangle', 'quad', 'arc',
+								'translate', 'rotate', 'scale', 'push', 'pop', 'frameCount',
+								'width', 'height', 'mouseX', 'mouseY', 'sin', 'cos', 'tan',
+								'map', 'lerp', 'dist', 'random', 'noise', 'TWO_PI', 'PI', 'HALF_PI',
+								'colorMode', 'HSB', 'RGB', 'strokeWeight', 'textSize', 'text',
+								'sqrt', 'pow', 'abs', 'floor', 'ceil', 'round', 'radians', 'degrees',
+								'clear', 'loadPixels', 'updatePixels', 'pixels', 'color', 'red', 'green', 'blue',
+								'beginShape', 'endShape', 'vertex'];
+			
+			p5Functions.forEach(func => {
+				if (typeof p[func] !== 'undefined') {
+					window[func] = p[func].bind ? p[func].bind(p) : p[func];
+				}
+			});
+			
+			// Override background function to make it transparent when called without arguments
+			const originalBackground = p.background;
+			window.background = function(...args) {
+				if (args.length === 0) {
+					p.clear();
+				} else {
+					originalBackground.apply(p, args);
+				}
+			};
+			
+			// Layer-specific timing variables - use layerControls object
+			Object.defineProperty(window, 'width', { get: () => p.width });
+			Object.defineProperty(window, 'height', { get: () => p.height });
+			Object.defineProperty(window, 'mouseX', { get: () => p.mouseX });
+			Object.defineProperty(window, 'mouseY', { get: () => p.mouseY });
+			Object.defineProperty(window, 'pixels', { 
+				get: () => p.pixels,
+				set: (value) => p.pixels = value
+			});
+			
+			window.layer = layer;
+			window.hue = layer.hue || 360;
+			window.saturation = layer.saturation || 100;
+			window.brightness = layer.brightness || 100;
+			window.opacity = layer.opacity / 100 || 100;
+			
+			// Layer-specific frame count - runs at its own speed
+			Object.defineProperty(window, 'frameCount', { 
+				get: () => layerControls.frameCount
+			});
+			
+			// Function to reset this layer's timing
+			window.resetLayerTiming = layerControls.resetTiming.bind(layerControls);
+			
+			try {
+				eval(layer.code);
+			} catch (e) {
+				throw new Error(`${e.message}`);
+			}
+			
+			p.setup = function() {
+				const canvas = p.createCanvas(canvasWidth, canvasHeight);
+				const canvasElement = canvas.canvas;
+				
+				if (canvasElement.parentNode) {
+					canvasElement.parentNode.removeChild(canvasElement);
+				}
+				
+				canvasElement.style.position = 'absolute';
+				canvasElement.style.top = '0px';
+				canvasElement.style.left = '0px';
+				canvasElement.style.zIndex = layerIndex.toString();
+				canvasElement.style.pointerEvents = 'none';
+				canvasElement.id = `layer-canvas-${layer.id}`;
+				
+				const container = document.getElementById('canvasContainer');
+				container.appendChild(canvasElement);
+				
+				p.colorMode(p.HSB, layer.hue, 100, 100);
+				p.clear();
+				p.frameRate(layer.fps);
+				
+				if (typeof setup === 'function') {
+					setup();
+				}
+			};
+			
+			p.draw = function() {
+				// Update timing only if not paused
+				if (!isPaused) {
+					const currentTime = Date.now();
+					const layerFrameInterval = 1000 / (layer.fps * layer.speed * animationSpeed);
+					
+					if (currentTime - layerControls.lastFrameTime >= layerFrameInterval) {
+						layerControls.frameCount = (layerControls.frameCount + 1) % layer.maxFrames;
+						layerControls.lastFrameTime = currentTime;
+					}
+				}
+				
+				// Always draw when draw() is called (for manual control and regular animation)
+				if (typeof draw === 'function') {
+					p.clear();
+					draw();
+				}
+			};
+		};
+
+		const layerSketch = new p5(sketch);
+		layerSketch.layerControls = layerControls; // Store reference to controls
+		canvasLayers.push(layerSketch);
+	});
 }
 
 function updateLayerFPSLimits() {
@@ -409,6 +413,7 @@ function initializeFromDOMValues() {
 window.onload = function() {
     // First, initialize settings from DOM values
     initializeFromDOMValues();
+	initializeSliderInteraction();
     
     // Then create the initial layer - need to check if getPresetCode exists
     const initialCode = typeof getPresetCode === 'function' ? getPresetCode('tunnel') : 

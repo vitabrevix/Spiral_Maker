@@ -190,8 +190,7 @@ function updateLayerColor(layerId, property, value) {
         if (isRunning) {
             clearTimeout(window.layerColorUpdateTimeout);
             window.layerColorUpdateTimeout = setTimeout(() => {
-                stopAnimation();
-                setTimeout(runAnimation, 100);
+                restartAnimationIfRunning();
             }, 300);
         }
     }
@@ -219,8 +218,7 @@ function updateLayerAnimation(layerId, property, value) {
         if (isRunning) {
             clearTimeout(window.layerAnimationUpdateTimeout);
             window.layerAnimationUpdateTimeout = setTimeout(() => {
-                stopAnimation();
-                setTimeout(runAnimation, 100);
+                restartAnimationIfRunning();
             }, 300);
         }
     }
@@ -233,7 +231,7 @@ function toggleLayerVisibility(layerId, isVisible) {
         
         // Restart animation if running to apply visibility changes
         if (isRunning) {
-            stopAnimation();
+            restartAnimationIfRunning();
             setTimeout(runAnimation, 100);
         }
     }
@@ -269,7 +267,7 @@ function addLayer() {
     selectLayer(newLayer.id);
     if (isRunning) {
         setTimeout(() => {
-            stopAnimation();
+            restartAnimationIfRunning();
             setTimeout(runAnimation, 100);
         }, 100);
     }
@@ -282,8 +280,7 @@ function updateLayerCode(layerId, code) {
         if (isRunning) {
             clearTimeout(window.layerUpdateTimeout);
             window.layerUpdateTimeout = setTimeout(() => {
-                stopAnimation();
-                setTimeout(runAnimation, 100);
+                restartAnimationIfRunning();
             }, 1000);
         }
     }
@@ -308,7 +305,7 @@ function moveLayerUp(layerId) {
         [layers[index], layers[index - 1]] = [layers[index - 1], layers[index]];
         refreshLayersDOM();
         if (isRunning) {
-            stopAnimation();
+            restartAnimationIfRunning();
             setTimeout(runAnimation, 100);
         }
     }
@@ -320,7 +317,7 @@ function moveLayerDown(layerId) {
         [layers[index], layers[index + 1]] = [layers[index + 1], layers[index]];
         refreshLayersDOM();
         if (isRunning) {
-            stopAnimation();
+            restartAnimationIfRunning();
             setTimeout(runAnimation, 100);
         }
     }
@@ -344,7 +341,7 @@ function duplicateLayer(layerId) {
         refreshLayersDOM();
         
         if (isRunning) {
-            stopAnimation();
+            restartAnimationIfRunning();
             setTimeout(runAnimation, 100);
         }
     }
@@ -368,7 +365,7 @@ function deleteLayer(layerId) {
         
         refreshLayersDOM();
         if (isRunning) {
-            stopAnimation();
+            restartAnimationIfRunning();
             setTimeout(runAnimation, 100);
         }
     }
@@ -423,7 +420,7 @@ function handleDragEnd(e) {
     layers = newOrder;
     
     if (isRunning) {
-        stopAnimation();
+        restartAnimationIfRunning();
         setTimeout(runAnimation, 100);
     }
 }
