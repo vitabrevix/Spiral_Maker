@@ -13,180 +13,9 @@ let baseSize = 300;
 let canvasWidth = 300;
 let canvasHeight = 300;
 let animationLoopId = null;
-let layers = [];
-let layerCounter = 0;
-let canvasLayers = [];
-let selectedLayerId = null;
 let backgroundColor = '#000000';
 let pipWindow = null;
 let pipUpdateInterval = null;
-
-function createLayer(code = '') {
-    const layerId = ++layerCounter;
-    const layer = {
-        id: layerId,
-        code: code,
-        collapsed: false,
-        sketch: null
-    };
-    
-    layers.push(layer);
-    renderLayerDOM(layer);
-    return layer;
-}
-
-function renderLayerDOM(layer) {
-    const container = document.getElementById('layersContainer');
-    const layerDiv = document.createElement('div');
-    layerDiv.className = 'layer-item';
-    layerDiv.setAttribute('data-layer-id', layer.id);
-    layerDiv.draggable = true;
-    
-    // Add color properties to layer if they don't exist
-    if (!layer.hasOwnProperty('hue')) layer.hue = 360;
-    if (!layer.hasOwnProperty('saturation')) layer.saturation = 100;
-    if (!layer.hasOwnProperty('brightness')) layer.brightness = 100;
-    if (!layer.hasOwnProperty('opacity')) layer.opacity = 100;
-    
-    layerDiv.innerHTML = `
-        <div class="layer-header">
-            <span class="drag-handle">⋮⋮</span>
-            <button class="layer-toggle">${layer.collapsed ? '▶' : '▼'}</button>
-            <div class="layer-color-controls">
-                <div class="color-control">
-                    <label>H:</label>
-                    <input type="range" class="color-slider hue-slider" min="0" max="360" value="${layer.hue}" 
-                           oninput="updateLayerColor(${layer.id}, 'hue', this.value)">
-                    <span class="color-value">${layer.hue}</span>
-                </div>
-                <div class="color-control">
-                    <label>S:</label>
-                    <input type="range" class="color-slider sat-slider" min="1" max="100" value="${layer.saturation}" 
-                           oninput="updateLayerColor(${layer.id}, 'saturation', this.value)">
-                    <span class="color-value">${layer.saturation}</span>
-                </div>
-                <div class="color-control">
-                    <label>B:</label>
-                    <input type="range" class="color-slider bright-slider" min="1" max="100" value="${layer.brightness}" 
-                           oninput="updateLayerColor(${layer.id}, 'brightness', this.value)">
-                    <span class="color-value">${layer.brightness}</span>
-                </div>
-				<div class="color-control">
-                    <label>O:</label>
-                    <input type="range" class="color-slider opacity-slider" min="1" max="100" value="${layer.opacity}" 
-                           oninput="updateLayerColor(${layer.id}, 'opacity', this.value)">
-                    <span class="color-value">${layer.opacity}</span>
-                </div>
-            </div>
-            <div class="layer-controls">
-                <button class="layer-btn" onclick="moveLayerUp(${layer.id})" ${layers.indexOf(layer) === 0 ? 'disabled' : ''}>↑</button>
-                <button class="layer-btn" onclick="moveLayerDown(${layer.id})" ${layers.indexOf(layer) === layers.length - 1 ? 'disabled' : ''}>↓</button>
-                <button class="layer-btn" onclick="duplicateLayer(${layer.id})">Copy</button>
-                <button class="layer-btn" onclick="deleteLayer(${layer.id})">×</button>
-            </div>
-        </div>
-        <div class="layer-content ${layer.collapsed ? 'collapsed' : 'expanded'}">
-            <textarea class="layer-textarea" placeholder="// Layer code here..." oninput="updateLayerCode(${layer.id}, this.value)">${layer.code}</textarea>
-        </div>
-    `;
-    
-    // Add event listeners
-    const header = layerDiv.querySelector('.layer-header');
-    const toggle = layerDiv.querySelector('.layer-toggle');
-    const textarea = layerDiv.querySelector('.layer-textarea');
-    
-    // Layer selection functionality
-    header.addEventListener('click', (e) => {
-        if (e.target === toggle || e.target.closest('.layer-controls')) return;
-        selectLayer(layer.id);
-    });
-    
-    // Collapse/expand functionality
-    toggle.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleLayerCollapse(layer.id);
-    });
-    
-    // Select layer when clicking on textarea
-    textarea.addEventListener('focus', () => {
-        selectLayer(layer.id);
-    });
-    
-    // Drag and drop
-    const dragHandle = layerDiv.querySelector('.drag-handle');
-	dragHandle.addEventListener('mousedown', () => {
-		layerDiv.draggable = true;
-	});
-	layerDiv.addEventListener('dragstart', handleDragStart);
-	layerDiv.addEventListener('dragover', handleDragOver);
-	layerDiv.addEventListener('drop', handleDrop);
-	layerDiv.addEventListener('dragend', (e) => {
-		handleDragEnd.call(layerDiv, e);
-		layerDiv.draggable = false;
-	});
-
-	// Prevent dragging when not using the handle
-	layerDiv.addEventListener('mousedown', (e) => {
-		if (!e.target.closest('.drag-handle')) {
-			layerDiv.draggable = false;
-		}
-	});
-    
-    // Tab handling in textarea
-    textarea.addEventListener('keydown', function(e) {
-        if (e.key === 'Tab') {
-            e.preventDefault();
-            const start = this.selectionStart;
-            const end = this.selectionEnd;
-            this.value = this.value.substring(0, start) + '  ' + this.value.substring(end);
-            this.selectionStart = this.selectionEnd = start + 2;
-        }
-    });
-    
-    container.appendChild(layerDiv);
-    
-    // Auto-select first layer if none selected
-    if (!selectedLayerId && layers.length === 1) {
-        selectLayer(layer.id);
-    }
-}
-
-function updateBackgroundColor(color) {
-    backgroundColor = color;
-    const canvasContainer = document.getElementById('canvasContainer');
-    canvasContainer.style.backgroundColor = color;
-    
-    // Update PiP window background if it's open
-    if (pipWindow && !pipWindow.closed) {
-        const pipCanvas = pipWindow.document.getElementById('pipCanvas');
-        if (pipCanvas) {
-            pipCanvas.style.backgroundColor = color;
-        }
-    }
-}
-
-function updateLayerColor(layerId, property, value) {
-    const layer = layers.find(l => l.id === layerId);
-    if (layer) {
-        layer[property] = parseInt(value);
-        
-        // Update the display value
-        const layerDiv = document.querySelector(`[data-layer-id="${layerId}"]`);
-        const valueSpan = layerDiv.querySelector(`.color-control:has(.${property === 'hue' ? 'hue' : property === 'saturation' ? 'sat' : property === 'brightness' ? 'bright' : 'opacity'}-slider) .color-value`);
-        if (valueSpan) {
-            valueSpan.textContent = value;
-        }
-        
-        // Restart animation if running to apply changes
-        if (isRunning) {
-            clearTimeout(window.layerColorUpdateTimeout);
-            window.layerColorUpdateTimeout = setTimeout(() => {
-                stopAnimation();
-                setTimeout(runAnimation, 100);
-            }, 300);
-        }
-    }
-}
 
 function runAnimation() {
     // Clean up existing sketches
@@ -218,7 +47,7 @@ function runAnimation() {
         
         // Create sketches for each layer in proper order (bottom to top)
         layers.forEach((layer, layerIndex) => {
-            if (!layer.code.trim()) return;
+            if (!layer.code.trim() || !layer.visible) return;
             
             const sketch = function(p) {
                 const p5Functions = ['createCanvas', 'background', 'fill', 'stroke', 'noStroke', 'noFill', 
@@ -246,6 +75,14 @@ function runAnimation() {
                         originalBackground.apply(p, args);
                     }
                 };
+				
+				// Calculate effective settings for this layer
+				const effectiveFPS = Math.min(layer.fps, animationFPS); // Limited by global FPS
+				const effectiveSpeed = layer.speed * animationSpeed; // Multiplied by global speed
+				const effectiveMaxFrames = Math.min(layer.maxFrames, framesPerLoop); // Limited by global frames
+				
+				let layerFrameCount = 0;
+				let layerLastFrameTime = Date.now();
                 
                 Object.defineProperty(window, 'frameCount', { get: () => virtualFrameCount });
                 Object.defineProperty(window, 'width', { get: () => p.width });
@@ -262,6 +99,12 @@ function runAnimation() {
 				window.saturation = layer.saturation || 100;
 				window.brightness = layer.brightness || 100;
 				window.opacity = layer.opacity / 100 || 100;
+				
+				
+				// Layer-specific frame count
+				Object.defineProperty(window, 'frameCount', { 
+					get: () => layerFrameCount
+				});
 
                 
                 try {
@@ -300,8 +143,9 @@ function runAnimation() {
 					p.colorMode(p.HSB, layer.hue, 100, 100);
 										
 					// Make canvas transparent by default
-					p.clear();
-					p.frameRate(animationFPS);
+					p.clear();					
+					p.frameRate(effectiveFPS);
+					layerLastFrameTime = Date.now();
 					
 					if (typeof setup === 'function') {
 						setup();
@@ -309,13 +153,21 @@ function runAnimation() {
 				};
 				
                 p.draw = function() {
-                    const shouldDraw = Date.now() - lastFrameTime >= (1000 / (animationFPS * animationSpeed));
-                    if (shouldDraw && typeof draw === 'function') {
-                        // Clear the canvas to transparent before each draw
-                        p.clear();
-                        draw();
-                    }
-                };
+					// Always call draw, but only update frame count based on timing
+					if (typeof draw === 'function') {
+						p.clear();
+						draw();
+					}
+					
+					// Update frame count based on effective speed
+					const currentTime = Date.now();
+					const frameInterval = 1000 / (effectiveFPS * effectiveSpeed); // This now properly uses global speed
+					
+					if (currentTime - layerLastFrameTime >= frameInterval) {
+						layerFrameCount = (layerFrameCount + 1) % effectiveMaxFrames;
+						layerLastFrameTime = currentTime;
+					}
+				};
             };
 
             const layerSketch = new p5(sketch);
@@ -352,28 +204,6 @@ function runAnimation() {
         status.textContent = 'Error';
         status.style.color = '#ff6666';
     }
-}
-
-function clearP5() {
-	// Clear global p5 function references
-    const p5Functions = ['createCanvas', 'background', 'fill', 'stroke', 'noStroke', 'noFill', 
-                        'ellipse', 'rect', 'line', 'point', 'triangle', 'quad', 'arc',
-                        'translate', 'rotate', 'scale', 'push', 'pop',
-                        'width', 'height', 'mouseX', 'mouseY', 'sin', 'cos', 'tan',
-                        'map', 'lerp', 'dist', 'random', 'noise', 'TWO_PI', 'PI', 'HALF_PI',
-                        'colorMode', 'HSB', 'RGB', 'strokeWeight', 'textSize', 'text',
-                        'sqrt', 'pow', 'abs', 'floor', 'ceil', 'round', 'radians', 'degrees'];
-    
-    p5Functions.forEach(func => {
-        if (window[func]) {
-            delete window[func];
-        }
-    });
-	
-	delete window.hue;
-    delete window.saturation;
-    delete window.brightness;
-    delete window.opacity;
 }
 
 function stopAnimation() {
@@ -425,183 +255,78 @@ function stopAnimation() {
 	}
 }
 
-function selectLayer(layerId) {
-    selectedLayerId = layerId;
-    updateLayerSelection();
+function updateLoopProgress() {
+    if (!isRunning) return;
+    
+    const currentTime = Date.now();
+    const timeSinceLastFrame = currentTime - lastFrameTime;
+    
+    if (timeSinceLastFrame >= (1000 / (animationFPS * animationSpeed))) {
+        virtualFrameCount++;
+        loopFrameCount = virtualFrameCount % framesPerLoop;
+        lastFrameTime = currentTime;
+        
+        // Update frame display
+        const frameDisplay = document.getElementById('frameDisplay');
+        const frameSlider = document.getElementById('frameSlider');
+        if (frameDisplay) {
+            const frameStr = String(loopFrameCount).padStart(3, '0');
+            const totalStr = String(framesPerLoop).padStart(3, '0');
+            frameDisplay.textContent = `${frameStr}/${totalStr}`;
+        }
+        if (frameSlider) {
+            frameSlider.value = loopFrameCount;
+        }
+    }
+    
+    animationLoopId = requestAnimationFrame(updateLoopProgress);
 }
 
-function updateLayerSelection() {
-    document.querySelectorAll('.layer-item').forEach(el => {
-        const layerId = parseInt(el.getAttribute('data-layer-id'));
-        const header = el.querySelector('.layer-header');
-        const name = el.querySelector('.layer-name');
-        
-        if (layerId === selectedLayerId) {
-            el.classList.add('selected');
-            header.classList.add('selected');
-            name.classList.add('selected');
-        } else {
-            el.classList.remove('selected');
-            header.classList.remove('selected');
-            name.classList.remove('selected');
+function clearP5() {
+	// Clear global p5 function references
+    const p5Functions = ['createCanvas', 'background', 'fill', 'stroke', 'noStroke', 'noFill', 
+                        'ellipse', 'rect', 'line', 'point', 'triangle', 'quad', 'arc',
+                        'translate', 'rotate', 'scale', 'push', 'pop',
+                        'width', 'height', 'mouseX', 'mouseY', 'sin', 'cos', 'tan',
+                        'map', 'lerp', 'dist', 'random', 'noise', 'TWO_PI', 'PI', 'HALF_PI',
+                        'colorMode', 'HSB', 'RGB', 'strokeWeight', 'textSize', 'text',
+                        'sqrt', 'pow', 'abs', 'floor', 'ceil', 'round', 'radians', 'degrees'];
+    
+    p5Functions.forEach(func => {
+        if (window[func]) {
+            delete window[func];
         }
     });
+	
+	delete window.hue;
+    delete window.saturation;
+    delete window.brightness;
+    delete window.opacity;
 }
 
-function getSelectedLayer() {
-    return layers.find(l => l.id === selectedLayerId);
-}
-
-function addLayer() {
-    const newLayer = createLayer();
-    selectLayer(newLayer.id);
-    if (isRunning) {
-        setTimeout(() => {
-            stopAnimation();
-            setTimeout(runAnimation, 100);
-        }, 100);
-    }
-}
-
-function updateLayerCode(layerId, code) {
-    const layer = layers.find(l => l.id === layerId);
-    if (layer) {
-        layer.code = code;
-        if (isRunning) {
-            clearTimeout(window.layerUpdateTimeout);
-            window.layerUpdateTimeout = setTimeout(() => {
-                stopAnimation();
-                setTimeout(runAnimation, 100);
-            }, 1000);
-        }
-    }
-}
-
-function toggleLayerCollapse(layerId) {
-    const layer = layers.find(l => l.id === layerId);
-    if (!layer) return;
+function updateBackgroundColor(color) {
+    backgroundColor = color;
+    const canvasContainer = document.getElementById('canvasContainer');
+    canvasContainer.style.backgroundColor = color;
     
-    layer.collapsed = !layer.collapsed;
-    const layerDiv = document.querySelector(`[data-layer-id="${layerId}"]`);
-    const toggle = layerDiv.querySelector('.layer-toggle');
-    const content = layerDiv.querySelector('.layer-content');
-    
-    toggle.textContent = layer.collapsed ? '▶' : '▼';
-    content.className = `layer-content ${layer.collapsed ? 'collapsed' : 'expanded'}`;
-}
-
-function moveLayerUp(layerId) {
-    const index = layers.findIndex(l => l.id === layerId);
-    if (index > 0) {
-        [layers[index], layers[index - 1]] = [layers[index - 1], layers[index]];
-        refreshLayersDOM();
-        if (isRunning) {
-            stopAnimation();
-            setTimeout(runAnimation, 100);
+    // Update PiP window background if it's open
+    if (pipWindow && !pipWindow.closed) {
+        const pipCanvas = pipWindow.document.getElementById('pipCanvas');
+        if (pipCanvas) {
+            pipCanvas.style.backgroundColor = color;
         }
     }
 }
 
-function moveLayerDown(layerId) {
-    const index = layers.findIndex(l => l.id === layerId);
-    if (index < layers.length - 1) {
-        [layers[index], layers[index + 1]] = [layers[index + 1], layers[index]];
-        refreshLayersDOM();
-        if (isRunning) {
-            stopAnimation();
-            setTimeout(runAnimation, 100);
+function updateLayerFPSLimits() {
+    layers.forEach(layer => {
+        if (layer.fps > animationFPS) {
+            layer.fps = animationFPS;
         }
-    }
-}
-
-function duplicateLayer(layerId) {
-    const layer = layers.find(l => l.id === layerId);
-    if (layer) {
-        createLayer(layer.code);
-        if (isRunning) {
-            stopAnimation();
-            setTimeout(runAnimation, 100);
-        }
-    }
-}
-
-function deleteLayer(layerId) {
-    const index = layers.findIndex(l => l.id === layerId);
-    if (index !== -1) {
-        layers.splice(index, 1);
-        
-        // Update selection if deleted layer was selected
-        if (selectedLayerId === layerId) {
-            if (layers.length > 0) {
-                // Select the layer at the same position, or the last one if we deleted the last
-                const newSelectedIndex = Math.min(index, layers.length - 1);
-                selectedLayerId = layers[newSelectedIndex].id;
-            } else {
-                selectedLayerId = null;
-            }
-        }
-        
-        refreshLayersDOM();
-        if (isRunning) {
-            stopAnimation();
-            setTimeout(runAnimation, 100);
-        }
-    }
-}
-
-function refreshLayersDOM() {
-    document.getElementById('layersContainer').innerHTML = '';
-    layers.forEach(renderLayerDOM);
-    updateLayerSelection();
-}
-
-// Drag and drop handlers
-let draggedElement = null;
-
-function handleDragStart(e) {
-    draggedElement = this;
-    this.classList.add('dragging');
-}
-
-function handleDragOver(e) {
-    e.preventDefault();
-    const draggingElement = document.querySelector('.dragging');
-    const siblings = [...document.querySelectorAll('.layer-item:not(.dragging)')];
-    
-    const nextSibling = siblings.find(sibling => {
-        return e.clientY <= sibling.getBoundingClientRect().top + sibling.offsetHeight / 2;
     });
-    
-    if (nextSibling) {
-        nextSibling.parentNode.insertBefore(draggingElement, nextSibling);
-    } else {
-        document.getElementById('layersContainer').appendChild(draggingElement);
-    }
+    refreshLayersDOM();
 }
 
-function handleDrop(e) {
-    e.preventDefault();
-}
-
-function handleDragEnd(e) {
-    this.classList.remove('dragging');
-    
-    // Update layers array based on new DOM order
-    const newOrder = [];
-    document.querySelectorAll('.layer-item').forEach(el => {
-        const layerId = parseInt(el.getAttribute('data-layer-id'));
-        const layer = layers.find(l => l.id === layerId);
-        if (layer) newOrder.push(layer);
-    });
-    layers = newOrder;
-    
-    if (isRunning) {
-        stopAnimation();
-        setTimeout(runAnimation, 100);
-    }
-}
-
-// Initialize settings from DOM values on page load
 function initializeFromDOMValues() {
     // Read background color from DOM element
     const backgroundColorPicker = document.getElementById('backgroundColorPicker');
@@ -681,34 +406,6 @@ function initializeFromDOMValues() {
     }
 }
 
-// Add updateLoopProgress function
-function updateLoopProgress() {
-    if (!isRunning) return;
-    
-    const currentTime = Date.now();
-    const timeSinceLastFrame = currentTime - lastFrameTime;
-    
-    if (timeSinceLastFrame >= (1000 / (animationFPS * animationSpeed))) {
-        virtualFrameCount++;
-        loopFrameCount = virtualFrameCount % framesPerLoop;
-        lastFrameTime = currentTime;
-        
-        // Update frame display
-        const frameDisplay = document.getElementById('frameDisplay');
-        const frameSlider = document.getElementById('frameSlider');
-        if (frameDisplay) {
-            const frameStr = String(loopFrameCount).padStart(3, '0');
-            const totalStr = String(framesPerLoop).padStart(3, '0');
-            frameDisplay.textContent = `${frameStr}/${totalStr}`;
-        }
-        if (frameSlider) {
-            frameSlider.value = loopFrameCount;
-        }
-    }
-    
-    animationLoopId = requestAnimationFrame(updateLoopProgress);
-}
-
 window.onload = function() {
     // First, initialize settings from DOM values
     initializeFromDOMValues();
@@ -720,4 +417,3 @@ window.onload = function() {
     const initialLayer = createLayer(initialCode);
     selectLayer(initialLayer.id);
 };
-

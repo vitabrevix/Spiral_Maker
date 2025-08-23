@@ -119,6 +119,8 @@ function previousFrame() {
 }
 
 function updateAnimationSettings() {
+    const oldAnimationFPS = animationFPS;
+    
     framesPerLoop = parseInt(document.getElementById('framesInput').value) || 120;
     animationFPS = parseInt(document.getElementById('fpsInput').value) || 60;
     animationSpeed = parseFloat(document.getElementById('speedInput').value) || 1;
@@ -132,8 +134,19 @@ function updateAnimationSettings() {
         loopFrameCount = virtualFrameCount;
     }
     
+    // Update layer FPS limits if global FPS changed
+    if (oldAnimationFPS !== animationFPS && typeof updateLayerFPSLimits === 'function') {
+        updateLayerFPSLimits();
+    }
+    
     lastFrameTime = Date.now();
     updateUI();
+    
+    // Restart animation if running to apply new settings
+    if (isRunning) {
+        stopAnimation();
+        setTimeout(runAnimation, 100);
+    }
 }
 
 // Canvas size control functions

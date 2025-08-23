@@ -178,7 +178,68 @@ const presets = {
       ellipse(x, y, 6, 6);
     }
   }
-}`
+}`,
+
+	text_example: `let textStartFrame = 120;  // Appears after 2 seconds
+let textEndFrame = 300;    // Disappears after 5 seconds
+
+function draw() {
+    fill(255, 255, 255, 200);
+    p.textAlign(p.CENTER, p.CENTER);
+    textSize(30);
+    p.textFont('Arial Black');
+    text("BIG TEXT", width/2, 100);
+    
+    let wave = sin(frameCount * 0.05) * 20;
+    fill(100, 200, 255, 180);
+    textSize(24);
+    p.textFont('Arial');
+    text("Floating on Animation", width/2, 150 + wave);
+    
+    // Dynamic counter
+    fill(255, 150, 100);
+    p.textAlign(p.LEFT, p.TOP);
+    textSize(16);
+    p.text("Frame: " + frameCount, 20, 20);
+    
+    // Animated rotating text
+    push();
+    translate(width - 100, height - 100);
+    p.rotate(frameCount * 0.02);
+    fill(255, 100, 150, 180);
+    p.textAlign(p.CENTER, p.CENTER);
+    textSize(12);
+    p.text("SPINNING", 0, 0);
+    pop();
+    
+    // Immediate appear/disappear text
+    if (frameCount >= textStartFrame && frameCount <= textEndFrame) {
+        fill(0, 0, 100); // HSB: hue=0, sat=0, brightness=100 (white)
+        p.textAlign(p.CENTER, p.CENTER);
+        textSize(20);
+        p.text("Appear, Disappear", width/2, height/2);
+    }
+    
+    // Fade in/out text
+    if (frameCount >= textStartFrame && frameCount <= textEndFrame) {
+        let alpha = 100; // HSB alpha ranges 0-100
+        let fadeFrames = 30;
+        
+        // Fade in
+        if (frameCount < textStartFrame + fadeFrames) {
+            alpha = map(frameCount, textStartFrame, textStartFrame + fadeFrames, 0, 100);
+        }
+        
+        // Fade out  
+        if (frameCount > textEndFrame - fadeFrames) {
+            alpha = map(frameCount, textEndFrame - fadeFrames, textEndFrame, 100, 0);
+        }
+        
+        fill(300, 80, 90, alpha); // HSB: purple hue, with alpha
+        textSize(18);
+        p.text("Fade in, Fade out", width/2, 5*height/6);
+    }
+}`,
 
     
 };

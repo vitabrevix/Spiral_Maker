@@ -437,6 +437,7 @@ h1 {
 .layer-controls {
     display: flex;
     gap: 5px;
+	margin-left: auto;
 }
 
 .layer-btn {
@@ -741,7 +742,7 @@ h1 {
 .color-slider {
     width: 40px;
     height: 4px;
-    background: #333;
+    background: #222;
     outline: none;
     border-radius: 2px;
 }
@@ -773,6 +774,37 @@ h1 {
 
 .hue-slider::-webkit-slider-thumb {
     background: linear-gradient(to right, red, yellow, lime, cyan, blue, magenta, red);
+}
+
+.layer-animation-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 0 10px;
+}
+
+.animation-control {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.animation-control label {
+    font-size: 11px;
+    color: #ccc;
+    min-width: 12px;
+}
+
+.animation-input {
+    align-items: center;
+    gap: 8px;
+	font-size: 10px;
+	width: 40px;
+}
+
+.animation-input label {
+    font-size: 8px;
+    color: #ccc;
 }
 
 .layer-header {
