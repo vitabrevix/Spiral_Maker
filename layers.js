@@ -30,6 +30,72 @@ function createLayer(code = '') {
     return layer;
 }
 
+function updateLayerCodeWithHighlight(layerId, code) {
+    const layer = layers.find(l => l.id === layerId);
+    if (layer) {
+        layer.code = code;
+        
+        // Update syntax highlighting
+        const highlighter = document.getElementById(`highlighter-${layerId}`);
+        if (highlighter && typeof syntaxHighlighter !== 'undefined') {
+            highlighter.innerHTML = syntaxHighlighter.highlight(code);
+        }
+        
+        // Existing animation restart logic
+        if (isRunning) {
+            clearTimeout(window.layerUpdateTimeout);
+            window.layerUpdateTimeout = setTimeout(() => {
+                restartAnimationIfRunning();
+            }, 1000);
+        }
+    }
+}
+
+function initializeSyntaxHighlighting(layerId) {
+    const layer = layers.find(l => l.id === layerId);
+    if (layer) {
+        const highlighter = document.getElementById(`highlighter-${layerId}`);
+        const textarea = document.getElementById(`textarea-${layerId}`);
+        
+        if (highlighter && textarea && typeof syntaxHighlighter !== 'undefined') {
+            // Get textarea's computed styles for exact matching
+            const textareaStyles = window.getComputedStyle(textarea);
+            
+            // Apply exact same styles to highlighter
+            highlighter.style.fontSize = textareaStyles.fontSize;
+            highlighter.style.fontFamily = textareaStyles.fontFamily;
+            highlighter.style.lineHeight = textareaStyles.lineHeight;
+            highlighter.style.padding = textareaStyles.padding;
+            highlighter.style.border = textareaStyles.border;
+            highlighter.style.boxSizing = textareaStyles.boxSizing;
+            highlighter.style.letterSpacing = textareaStyles.letterSpacing;
+            highlighter.style.wordSpacing = textareaStyles.wordSpacing;
+            
+            // Initial highlight
+            highlighter.innerHTML = syntaxHighlighter.highlight(layer.code);
+            
+            // Sync scrolling and dimensions
+            const syncAll = () => {
+                highlighter.scrollTop = textarea.scrollTop;
+                highlighter.scrollLeft = textarea.scrollLeft;
+                highlighter.style.height = textarea.style.height || textareaStyles.height;
+                highlighter.style.width = textarea.style.width || textareaStyles.width;
+            };
+            
+            textarea.addEventListener('scroll', syncAll);
+            textarea.addEventListener('input', () => {
+                highlighter.innerHTML = syntaxHighlighter.highlight(textarea.value);
+            });
+            
+            const resizeObserver = new ResizeObserver(syncAll);
+            resizeObserver.observe(textarea);
+            
+            // Initial sync
+            setTimeout(syncAll, 0);
+        }
+    }
+}
+
 function renderLayerDOM(layer) {
     const container = document.getElementById('layersContainer');
     const layerDiv = document.createElement('div');
@@ -108,9 +174,19 @@ function renderLayerDOM(layer) {
 				<button class="layer-btn" onclick="duplicateLayer(${layer.id})">Duplicate</button>
 			</div>
         </div>
-        <div class="layer-content ${layer.collapsed ? 'collapsed' : 'expanded'}">
-            <textarea class="layer-textarea" placeholder="// Layer code here..." oninput="updateLayerCode(${layer.id}, this.value)">${layer.code}</textarea>
-        </div>
+		<div class="layer-content ${layer.collapsed ? 'collapsed' : 'expanded'}">
+			<div class="code-editor-container">
+				<textarea class="layer-textarea" 
+				  id="textarea-${layer.id}"
+				  placeholder="// Layer code here..." 
+				  spellcheck="false"
+				  autocomplete="off"
+				  autocorrect="off"
+				  autocapitalize="off"
+				  oninput="updateLayerCodeWithHighlight(${layer.id}, this.value)">${layer.code}</textarea>
+				<div class="syntax-highlighter" id="highlighter-${layer.id}"></div>
+			</div>
+		</div>
     `;
     
     // Add event listeners
@@ -167,6 +243,31 @@ function renderLayerDOM(layer) {
     });
     
     container.appendChild(layerDiv);
+	
+	// Initialize syntax highlighting AFTER DOM is added
+    setTimeout(() => {
+        initializeSyntaxHighlighting(layer.id);
+    }, 0);
+	
+	// Add focus/blur handlers for proper highlighting behavior
+    textarea.addEventListener('focus', () => {
+        selectLayer(layer.id);
+        // Hide syntax highlighting when editing
+        const highlighter = document.getElementById(`highlighter-${layer.id}`);
+        if (highlighter) {
+            highlighter.style.color = 'transparent';
+        }
+    });
+    
+    textarea.addEventListener('blur', () => {
+        // Show syntax highlighting when not editing
+        const highlighter = document.getElementById(`highlighter-${layer.id}`);
+        if (highlighter) {
+            highlighter.style.color = '';
+            // Re-highlight to ensure sync
+            highlighter.innerHTML = syntaxHighlighter.highlight(textarea.value);
+        }
+    });
     
     // Auto-select first layer if none selected
     if (!selectedLayerId && layers.length === 1) {

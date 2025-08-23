@@ -224,39 +224,39 @@ let textEndFrame = 300;    // Disappears after 5 seconds
 
 function draw() {
     fill(255, 255, 255, 200);
-    p.textAlign(p.CENTER, p.CENTER);
+    textAlign(CENTER, CENTER);
     textSize(30);
-    p.textFont('Arial Black');
+    textFont('Arial Black');
     text("BIG TEXT", width/2, 100);
     
     let wave = sin(frameCount * 0.05) * 20;
     fill(100, 200, 255, 180);
     textSize(24);
-    p.textFont('Arial');
+    textFont('Arial');
     text("Floating on Animation", width/2, 150 + wave);
     
     // Dynamic counter
     fill(255, 150, 100);
-    p.textAlign(p.LEFT, p.TOP);
+    textAlign(LEFT, TOP);
     textSize(16);
-    p.text("Frame: " + frameCount, 20, 20);
+    text("Frame: " + frameCount, 20, 20);
     
     // Animated rotating text
     push();
     translate(width - 100, height - 100);
-    p.rotate(frameCount * 0.02);
+    rotate(frameCount * 0.02);
     fill(255, 100, 150, 180);
-    p.textAlign(p.CENTER, p.CENTER);
+    textAlign(CENTER, CENTER);
     textSize(12);
-    p.text("SPINNING", 0, 0);
+    text("SPINNING", 0, 0);
     pop();
     
     // Immediate appear/disappear text
     if (frameCount >= textStartFrame && frameCount <= textEndFrame) {
         fill(0, 0, 100); // HSB: hue=0, sat=0, brightness=100 (white)
-        p.textAlign(p.CENTER, p.CENTER);
+        textAlign(CENTER, CENTER);
         textSize(20);
-        p.text("Appear, Disappear", width/2, height/2);
+        text("Appear, Disappear", width/2, height/2);
     }
     
     // Fade in/out text
@@ -276,7 +276,7 @@ function draw() {
         
         fill(300, 80, 90, alpha); // HSB: purple hue, with alpha
         textSize(18);
-        p.text("Fade in, Fade out", width/2, 5*height/6);
+        text("Fade in, Fade out", width/2, 5*height/6);
     }
 }`,
         hue: 360,
@@ -317,7 +317,7 @@ function draw() {
 		
 		// Draw bob
 		fill(220, saturation, brightness/2);
-		p.circle(bobX, bobY, size);
+		circle(bobX, bobY, size);
 }`,
         hue: 360,
         saturation: 100,
@@ -370,7 +370,7 @@ function draw() {
 			let nextY = y1 + dy * (i + 1);
 			
 			// Calculate link rotation based on chain direction
-			let linkAngle = p.atan2(nextY - y, nextX - x);
+			let linkAngle = atan2(nextY - y, nextX - x);
 			let perpAngle = linkAngle + PI/2;
 			
 			push();
@@ -492,9 +492,9 @@ function draw() {
 		// Roman numerals at 12, 3, 6, 9
 		fill(25, 90, 25); // Dark brown/bronze
 		noStroke();
-		p.textAlign(p.CENTER, p.CENTER);
+		textAlign(CENTER, CENTER);
 		textSize(12);
-		p.textStyle(p.BOLD);
+		textStyle(BOLD);
 		
 		text('XII', x, y - watchSize/2 + 25);
 		text('III', x + watchSize/2 - 25, y);
@@ -597,17 +597,17 @@ function drawPetal(x, y, size, hue, sat, brightness, alpha) {
 		
 		beginShape();
 		vertex(x, y);
-		p.bezierVertex(
+		bezierVertex(
 			x - petalWidth/3, y - petalLength/3,
 			x - petalWidth/2, y - petalLength * 0.7,
 			x, y - petalLength
 		);
-		p.bezierVertex(
+		bezierVertex(
 			x + petalWidth/2, y - petalLength * 0.7,
 			x + petalWidth/3, y - petalLength/3,
 			x, y
 		);
-		endShape(p.CLOSE);
+		endShape(CLOSE);
 	}
 }
 
@@ -723,7 +723,7 @@ function draw() {
     // Sky
     for (let i = 0; i <= height; i++) {
         let inter = map(i, 0, height, 0, 1);
-        let c = p.lerpColor(color(240, 80, 5), color(220, 60, 2), inter);
+        let c = lerpColor(color(240, 80, 5), color(220, 60, 2), inter);
         stroke(c);
         line(0, i, width, i);
     }
@@ -735,7 +735,7 @@ function draw() {
         
         // Simple white/slightly warm stars
         fill(30, saturation * 0.4, 360, star.brightness);
-        p.circle(star.x, star.y, star.size);
+        circle(star.x, star.y, star.size);
     }
     
     time += 0.01 * twinkleRate;
@@ -788,7 +788,7 @@ function updateStarTwinkle(star) {
     } else {
         // Subtle continuous twinkle
         let twinkle = sin(time * star.twinkleSpeed + star.twinkleOffset) * 15;
-        star.brightness = p.constrain(star.baseBrightness + twinkle, 20, 230);
+        star.brightness = constrain(star.baseBrightness + twinkle, 20, 230);
     }
 }`,
 		hue: 360,
@@ -802,6 +802,74 @@ function updateStarTwinkle(star) {
 	
 	aurora: {
 		code:``,
+		hue: 360,
+        saturation: 90,
+        brightness: 80,
+        opacity: 100,
+        maxFrames: 360,
+        fps: 60,
+        speed: 1
+    },
+	
+	ying_yang_spiral: {
+		code:`let resolution = 900;
+let spiralTurns = 9; // Number of complete spirals
+let zoom = 1;
+let growthRate = 5;
+let centerGap = 0.98;
+
+function draw() {
+	translate(width / 2, height / 2);
+	time = (frameCount / 60) * TWO_PI
+	let maxRadius = min(width*zoom , height*zoom) * 0.73;
+	
+	// Draw two interweaving spiral bands with smooth curves
+	drawSmoothSpiralBand(0, 255, maxRadius, spiralTurns); // White band
+	drawSmoothSpiralBand(PI, 0, maxRadius, spiralTurns);  // Black band (offset by PI)
+}
+
+function drawSmoothSpiralBand(offset, color, maxRadius, spiralTurns) {	
+	noFill();
+	stroke(color);
+	strokeCap(ROUND);
+	strokeJoin(ROUND);
+	
+	// Start the curve
+	beginShape();
+	noFill();
+	
+	for (let i = 0; i < resolution; i++) {
+		let progress = i / resolution;
+		
+		// Calculate spiral angle with offset for interweaving
+		let angle = progress * PI * 2 * spiralTurns + time + offset;
+		
+		// Radius decreases as we spiral inward
+		let radius = maxRadius * (1 - progress * centerGap);
+		
+		// Calculate positions
+		let x = cos(angle) * radius;
+		let y = sin(angle) * radius;
+		
+		let spiralSpacing = (2 * PI * radius) / (spiralTurns * 2);
+                
+     // Line thickness - grows outward but respects spiral spacing
+     let desiredThickness = map(progress, -1, 1, 50, growthRate);
+     let thickness = min(desiredThickness, spiralSpacing);
+		
+		// We need to draw each small segment with its own thickness
+		if (i > 0) {
+			let prevProgress = (i - 1) / resolution;
+			let prevAngle = prevProgress * PI * 2 * spiralTurns + time + offset;
+			let prevRadius = maxRadius * (1 - prevProgress * centerGap);
+			let prevX = cos(prevAngle) * prevRadius;
+			let prevY = sin(prevAngle) * prevRadius;
+			
+			strokeWeight(thickness);
+			line(prevX, prevY, x, y);
+		}
+	}
+}`,
 		hue: 360,
         saturation: 90,
         brightness: 80,

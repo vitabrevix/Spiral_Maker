@@ -214,14 +214,16 @@ function createLayerSketch(){
 		
 		const sketch = function(p) {
 			const p5Functions = ['createCanvas', 'background', 'fill', 'stroke', 'noStroke', 'noFill', 
-								'ellipse', 'rect', 'line', 'point', 'triangle', 'quad', 'arc',
-								'translate', 'rotate', 'scale', 'push', 'pop', 'frameCount',
-								'width', 'height', 'mouseX', 'mouseY', 'sin', 'cos', 'tan',
-								'map', 'lerp', 'dist', 'random', 'noise', 'TWO_PI', 'PI', 'HALF_PI',
-								'colorMode', 'HSB', 'RGB', 'strokeWeight', 'textSize', 'text',
-								'sqrt', 'pow', 'abs', 'floor', 'ceil', 'round', 'radians', 'degrees',
-								'clear', 'loadPixels', 'updatePixels', 'pixels', 'color', 'red', 'green', 'blue',
-								'beginShape', 'endShape', 'vertex'];
+                    'ellipse', 'rect', 'line', 'point', 'triangle', 'quad', 'arc', 'strokeJoin', 
+                    'translate', 'rotate', 'scale', 'push', 'pop', 'frameCount', 'deltaTime',
+                    'width', 'height', 'mouseX', 'mouseY', 'sin', 'cos', 'tan', 'atan2', 'min', 'max',
+                    'map', 'lerp', 'dist', 'random', 'noise', 'TWO_PI', 'PI', 'HALF_PI', 'strokeCap', 
+                    'colorMode', 'HSB', 'RGB', 'strokeWeight', 'textSize', 'text', 'textAlign', 'textFont',
+                    'textStyle', 'CENTER', 'LEFT', 'TOP', 'RIGHT', 'BOTTOM', 'BASELINE', 'BOLD', 'CLOSE', 
+                    'circle', 'lerpColor', 'constrain', 'bezierVertex', 'sqrt', 'pow', 'abs', 'floor', 
+                    'ceil', 'round', 'radians', 'degrees', 'clear', 'loadPixels', 'updatePixels', 
+                    'pixels', 'color', 'beginShape', 'endShape', 'vertex', 'image', 'loadImage',
+                    'CORNER', 'CORNERS', 'RADIUS', 'RADIANS', 'DEGREES', 'ROUND', ];
 			
 			p5Functions.forEach(func => {
 				if (typeof p[func] !== 'undefined') {

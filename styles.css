@@ -813,3 +813,67 @@ h1 {
     gap: 5px;
     flex-wrap: wrap;
 }
+
+code-editor-container {
+    position: relative;
+    flex: 1;
+    min-height: 200px;
+}
+
+.syntax-highlighter {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: transparent;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    padding: 15px;
+    border: 1px solid transparent; /* Match textarea border but make it transparent */
+    resize: none;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow: hidden;
+    pointer-events: none;
+    tab-size: 2;
+    z-index: 1;
+    box-sizing: border-box;
+    margin: 0;
+    color: transparent; /* Hide the actual text, only show spans */
+}
+
+/* Make sure syntax highlighting spans are visible */
+.syntax-highlighter span {
+    color: inherit !important; /* Override the transparent color for spans */
+}
+
+.layer-textarea {
+    position: relative;
+    z-index: 2;
+    background: rgba(26, 26, 26, 0.95); /* Slightly transparent to see highlights behind */
+    color: #ffffff;
+    caret-color: #ffffff;
+    box-sizing: border-box;
+}
+
+/* When focused, make textarea more opaque and dim highlights */
+.layer-textarea:focus {
+    background: rgba(26, 26, 26, 0.98);
+}
+
+/* Hide highlighting when textarea is focused */
+.layer-textarea:focus + .syntax-highlighter {
+    opacity: 0.3; /* Dim instead of hide completely for better UX */
+}
+
+/* Syntax highlighting colors */
+.syntax-keyword { color: #c586c0; font-weight: bold; }
+.syntax-function { color: #4fc1ff; }
+.syntax-string { color: #ce9178; }
+.syntax-comment { color: #6a9955; }
+.syntax-number { color: #b5cea8; }
+.syntax-operator { color: #d4d4d4; }
+.syntax-property { color: #9cdcfe; }
+.p5-function { color: #ff6b9d; font-weight: bold; } /* Add styling for p5 functions */

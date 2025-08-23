@@ -16,10 +16,10 @@
         <div class="preset-categories">
             <div class="preset-category">
                 <div class="category-title">Spirals</div>
-                <button class="main-preset-btn" onclick="loadPreset('dot_spiral')">Dot Spiral</button>
+                <button class="main-preset-btn" onclick="loadPreset('ying_yang_spiral')">Ying Yang</button>
                 <select class="preset-dropdown" onchange="loadPresetFromDropdown(this, 'spirals')">
                     <option value="">More spirals...</option>
-                    <option value="golden_spiral">Golden Spiral</option>
+                    <option value="dot_spiral">Dot Spiral</option>
                     <option value="double_spiral">Double Spiral</option>
                     <option value="fibonacci_spiral">Fibonacci Spiral</option>
                     <option value="galaxy_spiral">Galaxy Spiral</option>
@@ -163,6 +163,7 @@
     </div>
 
     <!-- Load JavaScript files in proper order -->
+	<script src="syntax-highlighter.js"></script>
     <script src="canvas.js"></script>
 	<script src="layers.js"></script>
     <script src="controls.js"></script>
