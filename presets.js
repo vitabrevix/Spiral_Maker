@@ -128,43 +128,6 @@ const presets = {
 		speed: 0.5
 	},
 
-    plasma: {
-        code: `function draw() {
-	  let time = frameCount * 0.02;
-	  
-	  loadPixels();
-	  
-	  for (let x = 0; x < width; x++) {
-		for (let y = 0; y < height; y++) {
-		  let plasma = sin(x * 0.02 + time) + 
-					  sin(y * 0.03 + time * 1.2) +
-					  sin((x + y) * 0.02 + time * 0.8) +
-					  sin(sqrt(x*x + y*y) * 0.02 + time * 1.5);
-		  
-		  let hue = (plasma * 50 + frameCount) % 360;
-		  let sat = saturation + plasma * 30;
-		  let bright = brightness + plasma * 40;
-		  
-		  let c = color(hue, sat, bright);
-		  let index = (x + y * width) * 4;
-		  pixels[index] = red(c);
-		  pixels[index + 1] = green(c);
-		  pixels[index + 2] = blue(c);
-		  pixels[index + 3] = 255;
-		}
-	  }
-  
-	  updatePixels();
-}`,
-		hue: 360,
-		saturation: 100,
-		brightness: 100,
-		opacity: 100,
-		maxFrames: 150,
-		fps: 60,
-		speed: 1.5
-	},
-
     tunnel_2: {
 		code: `function draw() {
 	  translate(width/2, height/2);
@@ -328,7 +291,7 @@ function draw() {
     pendulum: {
         code:`let length = 250;
 let amplitude = 0;
-let size = 100
+let size = 100;
 	
 function setup() {
 	amplitude = PI / 5;
@@ -550,7 +513,304 @@ function draw() {
         maxFrames: 360,
         fps: 60,
         speed: 1
+    },
+	petals: {
+		code:`let time = 0;
+let petals = [];
+let numPetals = 8;
+let flowerRadius = 120;
+        
+function setup() {
+	for (let i = 0; i < numPetals; i++) {
+		let angle = (i * TWO_PI) / numPetals;
+		petals.push({
+			baseAngle: angle,
+			offsetPhase: random(TWO_PI)
+		});
+	}
+}
+
+function draw() {
+	translate(width/2, height/2);
+	
+	time += 0.02;
+	
+	// Draw multiple layers of the flower for depth
+	for (let layer = 0; layer < 3; layer++) {
+		let layerScale = 1 - layer * 0.2;
+		let layerAlpha = 80 - layer * 20;
+		
+		push();
+		scale(layerScale);
+		rotate(time * 0.3 * (layer + 1));
+		
+		drawFlowerLayer(layer, layerAlpha);
+		
+		pop();
+	}
+	
+	// Draw center
+	drawFlowerCenter();
+}
+
+function drawFlowerLayer(layerIndex, alpha) {
+	for (let i = 0; i < petals.length; i++) {
+		let petal = petals[i];
+		let angle = petal.baseAngle;
+		
+		// Color cycling through the spectrum
+		let hue = (time * 50 + i * 45 + layerIndex * 60) % 360;
+		let sat = 80 + sin(time * 2 + i) * 20;
+		let brightness = 70 + sin(time * 3 + i * 0.5) * 30;
+		
+		// Petal animation
+		let petalSize = flowerRadius + sin(time * 2 + petal.offsetPhase) * 20;
+		let petalAngle = angle + sin(time + petal.offsetPhase) * 0.3;
+		
+		push();
+		rotate(petalAngle);
+		
+		// Draw petal with gradient effect
+		drawPetal(0, 0, petalSize, hue, sat, brightness, alpha);
+		
+		pop();
+	}
+}
+
+function drawPetal(x, y, size, hue, sat, brightness, alpha) {
+	// Multiple segments for gradient effect
+	let segments = 15;
+	
+	for (let j = 0; j < segments; j++) {
+		let segmentProgress = j / segments;
+		let segmentHue = (hue + segmentProgress * 60) % 360;
+		let segmentSat = sat - segmentProgress * 20;
+		let segmentBright = brightness - segmentProgress * 30;
+		let segmentAlpha = alpha * (1 - segmentProgress * 0.5);
+		
+		fill(segmentHue, segmentSat, segmentBright, segmentAlpha);
+		noStroke();
+		
+		// Petal shape using bezier curves
+		let petalWidth = (size * 0.4) * (1 - segmentProgress * 0.8);
+		let petalLength = size * (1 - segmentProgress);
+		
+		beginShape();
+		vertex(x, y);
+		p.bezierVertex(
+			x - petalWidth/3, y - petalLength/3,
+			x - petalWidth/2, y - petalLength * 0.7,
+			x, y - petalLength
+		);
+		p.bezierVertex(
+			x + petalWidth/2, y - petalLength * 0.7,
+			x + petalWidth/3, y - petalLength/3,
+			x, y
+		);
+		endShape(p.CLOSE);
+	}
+}
+
+function drawFlowerCenter() {
+	let centerLayers = 8;
+	
+	for (let i = 0; i < centerLayers; i++) {
+		let layerSize = 40 - i * 4;
+		let centerHue = (time * 100 + i * 20) % 360;
+		let centerSat = 90 - i * 10;
+		let centerBright = 80 + sin(time * 4 + i) * 20;
+		let pulsate = sin(time * 6 + i * 0.5) * 3;
+		
+		fill(centerHue, centerSat, centerBright, 70);
+		noStroke();
+		ellipse(0, 0, layerSize + pulsate);
+		
+		// Inner ring details
+		if (i % 2 == 0) {
+			stroke(centerHue, centerSat - 20, 100, 30);
+			strokeWeight(1);
+			noFill();
+			ellipse(0, 0, layerSize + pulsate);
+		}
+	}
+	
+	// Center seeds/pistils
+	let numSeeds = 12;
+	for (let i = 0; i < numSeeds; i++) {
+		let seedAngle = (i * TWO_PI / numSeeds) + time * 2;
+		let seedRadius = 8 + sin(time * 3 + i) * 4;
+		let seedX = cos(seedAngle) * seedRadius;
+		let seedY = sin(seedAngle) * seedRadius;
+		
+		let seedHue = (time * 80 + i * 30) % 360;
+		fill(seedHue, 100, 90, 80);
+		noStroke();
+		ellipse(seedX, seedY, 4);
+		
+		// Tiny highlight
+		fill(seedHue, 20, 100, 60);
+		ellipse(seedX - 1, seedY - 1, 2);
+	}
+}`,
+		hue: 360,
+        saturation: 100,
+        brightness: 100,
+        opacity: 100,
+        maxFrames: 360,
+        fps: 60,
+        speed: 1
+    },
+
+	center_pulse: {
+		code:`let centerLayers = 8;
+let size = 45;
+let colorOffset = 0;
+
+function draw() {
+	translate(width/2, height/2);
+
+	let loopFrame = frameCount % 120;
+	let time = (loopFrame / 120) * TWO_PI;
+
+	for (let i = 0; i < centerLayers; i++) {
+		let layerSize = size - i * 4;
+		let centerHue = (loopFrame * 3 + i * 20 + colorOffset) % 360;
+		let centerSat = saturation - i * 10;
+		let centerBright = brightness + sin(time * 2 + i) * 20;
+		let pulsate = sin(time * 3 + i * 0.5) * 3;
+		
+		fill(centerHue, centerSat, centerBright, opacity*0.7);
+		noStroke();
+		ellipse(0, 0, layerSize + pulsate);
+		
+		// Inner ring details
+		if (i % 2 == 0) {
+			stroke(centerHue, centerSat - 20, 100, opacity*0.3);
+			strokeWeight(1);
+			noFill();
+			ellipse(0, 0, layerSize + pulsate);
+		}
+	}
+}`,
+		hue: 360,
+        saturation: 90,
+        brightness: 80,
+        opacity: 100,
+        maxFrames: 360,
+        fps: 60,
+        speed: 1
+    },
+	
+	night_sky: {
+		code: `let starCount = 250;
+let twinkleRate = 0.01;
+let minTwinkleRate = 100;
+let maxTwinkleRate = 100;
+let minBlinkDuration = 200;
+let maxBlinkDuration = 600;
+let minBlinkTimer = 200;
+let maxBlinkTimer = 2200;
+let heightPercent = 60;
+
+let stars = [];
+let time = 0;
+
+function setup() {
+    generateStars();
+}
+        
+function draw() {
+    // Sky
+    for (let i = 0; i <= height; i++) {
+        let inter = map(i, 0, height, 0, 1);
+        let c = p.lerpColor(color(240, 80, 5), color(220, 60, 2), inter);
+        stroke(c);
+        line(0, i, width, i);
     }
+    // Stars
+    noStroke();
+    
+    for (let star of stars) {
+        updateStarTwinkle(star);
+        
+        // Simple white/slightly warm stars
+        fill(30, saturation * 0.4, 360, star.brightness);
+        p.circle(star.x, star.y, star.size);
+    }
+    
+    time += 0.01 * twinkleRate;
+}
+
+function generateStars() {
+    stars = [];
+    for (let i = 0; i < starCount; i++) {
+        let baseBrightness = random(76, 204); // 30% to 80% of 255
+        let shouldStartBlinking = random() < 0.2; // 30% chance to start blinking immediately
+        
+        stars.push({
+            x: random(width),
+            y: random(height * heightPercent * 0.01),
+            brightness: baseBrightness,
+            baseBrightness: baseBrightness,
+            size: random(1, 2.5),
+            twinkleSpeed: random(minTwinkleRate, maxTwinkleRate),
+            twinkleOffset: random(TWO_PI),
+            blinkTimer: shouldStartBlinking ? 0 : random(minBlinkTimer, maxBlinkTimer),
+            blinkDuration: shouldStartBlinking ? random(minBlinkDuration, maxBlinkDuration) : 0,
+            isBlinking: shouldStartBlinking
+        });
+    }
+}
+
+function updateStarTwinkle(star) {
+    star.blinkTimer--;
+    
+    if (star.blinkTimer <= 0 && !star.isBlinking) {
+        // Start a blink and change twinkle rate
+        star.isBlinking = true;
+        star.blinkDuration = random(minBlinkDuration, maxBlinkDuration);
+        star.blinkTimer = random(minBlinkTimer, maxBlinkTimer);
+        
+        // Change twinkle rate every time a star starts blinking
+        twinkleRate = random(minTwinkleRate, maxTwinkleRate);
+    }
+    
+    if (star.isBlinking) {
+        star.blinkDuration--;
+        // Simple fade out and back in
+        let blinkProgress = star.blinkDuration / 20.0;
+        star.brightness = star.baseBrightness * (0.3 + 0.7 * sin(blinkProgress * PI));
+        
+        if (star.blinkDuration <= 0) {
+            star.isBlinking = false;
+            star.brightness = star.baseBrightness;
+        }
+    } else {
+        // Subtle continuous twinkle
+        let twinkle = sin(time * star.twinkleSpeed + star.twinkleOffset) * 15;
+        star.brightness = p.constrain(star.baseBrightness + twinkle, 20, 230);
+    }
+}`,
+		hue: 360,
+        saturation: 90,
+        brightness: 80,
+        opacity: 100,
+        maxFrames: 360,
+        fps: 60,
+        speed: 1
+    },
+	
+	aurora: {
+		code:``,
+		hue: 360,
+        saturation: 90,
+        brightness: 80,
+        opacity: 100,
+        maxFrames: 360,
+        fps: 60,
+        speed: 1
+    },
+
 };
 
 // Function to load a preset by name
