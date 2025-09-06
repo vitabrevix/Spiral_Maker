@@ -1,0 +1,136 @@
+/* Slider Styles */
+
+/* Frame Slider */
+#frameSlider {
+    flex: 1;
+    height: 4px;
+    background: #1a1a1a;
+    border-radius: 2px;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+#frameSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #00cc66;
+    cursor: pointer;
+    border: 2px solid #1a1a1a;
+}
+
+#frameSlider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #00cc66;
+    cursor: pointer;
+    border: 2px solid #1a1a1a;
+}
+
+/* Size Slider */
+.size-slider {
+    width: 100px;
+    height: 4px;
+    background: #1a1a1a;
+    border-radius: 2px;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.size-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #0066cc;
+    cursor: pointer;
+    border: 2px solid #1a1a1a;
+}
+
+.size-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #0066cc;
+    cursor: pointer;
+    border: 2px solid #1a1a1a;
+}
+
+/* Color Sliders */
+.color-slider {
+    width: 40px;
+    height: 4px;
+    background: #222;
+    outline: none;
+    border-radius: 2px;
+}
+
+.color-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #00cc66;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.color-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: #00cc66;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+.hue-slider::-webkit-slider-thumb {
+    background: linear-gradient(to right, red, yellow, lime, cyan, blue, magenta, red);
+}
+
+/* Size Controls */
+.size-controls {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #444;
+}
+
+.size-controls > div:first-child {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 8px;
+}
+
+.size-slider-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+}
+
+.size-input {
+    background: #1a1a1a;
+    border: 1px solid #555;
+    border-radius: 3px;
+    color: #fff;
+    padding: 3px 6px;
+    width: 50px;
+    font-size: 10px;
+    font-family: inherit;
+    text-align: center;
+}
+
+.size-input:focus {
+    outline: none;
+    border-color: #0066cc;
+}
+
+.size-label {
+    font-size: 10px;
+    color: #ccc;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}

@@ -1,0 +1,77 @@
+/* Main Layout and Body Styles */
+body {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    margin: 0;
+    padding: 0;
+    background: #1a1a1a;
+    color: #ffffff;
+    min-height: 100vh;
+    display: flex;
+    gap: 0px;
+}
+
+h1 {
+    margin: 0 0 20px 0;
+    color: #0066cc;
+    font-size: 24px;
+}
+
+.info {
+    background: #2d2d2d;
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.info h3 {
+    margin: 0 0 10px 0;
+    color: #00cc66;
+}
+
+/* Editor Panel */
+.editor-panel {
+    flex: 1;
+    margin-right: 370px; /* Make space for fixed preview panel */
+    padding: 10px;
+    transition: margin-right 0.3s ease; /* Smooth transition when collapsing */
+}
+
+.editor-panel.expanded {
+    margin-right: 80px; /* Only leave space for collapse button */
+}
+
+textarea {
+    flex: 1;
+    background: #2d2d2d;
+    color: #ffffff;
+    border: 1px solid #555;
+    padding: 15px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 14px;
+    line-height: 1.4;
+    border-radius: 4px;
+    resize: vertical;
+    min-height: 500px;
+    tab-size: 2;
+}
+
+textarea:focus {
+    outline: none;
+    border-color: #0066cc;
+}
+
+/* Error Display */
+.error-display {
+    background: #4a1a1a;
+    border: 1px solid #aa3333;
+    border-radius: 4px;
+    padding: 10px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: #ff9999;
+    white-space: pre-wrap;
+    display: none;
+}

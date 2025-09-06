@@ -1,0 +1,92 @@
+/* Preview Panel */
+.preview-panel {
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    width: 340px;
+    height: 100vh;
+    padding: 20px;
+    overflow-y: auto;
+    background: #1a1a1a;
+    transition: width 0.3s ease; /* Smooth width transition */
+}
+
+.preview-panel.collapsed {
+    width: 50px;
+}
+
+.preview-container {
+    background: #2d2d2d;
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 10px;
+    position: relative;
+}
+
+.pip-canvas {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    background: #000;
+}
+
+.collapsible-content {
+    overflow: hidden;
+    transition: all 0.3s ease;
+    opacity: 1;
+    visibility: visible;
+}
+
+.preview-panel.collapsed .collapsible-content {
+    opacity: 0;
+    visibility: hidden;
+    height: 0;
+    margin: 0;
+    padding: 0;
+}
+
+/* Progress Bars */
+.progress-bars {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.progress-container {
+    position: relative;
+    width: 100%;
+    height: 6px;
+    background: #1a1a1a;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.1s ease;
+}
+
+.loop-progress {
+    background: linear-gradient(90deg, #00cc66, #66ff99);
+}
+
+.export-progress {
+    background: linear-gradient(90deg, #0066cc, #3399ff);
+}
+
+.progress-label {
+    font-size: 10px;
+    color: #ccc;
+    margin-bottom: 3px;
+}
+
+/* Frame Counter */
+.frame-counter {
+    font-size: 10px;
+    color: #ccc;
+    min-width: 45px;
+    text-align: center;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}

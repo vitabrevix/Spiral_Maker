@@ -5,14 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spiral Editor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="collapse.css">
+    <link rel="stylesheet" href="main-style.css">
+	<link rel="stylesheet" href="controls-style.css">
+	<link rel="stylesheet" href="buttons-style.css">
+	<link rel="stylesheet" href="preview-style.css">
+	<link rel="stylesheet" href="layers-style.css">
+	<link rel="stylesheet" href="sliders-style.css">
+	<link rel="stylesheet" href="presets-style.css">
+	<link rel="stylesheet" href="syntax-highlight-style.css">
 </head>
 <body>
     <div class="editor-panel">
         <h1>Spiral Editor</h1>
         
-        <!-- New categorized preset layout -->
         <div class="preset-categories">
             <div class="preset-category">
                 <div class="category-title">Spirals</div>
@@ -20,7 +25,7 @@
                 <select class="preset-dropdown" onchange="loadPresetFromDropdown(this, 'spirals')">
                     <option value="">More spirals...</option>
                     <option value="dot_spiral">Dot Spiral</option>
-                    <option value="double_spiral">Double Spiral</option>
+                    <option value="tunnel">Tunnel</option>
                     <option value="fibonacci_spiral">Fibonacci Spiral</option>
                     <option value="galaxy_spiral">Galaxy Spiral</option>
                     <option value="vortex">Vortex</option>
@@ -29,7 +34,7 @@
             
             <div class="preset-category">
                 <div class="category-title">Circles</div>
-                <button class="main-preset-btn" onclick="loadPreset('tunnel')">Tunnel</button>
+                <button class="main-preset-btn" onclick="loadPreset('pulsing')">Pulsing</button>
                 <select class="preset-dropdown" onchange="loadPresetFromDropdown(this, 'circles')">
                     <option value="">More circles...</option>
                     <option value="concentric_circles">Concentric Circles</option>
@@ -48,7 +53,7 @@
                     <option value="pendulum">Pendulum</option>
                     <option value="mandala">Mandala</option>
                     <option value="particules">Particles</option>
-                    <option value="crystal_formation">Crystal Formation</option>
+                    <option value="coin">Coin</option>
                     <option value="floating_spheres">Floating Spheres</option>
                 </select>
             </div>
@@ -60,8 +65,8 @@
                     <option value="">More chill...</option>
                     <option value="night_sky">Night Sky</option>
                     <option value="aurora">Aurora</option>
-                    <option value="zen_garden">Zen Garden</option>
-                    <option value="ocean_flow">Ocean Flow</option>
+                    <option value="crystal">Crystal Formation</option>
+                    <option value="water">Water</option>
                     <option value="meditation_orb">Meditation Orb</option>
                 </select>
             </div>
@@ -73,21 +78,24 @@
                     <option value="">More effects...</option>
                     <option value="text_example">Text Example</option>
                     <option value="center_pulse">Center Pulse</option>
-                    <option value="glitch_art">Glitch Art</option>
-                    <option value="cosmic_dust">Cosmic Dust</option>
+                    <option value="bg_gradient">BG Gradient</option>
+                    <option value="vignette">Vignette</option>
+					<option value="static">Screen Static</option>
                 </select>
             </div>
         </div>
         
         <div class="layers-container">
             <div class="layer-controls-top">
-                <button class="add-layer-btn" onclick="addLayer()">+ Add Layer</button>
-                <div class="background-color-control">
-                    <label for="backgroundColorPicker">BG:</label>
-                    <input type="color" id="backgroundColorPicker" value="#000000" onchange="updateBackgroundColor(this.value)">
-                </div>
-                <button class="pip-btn" onclick="openPipWindow()" id="pipBtn">Open PiP</button>
-            </div>
+				<button class="add-layer-btn" onclick="addLayer()">+ Add Layer</button>
+				<button class="add-layer-btn" onclick="addImageLayer()">+ Add Image</button>
+				<button class="add-layer-btn" onclick="addTextLayer()">+ Add Text</button>
+				<div class="background-color-control">
+					<label for="backgroundColorPicker">BG:</label>
+					<input type="color" id="backgroundColorPicker" value="#000000" onchange="updateBackgroundColor(this.value)">
+				</div>
+				<button class="pip-btn" onclick="openPipWindow()" id="pipBtn">Open PiP</button>
+			</div>
             <div id="layersContainer">
                 <!-- Layers will be added here dynamically -->
             </div>

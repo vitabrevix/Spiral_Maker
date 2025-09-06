@@ -1,0 +1,203 @@
+/* Layer Styles */
+.layers-container {
+    margin-bottom: 20px;
+}
+
+.layer-item {
+    background: #2d2d2d;
+    border: 1px solid #555;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.layer-header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    padding: 10px;
+    cursor: pointer;
+    background: #333;
+    border-radius: 4px 4px 0 0;
+    user-select: none;
+}
+
+.layer-toggle {
+    background: none;
+    border: none;
+    color: #ccc;
+    font-size: 12px;
+    margin-right: 8px;
+    cursor: pointer;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.layer-name {
+    flex: 1;
+    color: #fff;
+    font-size: 14px;
+}
+
+.layer-controls {
+    display: flex;
+    gap: 5px;
+    margin-left: auto;
+}
+
+.layer-content {
+    padding: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.layer-content.collapsed {
+    max-height: 0;
+}
+
+.layer-content.expanded {
+    max-height: 600px;
+}
+
+.layer-textarea {
+    width: 100%;
+    background: #1a1a1a;
+    color: #ffffff;
+    border: none;
+    padding: 15px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    resize: vertical;
+    min-height: 200px;
+    tab-size: 2;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 2;
+    background: rgba(26, 26, 26, 0.95); /* Slightly transparent to see highlights behind */
+    color: #ffffff;
+    caret-color: #ffffff;
+}
+
+.layer-textarea:focus {
+    outline: none;
+    background: rgba(26, 26, 26, 0.98);
+}
+
+/* When focused, make textarea more opaque and dim highlights */
+.layer-textarea:focus + .syntax-highlighter {
+    opacity: 0.3; /* Dim instead of hide completely for better UX */
+}
+
+.layer-type-badge {
+    background: #444;
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-right: 8px;
+    font-weight: bold;
+}
+
+/* Image and Text Controls */
+.image-controls, .text-controls {
+    padding: 15px;
+    background: #2a2a2a;
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
+/* Layer Color Controls */
+.layer-color-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 0 10px;
+}
+
+.color-control {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.color-control label {
+    font-size: 11px;
+    color: #ccc;
+    min-width: 12px;
+}
+
+.color-value {
+    font-size: 10px;
+    color: #999;
+    min-width: 20px;
+    text-align: center;
+}
+
+/* Layer Animation Controls */
+.layer-animation-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 0 10px;
+}
+
+.animation-control {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.animation-control label {
+    font-size: 11px;
+    color: #ccc;
+    min-width: 12px;
+}
+
+.animation-input {
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    width: 40px;
+}
+
+.animation-input label {
+    font-size: 8px;
+    color: #ccc;
+}
+
+/* Drag and Drop */
+.drag-handle {
+    cursor: move;
+    padding: 0 5px;
+    color: #888;
+}
+
+.drag-handle:hover {
+    color: #ccc;
+}
+
+.layer-item.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+}
+
+.layer-item.drag-over {
+    border-top: 3px solid #00cc66;
+}
+
+.layer-item.selected {
+    border-color: #00cc66;
+    box-shadow: 0 0 0 2px rgba(0, 204, 102, 0.3);
+}
+
+.layer-header.selected {
+    background: #2a4a2a;
+}
+
+.layer-name.selected {
+    color: #00ff88;
+}

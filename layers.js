@@ -12,22 +12,97 @@ function restartAnimationIfRunning() {
     }
 }
 
-function createLayer(code = '') {
+function createLayer(code = '', type = 'code') {
     const layerId = ++layerCounter;
     const layer = {
         id: layerId,
+        type: type, // 'code', 'image', 'text'
         code: code,
         collapsed: false,
         sketch: null,
-		visible: true,
+        visible: true,
         maxFrames: 120,
         fps: 60,
         speed: 1
     };
     
+    // Add type-specific properties
+    if (type === 'image') {
+        layer.imageData = null;
+        layer.imageName = '';
+        layer.imageX = 0;
+        layer.imageY = 0;
+        layer.imageWidth = 100;
+        layer.imageHeight = 100;
+        layer.imageRotation = 0;
+    } else if (type === 'text') {
+        layer.text = 'Sample Text';
+        layer.fontSize = 24;
+        layer.fontFamily = 'Arial';
+        layer.textX = 50;
+        layer.textY = 50;
+        layer.textRotation = 0;
+        layer.textAlign = 'CENTER';
+    }
+    
     layers.push(layer);
     renderLayerDOM(layer);
     return layer;
+}
+
+function addImageLayer() {
+    const newLayer = createLayer('', 'image');
+    selectLayer(newLayer.id);
+    if (isRunning) {
+        setTimeout(() => {
+            restartAnimationIfRunning();
+            setTimeout(runAnimation, 100);
+        }, 100);
+    }
+}
+
+function addTextLayer() {
+    const newLayer = createLayer('', 'text');
+    selectLayer(newLayer.id);
+    if (isRunning) {
+        setTimeout(() => {
+            restartAnimationIfRunning();
+            setTimeout(runAnimation, 100);
+        }, 100);
+    }
+}
+
+function handleImageUpload(layerId, file) {
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const layer = layers.find(l => l.id === layerId);
+            if (layer) {
+                layer.imageData = e.target.result;
+                layer.imageName = file.name;
+                
+                // Create a temporary image to get dimensions
+                const tempImg = new Image();
+                tempImg.onload = function() {
+                    // Set default size based on image aspect ratio
+                    const aspectRatio = tempImg.width / tempImg.height;
+                    layer.imageWidth = Math.min(300, tempImg.width);
+                    layer.imageHeight = layer.imageWidth / aspectRatio;
+                    
+                    // Update UI
+                    refreshLayersDOM();
+                    
+                    // Restart animation if running
+                    if (isRunning) {
+                        restartAnimationIfRunning();
+                        setTimeout(runAnimation, 100);
+                    }
+                };
+                tempImg.src = e.target.result;
+            }
+        };
+        reader.readAsDataURL(file);
+    }
 }
 
 function updateLayerCodeWithHighlight(layerId, code) {

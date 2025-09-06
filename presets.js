@@ -42,7 +42,7 @@ const presets = {
         speed: 1
     },
 
-    tunnel: {
+    pulsing: {
         code: `function draw() {
 	  translate(width/2, height/2);
 	  
@@ -156,66 +156,6 @@ const presets = {
         maxFrames: 200,
         fps: 60,
         speed: 1.3
-    },
-
-    golden_spiral: {
-		code: `function draw() {
-	  translate(width/2, height/2);
-	  let time = frameCount * 0.02;
-	  
-	  stroke(45, 80, 90);
-	  strokeWeight(2);
-	  noFill();
-	  
-	  let phi = (1 + sqrt(5)) / 2; // Golden ratio
-	  
-	  for (let i = 0; i < 500; i++) {
-		let angle = i * 0.1 + time;
-		let radius = sqrt(i) * 4;
-		
-		let x = cos(angle) * radius;
-		let y = sin(angle) * radius;
-		
-		point(x, y);
-	  }
-}`,
-        hue: 360,
-        saturation: 100,
-        brightness: 100,
-        opacity: 100,
-        maxFrames: 360,
-        fps: 60,
-        speed: 0.7
-    },
-
-    double_spiral: {
-        code: `function draw() {
-	  translate(width/2, height/2);
-	  let time = frameCount * 0.01;
-	  
-	  for (let spiral = 0; spiral < 2; spiral++) {
-		for (let i = 0; i < 150; i++) {
-		  let angle = i * 0.2 + time + spiral * PI;
-		  let radius = i * 1.2;
-		  
-		  let x = cos(angle) * radius;
-		  let y = sin(angle) * radius;
-		  
-		  let hue = (spiral * 180 + i * 2 + frameCount) % 360;
-		  fill(hue, 70, 85);
-		  noStroke();
-		  
-		  ellipse(x, y, 6, 6);
-		}
-	  }
-}`,
-        hue: 360,
-        saturation: 100,
-        brightness: 100,
-        opacity: 100,
-        maxFrames: 480,
-        fps: 60,
-        speed: 0.6
     },
 
     text_example: {
@@ -810,6 +750,101 @@ function updateStarTwinkle(star) {
         fps: 60,
         speed: 1
     },
+
+	static: {
+		code:`let staticPixels = [];
+const numPixels = 2500;
+const greyBg = 120;
+
+function setup() {
+    // Pre-generate static pixels
+    for (let i = 0; i < numPixels; i++) {
+        staticPixels.push(createPixel());
+    }
+}
+
+function draw() {
+    // Grey background with noise (convert RGB to HSB equivalent)
+    background(0, 0, map(greyBg + random(-5, 5), 0, 255, 0, 100));
+    
+    // Update and draw static pixels
+    for (let pixel of staticPixels) {
+        updatePixel(pixel);
+        drawPixel(pixel);
+    }
+    
+    // Add scan lines and screen effects
+    drawScanLines();
+    
+    // Occasional screen flicker
+    if (random() < 0.02) {
+        fill(0, 0, 100, random(5, 15)); // White with low alpha
+        noStroke();
+        rect(0, 0, width, height);
+    }
+}
+
+function createPixel() {
+    const life = random(5, 30);
+    return {
+        x: random(width),
+        y: random(height),
+        hue: getRandomHue(),
+        life: life,
+        maxLife: life
+    };
+}
+
+function updatePixel(pixel) {
+    pixel.life--;
+    
+    // Respawn pixel when it dies
+    if (pixel.life <= 0) {
+        pixel.x = random(width);
+        pixel.y = random(height);
+        pixel.hue = getRandomHue();
+        pixel.life = random(5, 30);
+        pixel.maxLife = pixel.life;
+    }
+    
+    // Add flickering effect
+    if (random() < 0.1) {
+        pixel.life = random(1, 5);
+    }
+}
+
+function drawPixel(pixel) {
+    const alpha = map(pixel.life, 0, pixel.maxLife, 0, 80);
+    
+    fill(pixel.hue, 100, 100, alpha); // Full saturation and brightness
+    noStroke();
+    rect(pixel.x, pixel.y, 1.3, 1.3);
+}
+
+function getRandomHue() {
+    const hues = [0, 120, 240]; // Red, Green, Blue in HSB
+    return hues[floor(random(hues.length))];
+}
+
+function drawScanLines() {
+    stroke(0, 0, 0, 8); // Semi-transparent black
+    strokeWeight(1);
+    
+    // Draw every 3rd line for performance
+    for (let y = 0; y < height; y += 3) {
+        if (random() < 0.7) {
+            line(0, y, width, y);
+        }
+    }
+}`,
+		hue: 360,
+        saturation: 90,
+        brightness: 80,
+        opacity: 100,
+        maxFrames: 360,
+        fps: 60,
+        speed: 1
+    },
 	
 	ying_yang_spiral: {
 		code:`let resolution = 900;
@@ -878,6 +913,649 @@ function drawSmoothSpiralBand(offset, color, maxRadius, spiralTurns) {
         fps: 60,
         speed: 1
     },
+	
+	tunnel: {
+		code:`let time = 0;
+let tunnelDepth = 0;
+
+function draw() {
+	translate(width / 2, height / 2);
+	
+	// Animate forward movement and rotation
+	time += 0.02;
+	tunnelDepth += 0.5;
+	
+	// Draw multiple rings at different depths to create tunnel effect
+	let numRings = 60;
+	let maxRadius = min(width, height) * 0.4;
+	
+	for (let ring = 0; ring < numRings; ring++) {
+		let z = ring * 10 + (tunnelDepth % 10); // Z-depth with forward movement
+		
+		// Perspective scaling - objects further away appear smaller
+		let perspective = 200 / (z + 200); // Perspective factor
+		let ringRadius = maxRadius * perspective;
+		
+		// Skip rings that are too small or too far
+		if (ringRadius < 1) continue;
+		
+		// Calculate rotation for this ring based on depth
+		let ringRotation = time + ring * 0.1;
+		
+		// Draw the yin-yang bands for this ring
+		drawTunnelRing(ringRadius, ringRotation, perspective, z);
+	}
+}
+
+function drawTunnelRing(radius, rotation, perspective, depth) {
+	let segments = 60;
+	let bandWidth = 20 * perspective; // Band width scales with perspective
+	
+	// Skip if band is too thin
+	if (bandWidth < 0.5) return;
+	
+	// Calculate opacity based on depth for fade effect
+	let opacity = map(depth, 0, 300, 255, 0);
+	opacity = constrain(opacity, 0, 255);
+	
+	for (let i = 0; i < segments; i++) {
+		let angle = (i / segments) * TWO_PI + rotation;
+		let nextAngle = ((i + 1) / segments) * TWO_PI + rotation;
+		
+		// Determine if this segment should be black or white
+		// Create yin-yang pattern by alternating every half circle
+		let segmentAngle = (angle + rotation) % TWO_PI;
+		let isWhite = segmentAngle < PI;
+		
+		// Set color with opacity
+		if (isWhite) {
+			stroke(255, opacity);
+		} else {
+			stroke(0, opacity);
+			// For black lines, draw white background first for visibility
+			strokeWeight(bandWidth + 1);
+			stroke(255, opacity * 0.3);
+			let x1 = cos(angle) * radius;
+			let y1 = sin(angle) * radius;
+			let x2 = cos(nextAngle) * radius;
+			let y2 = sin(nextAngle) * radius;
+			line(x1, y1, x2, y2);
+			stroke(0, opacity);
+		}
+		
+		strokeWeight(bandWidth);
+		strokeCap(ROUND);
+		
+		// Calculate positions
+		let x1 = cos(angle) * radius;
+		let y1 = sin(angle) * radius;
+		let x2 = cos(nextAngle) * radius;
+		let y2 = sin(nextAngle) * radius;
+		
+		// Draw the segment
+		line(x1, y1, x2, y2);
+	}
+}`,
+		hue: 360,
+        saturation: 90,
+        brightness: 80,
+        opacity: 100,
+        maxFrames: 360,
+        fps: 60,
+        speed: 1
+    },
+	
+	coin: {
+		code: `let length = 280;
+let amplitude = 0;
+let size = 120;
+
+function setup() {
+	amplitude = PI / 4.5;
+}
+
+function draw() {
+	// Rich dark background with subtle gradient
+	drawBackground();
+	
+	// Pivot point
+	let pivotX = width / 2;
+	let pivotY = 50;
+	
+	// Full cycle with slightly slower motion for more elegant swing
+	let time = (frameCount / 140) * TWO_PI;
+	let angle = amplitude * sin(time);
+	
+	// Calculate pendulum position
+	let bobX = pivotX + length * sin(angle);
+	let bobY = pivotY + length * cos(angle);
+	
+	// Draw the red silk string
+	drawSilkString(pivotX, pivotY, bobX, bobY);
+	
+	// Draw the Chinese gold coin
+	drawChineseCoin(bobX, bobY, size);
+	
+	// Draw string visible inside the hole and attachment at top
+	drawStringAroundCoin(bobX, bobY, size);
+	
+	// Draw pivot point
+	drawPivotPoint(pivotX, pivotY);
+}
+
+function drawBackground() {
+	for (let y = 0; y < height; y++) {
+		let inter = map(y, 0, height, 0, 1);
+		let c = lerpColor(color(25, 40, 12), color(15, 60, 5), inter);
+		stroke(c);
+		line(0, y, width, y);
+	}
+}
+
+function drawSilkString(x1, y1, x2, y2) {
+	// Calculate the top of the coin where string is tied
+	let coinTop = y2 - size/2;
+	
+	// String goes from pivot to top of coin (where it's tied)
+	drawStringSegment(x1, y1, x2, coinTop);
+}
+
+function drawStringSegment(x1, y1, x2, y2) {
+	// Main string - red silk with multiple strands
+	stroke(0, 85, 65); // Deep red
+	strokeWeight(4);
+	line(x1, y1, x2, y2);
+	
+	// Left strand highlight
+	stroke(15, 70, 80); // Lighter red highlight
+	strokeWeight(1.5);
+	let angle = atan2(y2 - y1, x2 - x1);
+	let perpOffset = 1.2;
+	let offsetX1 = cos(angle + PI/2) * perpOffset;
+	let offsetY1 = sin(angle + PI/2) * perpOffset;
+	line(x1 + offsetX1, y1 + offsetY1, x2 + offsetX1, y2 + offsetY1);
+	
+	// Right strand highlight
+	stroke(5, 60, 75); // Slightly different red tone
+	strokeWeight(1.5);
+	let offsetX2 = cos(angle - PI/2) * perpOffset;
+	let offsetY2 = sin(angle - PI/2) * perpOffset;
+	line(x1 + offsetX2, y1 + offsetY2, x2 + offsetX2, y2 + offsetY2);
+	
+	// Center core strand
+	stroke(0, 90, 55); // Darker red core
+	strokeWeight(1);
+	line(x1, y1, x2, y2);
+	
+	// Twisted texture effect
+	stroke(0, 70, 60, 60);
+	strokeWeight(0.5);
+	let segments = int(dist(x1, y1, x2, y2) / 8);
+	for (let i = 0; i < segments; i++) {
+		let t = i / segments;
+		let x = lerp(x1, x2, t);
+		let y = lerp(y1, y2, t);
+		let twist = sin(t * PI * 6) * 1.5;
+		let twistX = cos(angle + PI/2) * twist;
+		let twistY = sin(angle + PI/2) * twist;
+		point(x + twistX, y + twistY);
+	}
+}
+
+function drawStringAroundCoin(centerX, centerY, coinSize) {
+	push();
+	translate(centerX, centerY);
+	
+	let holeSize = coinSize / 4;
+	let coinRadius = coinSize / 2;
+	
+	// String coming up from the back/bottom of the hole
+	stroke(0, 75, 55); // Slightly darker as it's in shadow behind coin
+	strokeWeight(2.5);
+	line(0, holeSize/2 - 2, 0, -holeSize/2 + 2);
+	
+	// String highlights inside hole (visible portion)
+	stroke(10, 65, 70);
+	strokeWeight(1);
+	line(-1, holeSize/2 - 2, -1, -holeSize/2 + 2);
+	
+	// String shadow inside hole
+	stroke(0, 40, 30, 120);
+	strokeWeight(1.5);
+	line(0.7, holeSize/2 - 2, 0.7, -holeSize/2 + 2);
+	
+	// String going from top of hole to top of coin (where it's tied)
+	stroke(0, 85, 65);
+	strokeWeight(3);
+	line(0, -holeSize/2, 0, -coinRadius + 2);
+	
+	// String highlights on visible portion above hole
+	stroke(15, 70, 80);
+	strokeWeight(1);
+	line(-1.2, -holeSize/2, -1.2, -coinRadius + 2);
+	
+	stroke(5, 60, 75);
+	strokeWeight(1);
+	line(1.2, -holeSize/2, 1.2, -coinRadius + 2);
+	
+	// Attachment point/knot at top of coin
+	fill(0, 90, 50);
+	stroke(0, 95, 35);
+	strokeWeight(1.5);
+	ellipse(0, -coinRadius + 3, 8, 6);
+	
+	// Knot details
+	fill(15, 70, 70);
+	noStroke();
+	ellipse(-1.5, -coinRadius + 2, 3, 2);
+	
+	// Small string ends from the knot
+	stroke(0, 80, 60);
+	strokeWeight(1);
+	line(-2, -coinRadius + 3, -4, -coinRadius + 1);
+	line(2, -coinRadius + 3, 4, -coinRadius + 1);
+	
+	// String loop showing it goes around the coin edge
+	stroke(0, 75, 55, 80); // Semi-transparent as it's behind
+	strokeWeight(2);
+	noFill();
+	arc(0, 0, coinSize + 6, coinSize + 6, PI + 0.3, TWO_PI - 0.3);
+	
+	pop();
+}
+
+function drawChineseCoin(x, y, coinSize) {
+	push();
+	translate(x, y);
+	
+	// Outer rim shadow
+	fill(35, 90, 15, 40);
+	noStroke();
+	ellipse(2, 2, coinSize + 8, coinSize + 8);
+	
+	// Outer coin edge (darker gold)
+	fill(42, 85, 65);
+	stroke(38, 90, 55);
+	strokeWeight(3);
+	ellipse(0, 0, coinSize, coinSize);
+	
+	// Inner coin surface (main gold)
+	fill(45, 80, 78);
+	stroke(48, 75, 85);
+	strokeWeight(2);
+	ellipse(0, 0, coinSize - 12, coinSize - 12);
+	
+	// Square hole in center (traditional Chinese coin design)
+	let holeSize = coinSize / 4;
+	
+	// Hole depth shadow (3D effect)
+	fill(15, 60, 8);
+	noStroke();
+	rectMode(CENTER);
+	rect(1, 1, holeSize + 2, holeSize + 2);
+	
+	// Main hole
+	fill(25, 40, 12); // Dark background showing through
+	rect(0, 0, holeSize, holeSize);
+	
+	// Hole inner walls (showing depth)
+	stroke(30, 70, 25);
+	strokeWeight(1);
+	noFill();
+	rect(0, 0, holeSize - 1, holeSize - 1);
+	
+	// Inner square hole highlight on edges
+	stroke(48, 60, 90);
+	strokeWeight(1);
+	// Top edge highlight
+	line(-holeSize/2, -holeSize/2, holeSize/2, -holeSize/2);
+	// Left edge highlight  
+	line(-holeSize/2, -holeSize/2, -holeSize/2, holeSize/2);
+	
+	// Bottom and right edges (darker for depth)
+	stroke(35, 80, 40);
+	line(-holeSize/2, holeSize/2, holeSize/2, holeSize/2);
+	line(holeSize/2, -holeSize/2, holeSize/2, holeSize/2);
+	
+	// Chinese characters around the coin (simplified representation)
+	drawChineseCharacters(coinSize);
+	
+	// Decorative border pattern
+	drawDecorativeBorder(coinSize);
+	
+	// Coin surface texture and highlights
+	drawCoinTexture(coinSize);
+	
+	// Final highlight for 3D effect
+	fill(50, 40, 95, 50);
+	noStroke();
+	ellipse(-coinSize/4, -coinSize/4, coinSize/3, coinSize/4);
+	
+	pop();
+}
+
+function drawChineseCharacters(coinSize) {
+	// Simplified representation of Chinese characters
+	fill(35, 95, 25);
+	noStroke();
+	textAlign(CENTER, CENTER);
+	textSize(coinSize/8);
+	textStyle(BOLD);
+	
+	// Four characters positioned around the square hole
+	let charOffset = coinSize/3;
+	
+	// Top character (simplified)
+	fill(30, 95, 30);
+	rect(-3, -charOffset, 6, 12, 1);
+	rect(-6, -charOffset - 3, 12, 3, 1);
+	
+	// Bottom character
+	ellipse(0, charOffset, 8, 8);
+	rect(-4, charOffset - 6, 8, 3, 1);
+	
+	// Left character
+	rect(-charOffset, -4, 3, 8, 1);
+	rect(-charOffset - 3, 0, 9, 2, 1);
+	
+	// Right character
+	rect(charOffset, -6, 3, 12, 1);
+	rect(charOffset - 2, -2, 7, 2, 1);
+}
+
+function drawDecorativeBorder(coinSize) {
+	// Decorative dots around the inner rim
+	fill(48, 70, 90);
+	noStroke();
+	let dots = 16;
+	for (let i = 0; i < dots; i++) {
+		let angle = (i / dots) * TWO_PI;
+		let dotRadius = coinSize/2 - 15;
+		let dotX = cos(angle) * dotRadius;
+		let dotY = sin(angle) * dotRadius;
+		ellipse(dotX, dotY, 3, 3);
+	}
+	
+	// Outer decorative ring
+	stroke(48, 70, 90);
+	strokeWeight(1);
+	noFill();
+	ellipse(0, 0, coinSize - 8, coinSize - 8);
+	
+	// Inner decorative ring around square
+	let ringSize = coinSize/2.5;
+	ellipse(0, 0, ringSize, ringSize);
+}
+
+function drawCoinTexture(coinSize) {
+	// Subtle radial texture lines
+	stroke(40, 60, 85, 30);
+	strokeWeight(0.5);
+	for (let i = 0; i < 32; i++) {
+		let angle = (i / 32) * TWO_PI;
+		let innerR = coinSize/2.8;
+		let outerR = coinSize/2.2;
+		let x1 = cos(angle) * innerR;
+		let y1 = sin(angle) * innerR;
+		let x2 = cos(angle) * outerR;
+		let y2 = sin(angle) * outerR;
+		line(x1, y1, x2, y2);
+	}
+	
+	// Concentric circles for aged texture
+	stroke(35, 80, 60, 20);
+	strokeWeight(0.5);
+	noFill();
+	for (let r = coinSize/4; r < coinSize/2; r += 8) {
+		ellipse(0, 0, r * 2, r * 2);
+	}
+}
+
+function drawPivotPoint(x, y) {
+	// Decorative ceiling mount
+	fill(30, 70, 40);
+	stroke(35, 80, 50);
+	strokeWeight(2);
+	ellipse(x, y, 16, 16);
+	
+	// Center screw
+	fill(25, 80, 25);
+	noStroke();
+	ellipse(x, y, 6, 6);
+	
+	// Screw cross
+	stroke(20, 90, 20);
+	strokeWeight(1);
+	line(x - 2, y, x + 2, y);
+	line(x, y - 2, x, y + 2);
+}`,
+		
+		hue: 360,
+        saturation: 90,
+        brightness: 80,
+        opacity: 100,
+        maxFrames: 360,
+        fps: 60,
+        speed: 1
+    },
+	
+	water: {
+		code:`const TAU = 6.28318530718;
+const MAX_ITER = 5;
+let showTiling = false;
+
+function draw() {
+	loadPixels();
+	
+	let time = millis() * 0.001 * 0.5 + 23.0; // Convert to seconds and apply time scaling
+	
+	for (let x = 0; x < width; x++) {
+		for (let y = 0; y < height; y++) {
+			// Convert to UV coordinates (0-1)
+			let u = x / width;
+			let v = y / height;
+			
+			// Apply the shader logic
+			let p;
+			if (showTiling) {
+				p = createVector(
+					((u * TAU * 2.0) % TAU) - 250.0,
+					((v * TAU * 2.0) % TAU) - 250.0
+				);
+			} else {
+				p = createVector(
+					((u * TAU) % TAU) - 250.0,
+					((v * TAU) % TAU) - 250.0
+				);
+			}
+			
+			let i = createVector(p.x, p.y);
+			let c = 1.0;
+			let inten = 0.005;
+			
+			// Main iteration loop
+			for (let n = 0; n < MAX_ITER; n++) {
+				let t = time * (1.0 - (3.5 / (n + 1)));
+				i.x = p.x + cos(t - i.x) + sin(t + i.y);
+				i.y = p.y + sin(t - i.y) + cos(t + i.x);
+				
+				let px = p.x / (sin(i.x + t) / inten);
+				let py = p.y / (cos(i.y + t) / inten);
+				let length = sqrt(px * px + py * py);
+				c += 1.0 / length;
+			}
+			
+			c /= MAX_ITER;
+			c = 1.17 - pow(c, 1.4);
+			
+			// Create color
+			let colorValue = pow(abs(c), 8.0);
+			let r = constrain(colorValue + 0.0, 0.0, 1.0);
+			let g = constrain(colorValue + 0.35, 0.0, 1.0);
+			let b = constrain(colorValue + 0.5, 0.0, 1.0);
+			
+			// Tiling effect
+			if (showTiling) {
+				let pixelX = 2.0 / width;
+				let pixelY = 2.0 / height;
+				let uTile = u * 2.0;
+				let vTile = v * 2.0;
+				let f = floor((millis() * 0.001 * 0.5) % 2.0); // Flash value
+				
+				let firstX = (uTile > pixelX ? 1 : 0) * f;
+				let firstY = (vTile > pixelY ? 1 : 0) * f;
+				
+				let uStep = (uTile % 1.0) < pixelX ? 1 : 0;
+				let vStep = (vTile % 1.0) < pixelY ? 1 : 0;
+				
+				let lineIntensity = (uStep + vStep) * firstX * firstY;
+				
+				// Mix with yellow line
+				r = r * (1 - lineIntensity) + 1.0 * lineIntensity;
+				g = g * (1 - lineIntensity) + 1.0 * lineIntensity;
+				b = b * (1 - lineIntensity) + 0.0 * lineIntensity;
+			}
+			
+			// Set pixel
+			let index = (x + y * width) * 4;
+			pixels[index] = r * 255;     // Red
+			pixels[index + 1] = g * 255; // Green
+			pixels[index + 2] = b * 255; // Blue
+			pixels[index + 3] = 255;     // Alpha
+		}
+	}
+	
+	updatePixels();
+}
+
+// Helper function for modulo that works with negative numbers like GLSL
+function mod(a, b) {
+	return ((a % b) + b) % b;
+}`,
+		hue: 360,
+        saturation: 90,
+        brightness: 80,
+        opacity: 100,
+        maxFrames: 360,
+        fps: 60,
+        speed: 1
+    },
+	
+	vignette: {
+		code:`let vignetteSize = 0.7;
+let vignetteHarshness = 1;
+
+function setup() {
+  noLoop(); // Prevent the draw() function from running repeatedly
+  drawVignette(); // Call the vignette function just once
+}
+
+function drawVignette() {
+  noStroke();
+
+  // Calculate the center of the canvas
+  const centerX = width / 2;
+  const centerY = height / 2;
+
+  // Iterate through every pixel to apply the vignette effect
+  for (let x = 0; x < width; x++) {
+    for (let y = 0; y < height; y++) {
+      let distance = dist(x, y, centerX, centerY);
+
+      let normalizedDistance = distance / (width / 2);
+
+      // Create a smooth transition
+      let vignetteValue = constrain( (normalizedDistance - vignetteSize) * vignetteHarshness/100, 0, 1);
+
+      let alpha = vignetteValue * 255; // Map to alpha range (0-255)
+
+      fill(0, alpha); // Set the fill color to black with calculated alpha
+      rect(x, y, 1, 1);
+    }
+  }
+}`,
+		hue: 360,
+        saturation: 100,
+        brightness: 100,
+        opacity: 100,
+        maxFrames: 360,
+        fps: 60,
+        speed: 1
+    },
+	
+	bg_gradient: {
+		code:`// Array of colors for the gradient
+let gradientColors = ['#FF6B6B','#FFE66D','#4ECDC4','#4F81C2','#6B4C93',];
+
+// Array of numbers (0-1) representing the percentage of screen height
+let gradientPercentages = [0.3,0.2,0.1,0.2,0.3,];
+
+// Rotation angle for the gradient in degrees.
+let gradientRotation = 0;
+
+// Controls the fade from one color into the next.
+let fadeAmount = 0;
+
+function setup() {
+	noLoop(); // The gradient is static, so we don't need the draw loop
+	drawGradient(gradientColors, gradientPercentages, gradientRotation, fadeAmount);
+}
+
+function drawGradient(colors, percentages, rotation, fade) {
+	let diagonal = sqrt(width * width + height * height);
+	let gradientCanvas = createGraphics(diagonal, diagonal);
+	gradientCanvas.noStroke();
+	
+	// Normalize percentages to ensure they add up to 1 (or 100%)
+	let totalPercentage = percentages.reduce((sum, p) => sum + p, 0);
+	let normalizedPercentages = percentages.map(p => p / totalPercentage);
+
+	// Draw the colored bands and fades on the temporary canvas
+	let currentY = 0;
+	let totalHeight = gradientCanvas.height;
+
+	for (let i = 0; i < colors.length; i++) {
+		let colorStart = color(colors[i]);
+		let colorEnd = (i < colors.length - 1) ? color(colors[i + 1]) : colorStart;
+
+		// Calculate the height of the main color band
+		let bandHeight = normalizedPercentages[i] * totalHeight;
+		let fadeHeight = fade * bandHeight; // Fade is a percentage of the band height
+		
+		// Draw the main, solid color part of the band
+		gradientCanvas.fill(colorStart);
+		gradientCanvas.rect(0, currentY, gradientCanvas.width, bandHeight - fadeHeight);
+
+		// Draw the fade section
+		if (fade > 0 && i < colors.length - 1) {
+			for (let y = 0; y < fadeHeight; y++) {
+				let inter = map(y, 0, fadeHeight, 0, 1);
+				let fadeColor = lerpColor(colorStart, colorEnd, inter);
+				gradientCanvas.stroke(fadeColor);
+				gradientCanvas.line(0, currentY + bandHeight - fadeHeight + y, gradientCanvas.width, currentY + bandHeight - fadeHeight + y);
+			}
+		}
+
+		// Move the current Y position for the next color band
+		currentY += bandHeight;
+	}
+
+	// Apply rotation and display the gradient
+	push();
+	translate(width / 2, height / 2);
+	rotate(radians(rotation));
+	image(gradientCanvas, -diagonal / 2, -diagonal / 2);
+	pop();
+}`,
+		hue: 360,
+        saturation: 100,
+        brightness: 100,
+        opacity: 100,
+        maxFrames: 360,
+        fps: 60,
+        speed: 1
+    },
+		
 
 };
 

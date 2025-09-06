@@ -1,0 +1,100 @@
+/* General Controls */
+.controls {
+    margin-bottom: 15px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.export-controls {
+    margin-bottom: 15px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.animation-controls {
+    margin-bottom: 15px;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    background: #2d2d2d;
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 10px 15px;
+}
+
+.control-group {
+    align-items: center;
+    gap: 8px;
+}
+
+.control-group label {
+    font-size: 12px;
+    color: #ccc;
+}
+
+.control-group input {
+    background: #1a1a1a;
+    border: 1px solid #555;
+    border-radius: 3px;
+    color: #fff;
+    padding: 4px 8px;
+    width: 60px;
+    font-size: 12px;
+    font-family: inherit;
+}
+
+.control-group input:focus {
+    outline: none;
+    border-color: #0066cc;
+}
+
+/* Background Color Control */
+.background-color-control {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.background-color-control label {
+    font-size: 12px;
+    color: #888;
+    white-space: nowrap;
+}
+
+#backgroundColorPicker {
+    width: 40px;
+    height: 32px;
+    border: 1px solid #333;
+    border-radius: 4px;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+#backgroundColorPicker::-webkit-color-swatch {
+    border: none;
+    border-radius: 3px;
+}
+
+#backgroundColorPicker::-webkit-color-swatch-wrapper {
+    padding: 2px;
+    border-radius: 3px;
+}
+
+/* Canvas Container */
+#canvasContainer {
+    position: relative;
+    display: inline-block;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Layer Controls at Top */
+.layer-controls-top {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+}
