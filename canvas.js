@@ -106,9 +106,6 @@ function stopAnimation() {
     if (window.setup) delete window.setup;
     if (window.draw) delete window.draw;
     
-    document.getElementById('status').textContent = 'Stopped';
-    document.getElementById('status').style.color = '#ffaa00';
-    
     // Reset export progress bar and frame display
     document.getElementById('exportProgressBar').style.width = '0%';
     document.getElementById('frameSlider').value = 0;
@@ -124,6 +121,12 @@ function stopAnimation() {
     document.getElementById('nextFrameBtn').disabled = true;
     document.getElementById('frameSlider').disabled = true;
 	
+	// Reset status and progress bar
+    document.getElementById('status').textContent = 'Stopped';
+    document.getElementById('status').style.color = '#ff3300';
+    document.getElementById('frameSlider').value = 0;
+    updateExportProgress(0);
+	
 	if (pipWindow && !pipWindow.closed) {
 		updatePipWindow(); // Final update to show stopped state
 	}
@@ -136,22 +139,27 @@ function updateLoopProgress() {
     const frameInterval = 1000 / (animationFPS * animationSpeed);
     
     if (currentTime - lastFrameTime >= frameInterval) {
-        virtualFrameCount++;
-        lastFrameTime = currentTime;
-        
+		lastFrameTime = currentTime;
+		
+        virtualFrameCount++;  
         if (virtualFrameCount >= framesPerLoop) {
             virtualFrameCount = 0; // Reset global counter
-            
-            // Reset all layers when global loop completes
-            canvasLayers.forEach(sketch => {
-                if (sketch && sketch.layerControls) {
-                    sketch.layerControls.resetTiming();
-                }
-            });
         }
         
         loopFrameCount = virtualFrameCount;
         updateUI();
+		
+		// Update layers proportionally to the new global frame count
+        const globalProgress = virtualFrameCount / framesPerLoop;
+        canvasLayers.forEach(sketch => {
+            if (sketch && sketch.layerControls) {
+                const layer = sketch.layerControls.layer;
+                // Calculate the corresponding frame for the layer's own maxFrames
+                const layerFrame = Math.floor(globalProgress * layer.maxFrames);
+                sketch.layerControls.setFrameCount(layerFrame % layer.maxFrames);
+                sketch.redraw(); // Force a redraw to show the new frame
+            }
+        });
     }
     
     animationLoopId = requestAnimationFrame(updateLoopProgress);
@@ -197,7 +205,6 @@ function createLayerSketch(){
 	layers.forEach((layer, layerIndex) => {
 		if (!layer.code.trim() || !layer.visible) return;
 		
-		// Layer control object to be shared between sketch and external functions
 		const layerControls = {
 			layer: layer,
 			frameCount: 0,
@@ -325,6 +332,29 @@ function createLayerSketch(){
 	});
 }
 
+function updateAnimationSettings() {
+    const framesInput = document.getElementById('framesInput');
+    const fpsInput = document.getElementById('fpsInput');
+    const speedInput = document.getElementById('speedInput');
+
+    if (framesInput && framesInput.value) {
+        framesPerLoop = parseInt(framesInput.value);
+        document.getElementById('frameSlider').max = framesPerLoop - 1;
+    }
+    
+    if (fpsInput && fpsInput.value) {
+        animationFPS = parseInt(fpsInput.value);
+    }
+    
+    if (speedInput && speedInput.value) {
+        animationSpeed = parseFloat(speedInput.value);
+    }
+    
+    if (currentSketch) {
+        currentSketch.frameRate(animationFPS);
+    }
+}
+
 function updateLayerFPSLimits() {
     layers.forEach(layer => {
         if (layer.fps > animationFPS) {
@@ -419,7 +449,7 @@ window.onload = function() {
 	initializeSliderInteraction();
     
     // Then create the initial layer - need to check if getPresetCode exists
-    const initialCode = typeof getPresetCode === 'function' ? getPresetCode('tunnel') : 
+    const initialCode = typeof getPresetCode === 'function' ? getPresetCode('pulsing') : 
         'function setup() {\n  background(0);\n}\n\nfunction draw() {\n  // Your animation code here\n}';
     
     const initialLayer = createLayer(initialCode);

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spiral Editor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/p5.capture@1.6.0/dist/p5.capture.umd.min.js"></script>
     <link rel="stylesheet" href="main-style.css">
 	<link rel="stylesheet" href="controls-style.css">
 	<link rel="stylesheet" href="buttons-style.css">
@@ -54,7 +55,8 @@
                     <option value="mandala">Mandala</option>
                     <option value="particules">Particles</option>
                     <option value="coin">Coin</option>
-                    <option value="floating_spheres">Floating Spheres</option>
+                    <option value="metronome">Metronome</option>
+                    <option value="circling_spiral">Circling Spiral</option>
                 </select>
             </div>
             
@@ -118,11 +120,11 @@
             </div>
             
             <div class="export-controls">
-                <button onclick="exportGif()" id="exportGifBtn" disabled>Export GIF</button>
-                <button onclick="exportWebP()" id="exportWebPBtn" disabled>Export WebP</button>
-                <button onclick="exportMP4()" id="exportMP4Btn" disabled>Export MP4</button>
+				<button class="export-btn" id="exportMP4Btn" onclick="exportAnimation('mp4')" disabled>MP4</button>
+				<button class="export-btn" id="exportGifBtn" onclick="exportAnimation('gif')" disabled>GIF</button>
+				<button class="export-btn" id="exportWebPBtn" onclick="exportAnimation('webp')" disabled>WebP</button>
                 <span id="exportStatus" style="margin-left: 10px; color: #ffaa00; font-size: 12px;"></span>
-            </div>
+			</div>
             
             <div class="animation-controls">
                 <div class="control-group">

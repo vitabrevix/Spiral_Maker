@@ -1006,328 +1006,270 @@ function drawTunnelRing(radius, rotation, perspective, depth) {
     },
 	
 	coin: {
-		code: `let length = 280;
+		code: `let length = 200;
+let swingIntensity = 1.0; 
 let amplitude = 0;
 let size = 120;
+let pivotY = 0;
+let currentCoinAngle = 0;
 
 function setup() {
-	amplitude = PI / 4.5;
+    amplitude = PI / 4.5 * swingIntensity;
 }
 
 function draw() {
-	// Rich dark background with subtle gradient
-	drawBackground();
-	
-	// Pivot point
-	let pivotX = width / 2;
-	let pivotY = 50;
-	
-	// Full cycle with slightly slower motion for more elegant swing
-	let time = (frameCount / 140) * TWO_PI;
-	let angle = amplitude * sin(time);
-	
-	// Calculate pendulum position
-	let bobX = pivotX + length * sin(angle);
-	let bobY = pivotY + length * cos(angle);
-	
-	// Draw the red silk string
-	drawSilkString(pivotX, pivotY, bobX, bobY);
-	
-	// Draw the Chinese gold coin
-	drawChineseCoin(bobX, bobY, size);
-	
-	// Draw string visible inside the hole and attachment at top
-	drawStringAroundCoin(bobX, bobY, size);
-	
-	// Draw pivot point
-	drawPivotPoint(pivotX, pivotY);
+    drawBackground();
+    let pivotX = width / 2;
+    
+    // Perfect loop for pendulum: One full swing cycle every 120 frames
+    let time = (frameCount / 120) * TWO_PI;
+    // The phase shift of PI makes the pendulum swing to the left first.
+    let angle = amplitude * sin(time + PI); 
+    
+    let bobX = pivotX + length * sin(angle);
+    let bobY = pivotY + length * cos(angle);
+
+    // Make the coin's rotation match the pendulum's swing angle.
+    let targetCoinAngle = angle;
+    currentCoinAngle = lerp(currentCoinAngle, targetCoinAngle, 0.1);
+    
+    // Draw the silk string, attached to the top of the coin.
+    drawSilkString(pivotX, pivotY, bobX, bobY, angle);
+    
+    // Draw the Chinese gold coin, with rotation tied to the pendulum's angle
+    drawChineseCoin(bobX, bobY, size, currentCoinAngle);
+    
+    // The string's internal details also follow this rotation
+    drawStringAroundCoin(bobX, bobY, size, currentCoinAngle);
+    
+    // Draw pivot point
+    drawPivotPoint(pivotX, pivotY);
 }
 
 function drawBackground() {
-	for (let y = 0; y < height; y++) {
-		let inter = map(y, 0, height, 0, 1);
-		let c = lerpColor(color(25, 40, 12), color(15, 60, 5), inter);
-		stroke(c);
-		line(0, y, width, y);
-	}
+    for (let y = 0; y < height; y++) {
+        let inter = map(y, 0, height, 0, 1);
+        let c = lerpColor(color(25, 40, 12), color(15, 60, 5), inter);
+        stroke(c);
+        line(0, y, width, y);
+    }
 }
 
-function drawSilkString(x1, y1, x2, y2) {
-	// Calculate the top of the coin where string is tied
-	let coinTop = y2 - size/2;
-	
-	// String goes from pivot to top of coin (where it's tied)
-	drawStringSegment(x1, y1, x2, coinTop);
+function drawSilkString(x1, y1, x2, y2, pendulumAngle) {
+    let stringEndX = x2 + (size / 2) * sin(pendulumAngle);
+    let stringEndY = y2 - (size / 2) * cos(pendulumAngle);
+    
+    stroke(0, 85, 65);
+    strokeWeight(4);
+    line(x1, y1, stringEndX, stringEndY);
+
+    let angle = atan2(stringEndY - y1, stringEndX - x1);
+    let perpOffset = 1.2;
+    let offsetX = cos(angle + HALF_PI) * perpOffset;
+    let offsetY = sin(angle + HALF_PI) * perpOffset;
+
+    stroke(15, 70, 80);
+    strokeWeight(1.5);
+    line(x1 + offsetX, y1 + offsetY, stringEndX + offsetX, stringEndY + offsetY);
+
+    stroke(5, 60, 75);
+    strokeWeight(1.5);
+    line(x1 - offsetX, y1 - offsetY, stringEndX - offsetX, stringEndY - offsetY);
+
+    stroke(0, 90, 55);
+    strokeWeight(1);
+    line(x1, y1, stringEndX, stringEndY);
+
+    stroke(0, 70, 60, 60);
+    strokeWeight(0.5);
+    let segments = floor(dist(x1, y1, stringEndX, stringEndY) / 8);
+    for (let i = 0; i < segments; i++) {
+        let t = i / segments;
+        let x = lerp(x1, stringEndX, t);
+        let y = lerp(y1, stringEndY, t);
+        let twist = sin(t * PI * 6) * 1.5;
+        let twistX = cos(angle + HALF_PI) * twist;
+        let twistY = sin(angle + HALF_PI) * twist;
+        point(x + twistX, y + twistY);
+    }
 }
 
-function drawStringSegment(x1, y1, x2, y2) {
-	// Main string - red silk with multiple strands
-	stroke(0, 85, 65); // Deep red
-	strokeWeight(4);
-	line(x1, y1, x2, y2);
-	
-	// Left strand highlight
-	stroke(15, 70, 80); // Lighter red highlight
-	strokeWeight(1.5);
-	let angle = atan2(y2 - y1, x2 - x1);
-	let perpOffset = 1.2;
-	let offsetX1 = cos(angle + PI/2) * perpOffset;
-	let offsetY1 = sin(angle + PI/2) * perpOffset;
-	line(x1 + offsetX1, y1 + offsetY1, x2 + offsetX1, y2 + offsetY1);
-	
-	// Right strand highlight
-	stroke(5, 60, 75); // Slightly different red tone
-	strokeWeight(1.5);
-	let offsetX2 = cos(angle - PI/2) * perpOffset;
-	let offsetY2 = sin(angle - PI/2) * perpOffset;
-	line(x1 + offsetX2, y1 + offsetY2, x2 + offsetX2, y2 + offsetY2);
-	
-	// Center core strand
-	stroke(0, 90, 55); // Darker red core
-	strokeWeight(1);
-	line(x1, y1, x2, y2);
-	
-	// Twisted texture effect
-	stroke(0, 70, 60, 60);
-	strokeWeight(0.5);
-	let segments = int(dist(x1, y1, x2, y2) / 8);
-	for (let i = 0; i < segments; i++) {
-		let t = i / segments;
-		let x = lerp(x1, x2, t);
-		let y = lerp(y1, y2, t);
-		let twist = sin(t * PI * 6) * 1.5;
-		let twistX = cos(angle + PI/2) * twist;
-		let twistY = sin(angle + PI/2) * twist;
-		point(x + twistX, y + twistY);
-	}
+function drawStringAroundCoin(centerX, centerY, coinSize, rotationAngle) {
+    push();
+    translate(centerX, centerY);
+    rotate(rotationAngle);
+
+    let holeSize = coinSize / 4;
+    let coinRadius = coinSize / 2;
+    let knotX = 0;
+    let knotY = -coinRadius;
+    
+    stroke(0, 85, 65);
+    strokeWeight(3);
+    line(knotX, knotY, 0, -holeSize / 2);
+
+    let angleToHole = atan2(-holeSize/2 - knotY, 0 - knotX);
+    let perpOffset = 1.2;
+    let offsetX = cos(angleToHole + HALF_PI) * perpOffset;
+    let offsetY = sin(angleToHole + HALF_PI) * perpOffset;
+    stroke(15, 70, 80);
+    strokeWeight(1);
+    line(knotX + offsetX, knotY + offsetY, offsetX, -holeSize / 2 + offsetY);
+    stroke(5, 60, 75);
+    strokeWeight(1);
+    line(knotX - offsetX, knotY - offsetY, -offsetX, -holeSize / 2 - offsetY);
+
+    fill(0, 90, 50);
+    stroke(0, 95, 35);
+    strokeWeight(1.5);
+    ellipse(knotX, knotY, 10, 8);
+
+    fill(15, 70, 70);
+    noStroke();
+    ellipse(knotX - 2, knotY + 2, 3, 2);
+    ellipse(knotX + 2, knotY - 2, 3, 2);
+
+    stroke(0, 80, 60);
+    strokeWeight(1);
+    line(knotX, knotY, knotX + 5, knotY);
+    line(knotX, knotY, knotX, knotY + 5);
+
+    pop();
 }
 
-function drawStringAroundCoin(centerX, centerY, coinSize) {
-	push();
-	translate(centerX, centerY);
-	
-	let holeSize = coinSize / 4;
-	let coinRadius = coinSize / 2;
-	
-	// String coming up from the back/bottom of the hole
-	stroke(0, 75, 55); // Slightly darker as it's in shadow behind coin
-	strokeWeight(2.5);
-	line(0, holeSize/2 - 2, 0, -holeSize/2 + 2);
-	
-	// String highlights inside hole (visible portion)
-	stroke(10, 65, 70);
-	strokeWeight(1);
-	line(-1, holeSize/2 - 2, -1, -holeSize/2 + 2);
-	
-	// String shadow inside hole
-	stroke(0, 40, 30, 120);
-	strokeWeight(1.5);
-	line(0.7, holeSize/2 - 2, 0.7, -holeSize/2 + 2);
-	
-	// String going from top of hole to top of coin (where it's tied)
-	stroke(0, 85, 65);
-	strokeWeight(3);
-	line(0, -holeSize/2, 0, -coinRadius + 2);
-	
-	// String highlights on visible portion above hole
-	stroke(15, 70, 80);
-	strokeWeight(1);
-	line(-1.2, -holeSize/2, -1.2, -coinRadius + 2);
-	
-	stroke(5, 60, 75);
-	strokeWeight(1);
-	line(1.2, -holeSize/2, 1.2, -coinRadius + 2);
-	
-	// Attachment point/knot at top of coin
-	fill(0, 90, 50);
-	stroke(0, 95, 35);
-	strokeWeight(1.5);
-	ellipse(0, -coinRadius + 3, 8, 6);
-	
-	// Knot details
-	fill(15, 70, 70);
-	noStroke();
-	ellipse(-1.5, -coinRadius + 2, 3, 2);
-	
-	// Small string ends from the knot
-	stroke(0, 80, 60);
-	strokeWeight(1);
-	line(-2, -coinRadius + 3, -4, -coinRadius + 1);
-	line(2, -coinRadius + 3, 4, -coinRadius + 1);
-	
-	// String loop showing it goes around the coin edge
-	stroke(0, 75, 55, 80); // Semi-transparent as it's behind
-	strokeWeight(2);
-	noFill();
-	arc(0, 0, coinSize + 6, coinSize + 6, PI + 0.3, TWO_PI - 0.3);
-	
-	pop();
-}
+function drawChineseCoin(x, y, coinSize, rotationAngle) {
+    push();
+    translate(x, y);
+    rotate(rotationAngle);
 
-function drawChineseCoin(x, y, coinSize) {
-	push();
-	translate(x, y);
-	
-	// Outer rim shadow
-	fill(35, 90, 15, 40);
-	noStroke();
-	ellipse(2, 2, coinSize + 8, coinSize + 8);
-	
-	// Outer coin edge (darker gold)
-	fill(42, 85, 65);
-	stroke(38, 90, 55);
-	strokeWeight(3);
-	ellipse(0, 0, coinSize, coinSize);
-	
-	// Inner coin surface (main gold)
-	fill(45, 80, 78);
-	stroke(48, 75, 85);
-	strokeWeight(2);
-	ellipse(0, 0, coinSize - 12, coinSize - 12);
-	
-	// Square hole in center (traditional Chinese coin design)
-	let holeSize = coinSize / 4;
-	
-	// Hole depth shadow (3D effect)
-	fill(15, 60, 8);
-	noStroke();
-	rectMode(CENTER);
-	rect(1, 1, holeSize + 2, holeSize + 2);
-	
-	// Main hole
-	fill(25, 40, 12); // Dark background showing through
-	rect(0, 0, holeSize, holeSize);
-	
-	// Hole inner walls (showing depth)
-	stroke(30, 70, 25);
-	strokeWeight(1);
-	noFill();
-	rect(0, 0, holeSize - 1, holeSize - 1);
-	
-	// Inner square hole highlight on edges
-	stroke(48, 60, 90);
-	strokeWeight(1);
-	// Top edge highlight
-	line(-holeSize/2, -holeSize/2, holeSize/2, -holeSize/2);
-	// Left edge highlight  
-	line(-holeSize/2, -holeSize/2, -holeSize/2, holeSize/2);
-	
-	// Bottom and right edges (darker for depth)
-	stroke(35, 80, 40);
-	line(-holeSize/2, holeSize/2, holeSize/2, holeSize/2);
-	line(holeSize/2, -holeSize/2, holeSize/2, holeSize/2);
-	
-	// Chinese characters around the coin (simplified representation)
-	drawChineseCharacters(coinSize);
-	
-	// Decorative border pattern
-	drawDecorativeBorder(coinSize);
-	
-	// Coin surface texture and highlights
-	drawCoinTexture(coinSize);
-	
-	// Final highlight for 3D effect
-	fill(50, 40, 95, 50);
-	noStroke();
-	ellipse(-coinSize/4, -coinSize/4, coinSize/3, coinSize/4);
-	
-	pop();
+    fill(35, 90, 15, 40);
+    noStroke();
+    ellipse(2, 2, coinSize + 8, coinSize + 8);
+
+    fill(42, 85, 65);
+    stroke(38, 90, 55);
+    strokeWeight(3);
+    ellipse(0, 0, coinSize, coinSize);
+
+    fill(45, 80, 78);
+    stroke(48, 75, 85);
+    strokeWeight(2);
+    ellipse(0, 0, coinSize - 12, coinSize - 12);
+
+    let holeSize = coinSize / 4;
+    fill(15, 60, 8);
+    noStroke();
+    rectMode(CENTER);
+    rect(1, 1, holeSize + 2, holeSize + 2);
+
+    fill(25, 40, 12);
+    rect(0, 0, holeSize, holeSize);
+
+    stroke(30, 70, 25);
+    strokeWeight(1);
+    noFill();
+    rect(0, 0, holeSize - 1, holeSize - 1);
+
+    stroke(48, 60, 90);
+    strokeWeight(1);
+    line(-holeSize / 2, -holeSize / 2, holeSize / 2, -holeSize / 2);
+    line(-holeSize / 2, -holeSize / 2, -holeSize / 2, holeSize / 2);
+
+    stroke(35, 80, 40);
+    line(-holeSize / 2, holeSize / 2, holeSize / 2, holeSize / 2);
+    line(holeSize / 2, -holeSize / 2, holeSize / 2, holeSize / 2);
+
+    drawChineseCharacters(coinSize);
+    drawDecorativeBorder(coinSize);
+    drawCoinTexture(coinSize);
+
+    fill(50, 40, 95, 50);
+    noStroke();
+    ellipse(-coinSize / 4, -coinSize / 4, coinSize / 3, coinSize / 4);
+
+    pop();
 }
 
 function drawChineseCharacters(coinSize) {
-	// Simplified representation of Chinese characters
-	fill(35, 95, 25);
-	noStroke();
-	textAlign(CENTER, CENTER);
-	textSize(coinSize/8);
-	textStyle(BOLD);
-	
-	// Four characters positioned around the square hole
-	let charOffset = coinSize/3;
-	
-	// Top character (simplified)
-	fill(30, 95, 30);
-	rect(-3, -charOffset, 6, 12, 1);
-	rect(-6, -charOffset - 3, 12, 3, 1);
-	
-	// Bottom character
-	ellipse(0, charOffset, 8, 8);
-	rect(-4, charOffset - 6, 8, 3, 1);
-	
-	// Left character
-	rect(-charOffset, -4, 3, 8, 1);
-	rect(-charOffset - 3, 0, 9, 2, 1);
-	
-	// Right character
-	rect(charOffset, -6, 3, 12, 1);
-	rect(charOffset - 2, -2, 7, 2, 1);
+    fill(35, 95, 25);
+    noStroke();
+    textAlign(CENTER, CENTER);
+    textSize(coinSize / 8);
+    textStyle(BOLD);
+
+    let charOffset = coinSize / 3.5;
+
+    fill(30, 95, 30);
+    rect(-charOffset, -10, 6, 12, 1);
+    rect(-charOffset + 3, -13, 12, 3, 1);
+
+    ellipse(charOffset, 10, 8, 8);
+    rect(charOffset - 4, 4, 8, 3, 1);
+
+    rect(-10, charOffset, 3, 8, 1);
+    rect(-13, charOffset + 4, 9, 2, 1);
+
+    rect(10, -charOffset, 3, 12, 1);
+    rect(10 + 2, -charOffset - 2, 7, 2, 1);
 }
 
 function drawDecorativeBorder(coinSize) {
-	// Decorative dots around the inner rim
-	fill(48, 70, 90);
-	noStroke();
-	let dots = 16;
-	for (let i = 0; i < dots; i++) {
-		let angle = (i / dots) * TWO_PI;
-		let dotRadius = coinSize/2 - 15;
-		let dotX = cos(angle) * dotRadius;
-		let dotY = sin(angle) * dotRadius;
-		ellipse(dotX, dotY, 3, 3);
-	}
-	
-	// Outer decorative ring
-	stroke(48, 70, 90);
-	strokeWeight(1);
-	noFill();
-	ellipse(0, 0, coinSize - 8, coinSize - 8);
-	
-	// Inner decorative ring around square
-	let ringSize = coinSize/2.5;
-	ellipse(0, 0, ringSize, ringSize);
+    fill(48, 70, 90);
+    noStroke();
+    let dots = 16;
+    let dotRadius = coinSize / 2 - 15;
+    for (let i = 0; i < dots; i++) {
+        let angle = (i / dots) * TWO_PI;
+        let dotX = cos(angle) * dotRadius;
+        let dotY = sin(angle) * dotRadius;
+        ellipse(dotX, dotY, 3, 3);
+    }
+    
+    stroke(48, 70, 90);
+    strokeWeight(1);
+    noFill();
+    ellipse(0, 0, coinSize - 8, coinSize - 8);
+    
+    let ringSize = coinSize / 2.5;
+    ellipse(0, 0, ringSize, ringSize);
 }
 
 function drawCoinTexture(coinSize) {
-	// Subtle radial texture lines
-	stroke(40, 60, 85, 30);
-	strokeWeight(0.5);
-	for (let i = 0; i < 32; i++) {
-		let angle = (i / 32) * TWO_PI;
-		let innerR = coinSize/2.8;
-		let outerR = coinSize/2.2;
-		let x1 = cos(angle) * innerR;
-		let y1 = sin(angle) * innerR;
-		let x2 = cos(angle) * outerR;
-		let y2 = sin(angle) * outerR;
-		line(x1, y1, x2, y2);
-	}
-	
-	// Concentric circles for aged texture
-	stroke(35, 80, 60, 20);
-	strokeWeight(0.5);
-	noFill();
-	for (let r = coinSize/4; r < coinSize/2; r += 8) {
-		ellipse(0, 0, r * 2, r * 2);
-	}
+    stroke(40, 60, 85, 30);
+    strokeWeight(0.5);
+    let innerR = coinSize / 2.8;
+    let outerR = coinSize / 2.2;
+    for (let i = 0; i < 32; i++) {
+        let angle = (i / 32) * TWO_PI;
+        let x1 = cos(angle) * innerR;
+        let y1 = sin(angle) * innerR;
+        let x2 = cos(angle) * outerR;
+        let y2 = sin(angle) * outerR;
+        line(x1, y1, x2, y2);
+    }
+    
+    stroke(35, 80, 60, 20);
+    strokeWeight(0.5);
+    noFill();
+    for (let r = coinSize / 4; r < coinSize / 2; r += 8) {
+        ellipse(0, 0, r * 2, r * 2);
+    }
 }
 
 function drawPivotPoint(x, y) {
-	// Decorative ceiling mount
-	fill(30, 70, 40);
-	stroke(35, 80, 50);
-	strokeWeight(2);
-	ellipse(x, y, 16, 16);
-	
-	// Center screw
-	fill(25, 80, 25);
-	noStroke();
-	ellipse(x, y, 6, 6);
-	
-	// Screw cross
-	stroke(20, 90, 20);
-	strokeWeight(1);
-	line(x - 2, y, x + 2, y);
-	line(x, y - 2, x, y + 2);
+    fill(30, 70, 40);
+    stroke(35, 80, 50);
+    strokeWeight(2);
+    ellipse(x, y, 16, 16);
+    
+    fill(25, 80, 25);
+    noStroke();
+    ellipse(x, y, 6, 6);
+    
+    stroke(20, 90, 20);
+    strokeWeight(1);
+    line(x - 2, y, x + 2, y);
+    line(x, y - 2, x, y + 2);
 }`,
 		
 		hue: 360,
