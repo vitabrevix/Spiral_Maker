@@ -1,4 +1,10 @@
 // Main application variables
+if (typeof P5Capture !== 'undefined') {
+    P5Capture.setDefaultOptions({
+        disableUi: true,
+    });
+}
+
 let currentSketch = null;
 let isRunning = false;
 let isPaused = false;
