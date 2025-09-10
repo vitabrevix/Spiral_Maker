@@ -459,5 +459,6 @@ window.onload = function() {
         'function setup() {\n  background(0);\n}\n\nfunction draw() {\n  // Your animation code here\n}';
     
     const initialLayer = createLayer(initialCode);
+	LayerDOM.render(initialLayer);
     selectLayer(initialLayer.id);
 };
