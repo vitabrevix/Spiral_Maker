@@ -1284,25 +1284,31 @@ function drawPivotPoint(x, y) {
 	
 	pendant: {
 		code: `let length = 250;
+let chainLinks = 8;
 let pivotY = -80;
+
 let size = 60;
 let crystalWidth = size;
 let crystalHeight = size * 2;
-let chainLinks = 8;
 
-let amplitude = 0;
+let swingSize = 6;
+let rotationMomentum = 1;
 
 function setup() {
-	amplitude = PI / 5;
+	amplitude = PI / swingSize;
 }
-	
+
 function draw() {
+	
 	// Pivot point
 	let pivotX = width / 2;
 	
 	// Full cycle
 	let time = (frameCount / 120) * TWO_PI;
 	let angle = amplitude * sin(time);
+	
+	// Calculate angular velocity for crystal rotation
+	let crystalRotation = -angle * rotationMomentum ;
 	
 	// Calculate pendulum position
 	let bobX = pivotX + length * sin(angle);
@@ -1325,8 +1331,7 @@ function draw() {
 	// Draw crystal pendant (double-terminated/bipyramidal)
 	push();
 	translate(bobX, bobY);
-	
-	
+	rotate(crystalRotation); // Apply rotation based on momentum
 	
 	// Main crystal body - diamond shape (two pyramids butt to butt)
 	fill(200, 60, 90, 80); // Translucent blue crystal
@@ -1368,7 +1373,7 @@ function draw() {
 	// Central division line
 	line(-crystalWidth/2, 0, crystalWidth/2, 0);
 	
-	// Sparkle effect
+	// Sparkle effect (adjusted for rotation)
 	let sparkleTime = frameCount * 0.1;
 	for (let i = 0; i < 3; i++) {
 		let sparkleAngle = (i * TWO_PI / 3) + sparkleTime;
