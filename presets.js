@@ -454,6 +454,7 @@ function draw() {
         fps: 60,
         speed: 1
     },
+
 	petals: {
 		code:`let time = 0;
 let petals = [];
@@ -1273,8 +1274,129 @@ function drawPivotPoint(x, y) {
 }`,
 		
 		hue: 360,
-        saturation: 90,
-        brightness: 80,
+        saturation: 100,
+        brightness: 100,
+        opacity: 100,
+        maxFrames: 360,
+        fps: 60,
+        speed: 1
+    },
+	
+	pendant: {
+		code: `let length = 250;
+let pivotY = -80;
+let size = 60;
+let crystalWidth = size;
+let crystalHeight = size * 2;
+let chainLinks = 8;
+
+let amplitude = 0;
+
+function setup() {
+	amplitude = PI / 5;
+}
+	
+function draw() {
+	// Pivot point
+	let pivotX = width / 2;
+	
+	// Full cycle
+	let time = (frameCount / 120) * TWO_PI;
+	let angle = amplitude * sin(time);
+	
+	// Calculate pendulum position
+	let bobX = pivotX + length * sin(angle);
+	let bobY = pivotY + length * cos(angle);
+	
+	// Draw the chain/cord
+	stroke(40, 30, 80);
+	strokeWeight(3);
+	line(pivotX, pivotY, bobX, bobY);
+	
+	// Draw small chain links
+	for (let i = 1; i < chainLinks; i++) {
+		let linkX = lerp(pivotX, bobX, i / chainLinks);
+		let linkY = lerp(pivotY, bobY, i / chainLinks);
+		fill(40, 30, 85);
+		noStroke();
+		ellipse(linkX, linkY, 4, 6);
+	}
+	
+	// Draw crystal pendant (double-terminated/bipyramidal)
+	push();
+	translate(bobX, bobY);
+	
+	
+	
+	// Main crystal body - diamond shape (two pyramids butt to butt)
+	fill(200, 60, 90, 80); // Translucent blue crystal
+	stroke(200, 80, 95);
+	strokeWeight(2);
+	
+	// Draw the bipyramidal crystal (diamond shape)
+	beginShape();
+	vertex(0, -crystalHeight/2);        // Top point
+	vertex(crystalWidth/2, 0);          // Right middle
+	vertex(0, crystalHeight/2);         // Bottom point
+	vertex(-crystalWidth/2, 0);         // Left middle
+	endShape(CLOSE);
+	
+	// Inner crystal core
+	fill(180, 40, 100, 60);
+	noStroke();
+	beginShape();
+	vertex(0, -crystalHeight/3);        // Top point (smaller)
+	vertex(crystalWidth/3, 0);          // Right middle
+	vertex(0, crystalHeight/3);         // Bottom point
+	vertex(-crystalWidth/3, 0);         // Left middle
+	endShape(CLOSE);
+	
+	// Crystal facet lines to show the bipyramidal structure
+	stroke(200, 30, 100, 80);
+	strokeWeight(1);
+	
+	// Top pyramid facet lines
+	line(0, -crystalHeight/2, crystalWidth/2, 0);  // Top to right
+	line(0, -crystalHeight/2, -crystalWidth/2, 0); // Top to left
+	line(0, -crystalHeight/2, 0, 0);               // Top to center
+	
+	// Bottom pyramid facet lines
+	line(0, crystalHeight/2, crystalWidth/2, 0);   // Bottom to right
+	line(0, crystalHeight/2, -crystalWidth/2, 0);  // Bottom to left
+	line(0, crystalHeight/2, 0, 0);                // Bottom to center
+	
+	// Central division line
+	line(-crystalWidth/2, 0, crystalWidth/2, 0);
+	
+	// Sparkle effect
+	let sparkleTime = frameCount * 0.1;
+	for (let i = 0; i < 3; i++) {
+		let sparkleAngle = (i * TWO_PI / 3) + sparkleTime;
+		let sparkleX = cos(sparkleAngle) * (crystalWidth / 4);
+		let sparkleY = sin(sparkleAngle) * (crystalHeight / 6);
+		
+		fill(60, 80, 100, 70);
+		noStroke();
+		ellipse(sparkleX, sparkleY, 2, 2);
+		
+		// Sparkle rays
+		stroke(60, 60, 100, 40);
+		strokeWeight(0.5);
+		line(sparkleX - 3, sparkleY, sparkleX + 3, sparkleY);
+		line(sparkleX, sparkleY - 3, sparkleX, sparkleY + 3);
+	}
+	
+	pop();
+	
+	// Draw mounting point
+	fill(40, 30, 85);
+	noStroke();
+	ellipse(pivotX, pivotY, 12, 8);
+}`,
+		
+		hue: 360,
+        saturation: 100,
+        brightness: 100,
         opacity: 100,
         maxFrames: 360,
         fps: 60,
