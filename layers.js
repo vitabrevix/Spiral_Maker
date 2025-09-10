@@ -72,6 +72,40 @@ function addTextLayer() {
     }
 }
 
+function updateImageProperty(layerId, property, value) {
+    const layer = layers.find(l => l.id === layerId);
+    if (layer && layer.type === 'image') {
+        layer[property] = parseFloat(value);
+        
+        // Restart animation if running to apply changes
+        if (isRunning) {
+            clearTimeout(window.layerImageUpdateTimeout);
+            window.layerImageUpdateTimeout = setTimeout(() => {
+                restartAnimationIfRunning();
+            }, 300);
+        }
+    }
+}
+
+function updateTextProperty(layerId, property, value) {
+    const layer = layers.find(l => l.id === layerId);
+    if (layer && layer.type === 'text') {
+        if (property === 'fontSize' || property === 'textX' || property === 'textY' || property === 'textRotation') {
+            layer[property] = parseFloat(value);
+        } else {
+            layer[property] = value;
+        }
+        
+        // Restart animation if running to apply changes
+        if (isRunning) {
+            clearTimeout(window.layerTextUpdateTimeout);
+            window.layerTextUpdateTimeout = setTimeout(() => {
+                restartAnimationIfRunning();
+            }, 300);
+        }
+    }
+}
+
 function handleImageUpload(layerId, file) {
     if (file) {
         const reader = new FileReader();
@@ -89,8 +123,9 @@ function handleImageUpload(layerId, file) {
                     layer.imageWidth = Math.min(300, tempImg.width);
                     layer.imageHeight = layer.imageWidth / aspectRatio;
                     
-                    // Update UI
+                    // Update UI - refresh the specific layer
                     refreshLayersDOM();
+                    selectLayer(layerId); // Re-select the layer
                     
                     // Restart animation if running
                     if (isRunning) {
@@ -189,10 +224,110 @@ function renderLayerDOM(layer) {
     if (!layer.hasOwnProperty('fps')) layer.fps = 60;
     if (!layer.hasOwnProperty('speed')) layer.speed = 1;
     
+    // Generate content based on layer type
+    let layerContent = '';
+    
+    if (layer.type === 'code') {
+        layerContent = `
+            <div class="code-editor-container">
+                <textarea class="layer-textarea" 
+                  id="textarea-${layer.id}"
+                  placeholder="// Layer code here..." 
+                  spellcheck="false"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  oninput="updateLayerCodeWithHighlight(${layer.id}, this.value)">${layer.code}</textarea>
+                <div class="syntax-highlighter" id="highlighter-${layer.id}"></div>
+            </div>
+        `;
+    } else if (layer.type === 'image') {
+        layerContent = `
+            <div class="image-editor-container">
+                <div class="image-upload-section">
+                    <input type="file" id="imageUpload-${layer.id}" accept="image/*" 
+                           onchange="handleImageUpload(${layer.id}, this.files[0])" style="display: none;">
+                    <button onclick="document.getElementById('imageUpload-${layer.id}').click()">
+                        ${layer.imageName ? 'Change Image' : 'Upload Image'}
+                    </button>
+                    ${layer.imageName ? `<span class="image-name">${layer.imageName}</span>` : ''}
+                </div>
+                <div class="image-controls">
+                    <div class="control-row">
+                        <label>X:</label>
+                        <input type="number" value="${layer.imageX}" 
+                               oninput="updateImageProperty(${layer.id}, 'imageX', this.value)">
+                        <label>Y:</label>
+                        <input type="number" value="${layer.imageY}" 
+                               oninput="updateImageProperty(${layer.id}, 'imageY', this.value)">
+                    </div>
+                    <div class="control-row">
+                        <label>Width:</label>
+                        <input type="number" value="${layer.imageWidth}" min="1" 
+                               oninput="updateImageProperty(${layer.id}, 'imageWidth', this.value)">
+                        <label>Height:</label>
+                        <input type="number" value="${layer.imageHeight}" min="1" 
+                               oninput="updateImageProperty(${layer.id}, 'imageHeight', this.value)">
+                    </div>
+                    <div class="control-row">
+                        <label>Rotation:</label>
+                        <input type="number" value="${layer.imageRotation}" step="0.1" 
+                               oninput="updateImageProperty(${layer.id}, 'imageRotation', this.value)">
+                    </div>
+                </div>
+            </div>
+        `;
+    } else if (layer.type === 'text') {
+        layerContent = `
+            <div class="text-editor-container">
+                <div class="text-controls">
+                    <div class="control-row">
+                        <label>Text:</label>
+                        <input type="text" value="${layer.text}" 
+                               oninput="updateTextProperty(${layer.id}, 'text', this.value)">
+                    </div>
+                    <div class="control-row">
+                        <label>Font Size:</label>
+                        <input type="number" value="${layer.fontSize}" min="8" max="200" 
+                               oninput="updateTextProperty(${layer.id}, 'fontSize', this.value)">
+                        <label>Font:</label>
+                        <select onchange="updateTextProperty(${layer.id}, 'fontFamily', this.value)">
+                            <option value="Arial" ${layer.fontFamily === 'Arial' ? 'selected' : ''}>Arial</option>
+                            <option value="Georgia" ${layer.fontFamily === 'Georgia' ? 'selected' : ''}>Georgia</option>
+                            <option value="Times New Roman" ${layer.fontFamily === 'Times New Roman' ? 'selected' : ''}>Times New Roman</option>
+                            <option value="Courier New" ${layer.fontFamily === 'Courier New' ? 'selected' : ''}>Courier New</option>
+                            <option value="Verdana" ${layer.fontFamily === 'Verdana' ? 'selected' : ''}>Verdana</option>
+                        </select>
+                    </div>
+                    <div class="control-row">
+                        <label>X:</label>
+                        <input type="number" value="${layer.textX}" 
+                               oninput="updateTextProperty(${layer.id}, 'textX', this.value)">
+                        <label>Y:</label>
+                        <input type="number" value="${layer.textY}" 
+                               oninput="updateTextProperty(${layer.id}, 'textY', this.value)">
+                    </div>
+                    <div class="control-row">
+                        <label>Rotation:</label>
+                        <input type="number" value="${layer.textRotation}" step="0.1" 
+                               oninput="updateTextProperty(${layer.id}, 'textRotation', this.value)">
+                        <label>Align:</label>
+                        <select onchange="updateTextProperty(${layer.id}, 'textAlign', this.value)">
+                            <option value="LEFT" ${layer.textAlign === 'LEFT' ? 'selected' : ''}>Left</option>
+                            <option value="CENTER" ${layer.textAlign === 'CENTER' ? 'selected' : ''}>Center</option>
+                            <option value="RIGHT" ${layer.textAlign === 'RIGHT' ? 'selected' : ''}>Right</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
     layerDiv.innerHTML = `
         <div class="layer-header">
             <span class="drag-handle">⋮⋮</span>
             <button class="layer-toggle">${layer.collapsed ? '▼' : '▲'}</button>
+            <span class="layer-type-badge">${layer.type.toUpperCase()}</span>
             <div class="layer-color-controls">
                 <div class="color-control">
                     <label>H:</label>
@@ -219,15 +354,15 @@ function renderLayerDOM(layer) {
                     <span class="color-value">${layer.opacity}</span>
                 </div>
             </div>
-			<div class="layer-controls">
-				<label class="visibility-checkbox">
-					<input type="checkbox" ${layer.visible ? 'checked' : ''} onchange="toggleLayerVisibility(${layer.id}, this.checked)">
-					<span class="checkbox-visual"></span>
-				</label>
-				<button class="layer-btn" onclick="moveLayerUp(${layer.id})" ${layers.indexOf(layer) === 0 ? 'disabled' : ''}>↑</button>
-				<button class="layer-btn" onclick="moveLayerDown(${layer.id})" ${layers.indexOf(layer) === layers.length - 1 ? 'disabled' : ''}>↓</button>
-				<button class="layer-btn" onclick="deleteLayer(${layer.id})">×</button>
-			</div>
+            <div class="layer-controls">
+                <label class="visibility-checkbox">
+                    <input type="checkbox" ${layer.visible ? 'checked' : ''} onchange="toggleLayerVisibility(${layer.id}, this.checked)">
+                    <span class="checkbox-visual"></span>
+                </label>
+                <button class="layer-btn" onclick="moveLayerUp(${layer.id})" ${layers.indexOf(layer) === 0 ? 'disabled' : ''}>↑</button>
+                <button class="layer-btn" onclick="moveLayerDown(${layer.id})" ${layers.indexOf(layer) === layers.length - 1 ? 'disabled' : ''}>↓</button>
+                <button class="layer-btn" onclick="deleteLayer(${layer.id})">×</button>
+            </div>
             <div class="layer-animation-controls">
                 <div class="animation-control">
                     <label>Frames:</label>
@@ -245,30 +380,19 @@ function renderLayerDOM(layer) {
                            oninput="updateLayerAnimation(${layer.id}, 'speed', this.value)">
                 </div>
             </div>
-			<div class="layer-controls">
-				<button class="layer-btn" onclick="duplicateLayer(${layer.id})">Duplicate</button>
-			</div>
+            <div class="layer-controls">
+                <button class="layer-btn" onclick="duplicateLayer(${layer.id})">Duplicate</button>
+            </div>
         </div>
-		<div class="layer-content ${layer.collapsed ? 'collapsed' : 'expanded'}">
-			<div class="code-editor-container">
-				<textarea class="layer-textarea" 
-				  id="textarea-${layer.id}"
-				  placeholder="// Layer code here..." 
-				  spellcheck="false"
-				  autocomplete="off"
-				  autocorrect="off"
-				  autocapitalize="off"
-				  oninput="updateLayerCodeWithHighlight(${layer.id}, this.value)">${layer.code}</textarea>
-				<div class="syntax-highlighter" id="highlighter-${layer.id}"></div>
-			</div>
-		</div>
+        <div class="layer-content ${layer.collapsed ? 'collapsed' : 'expanded'}">
+            ${layerContent}
+        </div>
     `;
     
     // Add event listeners
     const header = layerDiv.querySelector('.layer-header');
     const toggle = layerDiv.querySelector('.layer-toggle');
-    const textarea = layerDiv.querySelector('.layer-textarea');
-    
+
     // Layer selection functionality
     header.addEventListener('click', (e) => {
         if (e.target === toggle || e.target.closest('.layer-controls')) return;
@@ -281,68 +405,72 @@ function renderLayerDOM(layer) {
         toggleLayerCollapse(layer.id);
     });
     
-    // Select layer when clicking on textarea
-    textarea.addEventListener('focus', () => {
-        selectLayer(layer.id);
-    });
+    // Add type-specific event listeners
+    if (layer.type === 'code') {
+        const textarea = layerDiv.querySelector('.layer-textarea');
+        
+        // Select layer when clicking on textarea
+        textarea.addEventListener('focus', () => {
+            selectLayer(layer.id);
+            // Hide syntax highlighting when editing
+            const highlighter = document.getElementById(`highlighter-${layer.id}`);
+            if (highlighter) {
+                highlighter.style.color = 'transparent';
+            }
+        });
+        
+        textarea.addEventListener('blur', () => {
+            // Show syntax highlighting when not editing
+            const highlighter = document.getElementById(`highlighter-${layer.id}`);
+            if (highlighter) {
+                highlighter.style.color = '';
+                // Re-highlight to ensure sync
+                if (typeof syntaxHighlighter !== 'undefined') {
+                    highlighter.innerHTML = syntaxHighlighter.highlight(textarea.value);
+                }
+            }
+        });
+        
+        // Tab handling in textarea
+        textarea.addEventListener('keydown', function(e) {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const start = this.selectionStart;
+                const end = this.selectionEnd;
+                this.value = this.value.substring(0, start) + '  ' + this.value.substring(end);
+                this.selectionStart = this.selectionEnd = start + 2;
+            }
+        });
+    }
     
     // Drag and drop
     const dragHandle = layerDiv.querySelector('.drag-handle');
-	dragHandle.addEventListener('mousedown', () => {
-		layerDiv.draggable = true;
-	});
-	layerDiv.addEventListener('dragstart', handleDragStart);
-	layerDiv.addEventListener('dragover', handleDragOver);
-	layerDiv.addEventListener('drop', handleDrop);
-	layerDiv.addEventListener('dragend', (e) => {
-		handleDragEnd.call(layerDiv, e);
-		layerDiv.draggable = false;
-	});
+    dragHandle.addEventListener('mousedown', () => {
+        layerDiv.draggable = true;
+    });
+    layerDiv.addEventListener('dragstart', handleDragStart);
+    layerDiv.addEventListener('dragover', handleDragOver);
+    layerDiv.addEventListener('drop', handleDrop);
+    layerDiv.addEventListener('dragend', (e) => {
+        handleDragEnd.call(layerDiv, e);
+        layerDiv.draggable = false;
+    });
 
-	// Prevent dragging when not using the handle
-	layerDiv.addEventListener('mousedown', (e) => {
-		if (!e.target.closest('.drag-handle')) {
-			layerDiv.draggable = false;
-		}
-	});
-    
-    // Tab handling in textarea
-    textarea.addEventListener('keydown', function(e) {
-        if (e.key === 'Tab') {
-            e.preventDefault();
-            const start = this.selectionStart;
-            const end = this.selectionEnd;
-            this.value = this.value.substring(0, start) + '  ' + this.value.substring(end);
-            this.selectionStart = this.selectionEnd = start + 2;
+    // Prevent dragging when not using the handle
+    layerDiv.addEventListener('mousedown', (e) => {
+        if (!e.target.closest('.drag-handle')) {
+            layerDiv.draggable = false;
         }
     });
     
     container.appendChild(layerDiv);
-	
-	// Initialize syntax highlighting AFTER DOM is added
-    setTimeout(() => {
-        initializeSyntaxHighlighting(layer.id);
-    }, 0);
-	
-	// Add focus/blur handlers for proper highlighting behavior
-    textarea.addEventListener('focus', () => {
-        selectLayer(layer.id);
-        // Hide syntax highlighting when editing
-        const highlighter = document.getElementById(`highlighter-${layer.id}`);
-        if (highlighter) {
-            highlighter.style.color = 'transparent';
-        }
-    });
     
-    textarea.addEventListener('blur', () => {
-        // Show syntax highlighting when not editing
-        const highlighter = document.getElementById(`highlighter-${layer.id}`);
-        if (highlighter) {
-            highlighter.style.color = '';
-            // Re-highlight to ensure sync
-            highlighter.innerHTML = syntaxHighlighter.highlight(textarea.value);
-        }
-    });
+    // Initialize syntax highlighting ONLY for code layers
+    if (layer.type === 'code') {
+        setTimeout(() => {
+            initializeSyntaxHighlighting(layer.id);
+        }, 0);
+    }
     
     // Auto-select first layer if none selected
     if (!selectedLayerId && layers.length === 1) {
@@ -502,7 +630,7 @@ function moveLayerDown(layerId) {
 function duplicateLayer(layerId) {
     const layer = layers.find(l => l.id === layerId);
     if (layer) {
-        const newLayer = createLayer(layer.code);
+        const newLayer = createLayer(layer.code, layer.type);
         // Copy all layer properties
         newLayer.hue = layer.hue;
         newLayer.saturation = layer.saturation;
@@ -512,6 +640,25 @@ function duplicateLayer(layerId) {
         newLayer.fps = layer.fps;
         newLayer.speed = layer.speed;
         newLayer.visible = layer.visible;
+        
+        // Copy type-specific properties
+        if (layer.type === 'image') {
+            newLayer.imageData = layer.imageData;
+            newLayer.imageName = layer.imageName;
+            newLayer.imageX = layer.imageX;
+            newLayer.imageY = layer.imageY;
+            newLayer.imageWidth = layer.imageWidth;
+            newLayer.imageHeight = layer.imageHeight;
+            newLayer.imageRotation = layer.imageRotation;
+        } else if (layer.type === 'text') {
+            newLayer.text = layer.text;
+            newLayer.fontSize = layer.fontSize;
+            newLayer.fontFamily = layer.fontFamily;
+            newLayer.textX = layer.textX;
+            newLayer.textY = layer.textY;
+            newLayer.textRotation = layer.textRotation;
+            newLayer.textAlign = layer.textAlign;
+        }
         
         // Refresh DOM to show copied values
         refreshLayersDOM();
