@@ -202,21 +202,51 @@
     color: #00ff88;
 }
 
+/* Container styling with maximum width */
 .image-list-controls, .text-list-controls {
     margin-bottom: 15px;
     padding: 10px;
     border: 1px solid #444;
     border-radius: 6px;
     background: #222;
+    max-width: 100%;
+    overflow: hidden;
 }
 
+/* Horizontal scrolling tabs container */
 .image-tabs, .text-tabs {
     display: flex;
-    flex-wrap: wrap;
     gap: 5px;
-    margin-top: 10px;
+    align-items: center;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 2px 0;
+    width: 100%;
+    max-width: 100%;
+    scrollbar-width: thin;
+    scrollbar-color: #555 #333;
 }
 
+/* Webkit scrollbar styling */
+.image-tabs::-webkit-scrollbar, .text-tabs::-webkit-scrollbar {
+    height: 6px;
+}
+
+.image-tabs::-webkit-scrollbar-track, .text-tabs::-webkit-scrollbar-track {
+    background: #333;
+    border-radius: 3px;
+}
+
+.image-tabs::-webkit-scrollbar-thumb, .text-tabs::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 3px;
+}
+
+.image-tabs::-webkit-scrollbar-thumb:hover, .text-tabs::-webkit-scrollbar-thumb:hover {
+    background: #666;
+}
+
+/* Make tabs not wrap and maintain minimum width */
 .image-tab, .text-tab {
     position: relative;
     padding: 5px 10px;
@@ -230,6 +260,9 @@
     display: flex;
     align-items: center;
     gap: 5px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: fit-content;
 }
 
 .image-tab:hover, .text-tab:hover {
@@ -241,6 +274,23 @@
     background: #4a90e2;
     border-color: #5ba0f2;
     color: white;
+}
+
+.add-item-btn {
+    background: #4a90e2 !important;
+    border-color: #5ba0f2 !important;
+    color: white !important;
+    order: -1; /* Ensure Add button appears first */
+}
+
+.add-item-btn:hover {
+    background: #5ba0f2 !important;
+    border-color: #6bb0ff !important;
+}
+
+.add-item-btn:active {
+    background: #3a80d2 !important;
+    transform: translateY(1px);
 }
 
 .remove-tab {

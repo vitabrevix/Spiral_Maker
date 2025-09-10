@@ -39,7 +39,6 @@ const LayerTemplates = {
         return `
             <div class="image-editor-container">
                 <div class="image-list-controls">
-                    <button onclick="addImageToLayer(${layer.id})">+ Add Image</button>
                     <div class="image-tabs">
                         ${layer.images.map((img, index) => `
                             <button class="image-tab ${index === layer.selectedImageIndex ? 'active' : ''}" 
@@ -48,6 +47,7 @@ const LayerTemplates = {
                                 ${layer.images.length > 1 ? `<span class="remove-tab" onclick="event.stopPropagation(); removeImageFromLayer(${layer.id}, ${index})">&times;</span>` : ''}
                             </button>
                         `).join('')}
+                        <button class="add-item-btn" onclick="addImageToLayer(${layer.id})">+ Add Image</button>
                     </div>
                 </div>
                 <div class="image-upload-section">
@@ -90,8 +90,8 @@ const LayerTemplates = {
         return `
             <div class="text-editor-container">
                 <div class="text-list-controls">
-                    <button onclick="addTextToLayer(${layer.id})">+ Add Text</button>
                     <div class="text-tabs">
+                        <button class="text-tab add-item-btn" onclick="addTextToLayer(${layer.id})">+ Add Text</button>
                         ${layer.texts.map((txt, index) => `
                             <button class="text-tab ${index === layer.selectedTextIndex ? 'active' : ''}" 
                                     onclick="selectTextInLayer(${layer.id}, ${index})">
@@ -173,76 +173,6 @@ function generateLayerContent(layer) {
     return '';
 }
 
-// function generateLayerContent(layer) {
-    // // Add default properties if they don't exist
-    // if (!layer.hasOwnProperty('hue')) layer.hue = 360;
-    // if (!layer.hasOwnProperty('saturation')) layer.saturation = 100;
-    // if (!layer.hasOwnProperty('brightness')) layer.brightness = 100;
-    // if (!layer.hasOwnProperty('opacity')) layer.opacity = 100;
-    // if (!layer.hasOwnProperty('maxFrames')) layer.maxFrames = 120;
-    // if (!layer.hasOwnProperty('fps')) layer.fps = 60;
-    // if (!layer.hasOwnProperty('speed')) layer.speed = 1;
-    
-    // let layerContent = '';
-    
-    // if (layer.type === 'code') {
-        // layerContent = `
-            // <div class="code-editor-container">
-                // <textarea class="layer-textarea" 
-                  // id="textarea-${layer.id}"
-                  // placeholder="// Layer code here..." 
-                  // spellcheck="false"
-                  // autocomplete="off"
-                  // autocorrect="off"
-                  // autocapitalize="off"
-                  // oninput="updateLayerCodeWithHighlight(${layer.id}, this.value)">${layer.code}</textarea>
-                // <div class="syntax-highlighter" id="highlighter-${layer.id}"></div>
-            // </div>
-        // `;
-    // } else if (layer.type === 'image') {
-        // // Initialize with one image if empty
-        // if (!layer.images || layer.images.length === 0) {
-            // layer.images = [{
-                // imageData: null, imageName: '', imageX: 0, imageY: 0,
-                // imageWidth: 100, imageHeight: 100, imageRotation: 0
-            // }];
-            // layer.selectedImageIndex = 0;
-        // }
-        
-        // const selectedImage = layer.images[layer.selectedImageIndex] || layer.images[0];
-        // layerContent = generateImageLayerContent(layer, selectedImage);
-    // } else if (layer.type === 'text') {
-        // // Initialize with one text if empty
-        // if (!layer.texts || layer.texts.length === 0) {
-            // layer.texts = [{
-                // text: 'Sample Text', fontSize: 24, fontFamily: 'Arial',
-                // textX: 50, textY: 50, textRotation: 0, textAlign: 'CENTER'
-            // }];
-            // layer.selectedTextIndex = 0;
-        // }
-        
-        // const selectedText = layer.texts[layer.selectedTextIndex] || layer.texts[0];
-        // layerContent = generateTextLayerContent(layer, selectedText);
-    // }
-    
-    // return `
-        // <div class="layer-header">
-            // <span class="drag-handle">⋮⋮</span>
-            // <button class="layer-toggle">${layer.collapsed ? '▼' : '▲'}</button>
-            // <span class="layer-type-badge">${layer.type.toUpperCase()}</span>
-            // ${generateColorControls(layer)}
-            // ${generateLayerControls(layer)}
-            // ${generateAnimationControls(layer)}
-            // <div class="layer-controls">
-                // <button class="layer-btn" onclick="duplicateLayer(${layer.id})">Duplicate</button>
-            // </div>
-        // </div>
-        // <div class="layer-content ${layer.collapsed ? 'collapsed' : 'expanded'}">
-            // ${layerContent}
-        // </div>
-    // `;
-// }
-
 function generateColorControls(layer) {
     return `
         <div class="layer-color-controls">
@@ -290,8 +220,11 @@ function generateLayerControls(layer) {
 }
 
 function generateAnimationControls(layer) {
-    return `
-        <div class="layer-animation-controls">
+    let controls = '';
+    
+    // Only show Frames and FPS for code layers
+    if (layer.type === 'code') {
+        controls += `
             <div class="animation-control">
                 <label>Frames:</label>
                 <input type="number" class="animation-input" min="1" max="9999" value="${layer.maxFrames}" 
@@ -301,12 +234,16 @@ function generateAnimationControls(layer) {
                 <label>FPS:</label>
                 <input type="number" class="animation-input" min="1" max="240" value="${layer.fps}" 
                        oninput="updateLayerAnimation(${layer.id}, 'fps', this.value)">
-            </div>
-            <div class="animation-control">
-                <label>Speed:</label>
-                <input type="number" class="animation-input" min="0.1" max="10" step="0.1" value="${layer.speed}" 
-                       oninput="updateLayerAnimation(${layer.id}, 'speed', this.value)">
-            </div>
-        </div>
-    `;
+            </div>`;
+    }
+    
+    // Always show Speed for all layer types
+    controls += `
+        <div class="animation-control">
+            <label>Speed:</label>
+            <input type="number" class="animation-input" min="0.1" max="10" step="0.1" value="${layer.speed}" 
+                   oninput="updateLayerAnimation(${layer.id}, 'speed', this.value)">
+        </div>`;
+    
+    return `<div class="layer-animation-controls">${controls}</div>`;
 }
