@@ -43,10 +43,14 @@ const presets = {
     },
 
     pulsing: {
-        code: `function draw() {
+        code: `let zoom = 1;
+let loopLength = 180;
+
+function draw() {
 	  translate(width/2, height/2);
+    scale(zoom)
 	  
-	  let time = (frameCount / 120) * TWO_PI;
+	  let time = (frameCount / loopLength) * TWO_PI;
 	  
 	  for (let i = 0; i < 50; i++) {
 		let size = 300 - i * 6 + sin(time + i * 0.2) * 20;
@@ -606,11 +610,14 @@ function drawFlowerCenter() {
 		code:`let centerLayers = 8;
 let size = 45;
 let colorOffset = 0;
+let zoom = 2;
+let loopLength = 120;
 
 function draw() {
 	translate(width/2, height/2);
+  scale(zoom)
 
-	let loopFrame = frameCount % 120;
+	let loopFrame = frameCount % loopLength;
 	let time = (loopFrame / 120) * TWO_PI;
 
 	for (let i = 0; i < centerLayers; i++) {
@@ -1624,7 +1631,127 @@ function drawGradient(colors, percentages, rotation, fade) {
         fps: 60,
         speed: 1
     },
-		
+	
+	wagon_wave: {
+		code:`let gridSize = 30;
+let offsetMultiplier = 5;
+let zoom = 1.11;
+let dotsize = 0.7;
+let loopLength = 180;
+
+function setup() {
+  noStroke();
+}
+
+function draw() {
+  // Use the modulo operator to keep frameCount within the loopLength
+  let loopedFrame = frameCount % loopLength;
+
+  push();
+  translate(width / 2, height / 2);
+  scale(zoom);
+  translate(-width / 2, -height / 2);
+
+  let cellSize = width / gridSize;
+
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      // Re-define x and y here so they are available in this scope
+      let x = i * cellSize + cellSize / 2;
+      let y = j * cellSize + cellSize / 2;
+
+      // The core change for perfect looping is here
+      let t = (loopedFrame / loopLength) * TWO_PI;
+      
+      let offset = sin(t + i * 0.2 + j * 0.1) * offsetMultiplier;
+
+      // The color functions also need to be modified for perfect looping
+      let r = map(sin(t + i), -1, 1, 100, 200);
+      let g = map(cos(t * 2 + j), -1, 1, 150, 255);
+      let b = map(sin(t * 0.5 + i + j), -1, 1, 200, 255);
+
+      fill(r, g, b);
+
+      ellipse(x + offset, y + offset, cellSize * dotsize);
+    }
+  }
+
+  pop();
+}
+
+function mouseWheel(event) {
+  if (event.delta > 0) {
+    zoom -= 0.1;
+  } else {
+    zoom += 0.1;
+  }
+  zoom = constrain(zoom, 1, 5);
+}`,
+		hue: 360,
+        saturation: 100,
+        brightness: 100,
+        opacity: 100,
+        maxFrames: 360,
+        fps: 60,
+        speed: 1
+    },
+	
+	kaleidoscope: {
+		code:`let symmetry = 16;
+let loopLength = 360;
+let loopSpeed = 2;
+let xSize = 5;
+let ySize = 5;
+let wheel1x = 30;
+let wheel1y = 30;
+let wheel2x = 40;
+let wheel2y = 70;
+
+let angle;
+let loopProgress = 0;
+
+function setup() {
+  p.angleMode(DEGREES);
+  angle = 360 / symmetry;
+}
+
+function draw() {
+  loopProgress = map(frameCount % loopLength, 0, loopLength, 0, 360);
+  translate(width / 2, height / 2);
+
+  // Use sine and cosine to create a circular path that loops
+  let x = sin(loopProgress) * width / xSize;
+  let y = cos(loopProgress * loopSpeed) * width / ySize;
+
+  // Draw the symmetrical shapes
+  noFill();
+  strokeWeight(2);
+  stroke(255);
+
+  for (let i = 0; i < symmetry; i++) {
+    rotate(angle);
+
+    // Draw the ellipse
+    ellipse(x, y, wheel1x, wheel1y);
+
+    // Mirror the shape
+    push();
+    scale(1, -1);
+    ellipse(x, y, wheel2x, wheel2y);
+    pop();
+  }
+}`,
+		hue: 360,
+        saturation: 100,
+        brightness: 100,
+        opacity: 100,
+        maxFrames: 360,
+        fps: 60,
+        speed: 1
+    },
+	
+
+	
 
 };
 

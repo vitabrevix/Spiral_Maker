@@ -179,7 +179,8 @@ function clearP5() {
                         'width', 'height', 'mouseX', 'mouseY', 'sin', 'cos', 'tan',
                         'map', 'lerp', 'dist', 'random', 'noise', 'TWO_PI', 'PI', 'HALF_PI',
                         'colorMode', 'HSB', 'RGB', 'strokeWeight', 'textSize', 'text',
-                        'sqrt', 'pow', 'abs', 'floor', 'ceil', 'round', 'radians', 'degrees'];
+                        'sqrt', 'pow', 'abs', 'floor', 'ceil', 'round', 'radians', 'degrees',
+						'angleMode',];
     
     p5Functions.forEach(func => {
         if (window[func]) {
