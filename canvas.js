@@ -223,22 +223,65 @@ function createImageLayerRenderer(layer) {
     });
 }
 
+// Opacity (0..1) of a text item at layer frame f, from its show/hide window and fades
+function textVisibility(t, f, maxFrames) {
+    const start = Math.max(0, t.startFrame || 0);
+    const end = t.endFrame >= 0 ? t.endFrame : maxFrames - 1;
+    if (f < start || f > end) return 0;
+    const fade = Math.max(0, t.fadeFrames || 0);
+    let a = 1;
+    if (fade > 0 && start > 0) a = Math.min(a, (f - start) / fade);          // fade in
+    if (fade > 0 && t.endFrame >= 0) a = Math.min(a, (end - f) / fade);      // fade out
+    return Math.max(0, Math.min(1, a));
+}
+
+function drawTextItem(ctx, t, f, maxFrames) {
+    if (!t.text) return;
+    let alpha = textVisibility(t, f, maxFrames);
+    if (alpha <= 0) return;
+
+    const phase = f / maxFrames * Math.PI * 2 * Math.max(1, Math.round(t.animCycles || 1));
+    const amount = t.animAmount || 0;
+    let dx = 0, dy = 0, rot = (t.textRotation || 0) * Math.PI / 180, scale = 1;
+    switch (t.animation) {
+        case 'float': dy = Math.sin(phase) * amount; break;
+        case 'sway': dx = Math.sin(phase) * amount; break;
+        case 'spin': rot += phase; break;
+        case 'pulse': scale = Math.max(0, 1 + amount / 100 * Math.sin(phase)); break;
+        case 'blink': if (Math.sin(phase) < 0) alpha = 0; break;
+    }
+    if (alpha <= 0) return;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(canvasWidth * t.textX / 100 + dx, canvasHeight * t.textY / 100 + dy);
+    ctx.rotate(rot);
+    ctx.scale(scale, scale);
+    ctx.font = `${t.bold ? 'bold ' : ''}${t.fontSize}px "${t.fontFamily}"`;
+    ctx.textAlign = (t.textAlign || 'CENTER').toLowerCase();
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = t.color || '#ffffff';
+    ctx.fillText(String(t.text).split('{frame}').join(String(f)), 0, 0);
+    ctx.restore();
+}
+
 function createTextLayerRenderer(layer) {
-    return createStaticLayerRenderer(layer, (ctx) => {
-        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-        (layer.texts || []).forEach(t => {
-            if (!t.text) return;
-            ctx.save();
-            ctx.translate(canvasWidth * t.textX / 100, canvasHeight * t.textY / 100);
-            ctx.rotate((t.textRotation || 0) * Math.PI / 180);
-            ctx.font = `${t.fontSize}px "${t.fontFamily}"`;
-            ctx.textAlign = (t.textAlign || 'CENTER').toLowerCase();
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(t.text, 0, 0);
-            ctx.restore();
-        });
-    });
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    const ctx = canvas.getContext('2d');
+    let lastFrame = -1;
+    return {
+        layer, canvas, ready: Promise.resolve(), failed: false,
+        render(globalFrame, force) {
+            const f = layerFrameFor(layer, globalFrame);
+            if (f === lastFrame && !force) return;
+            lastFrame = f;
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            (layer.texts || []).forEach(t => drawTextItem(ctx, t, f, layer.maxFrames));
+        },
+        remove() { canvas.remove(); }
+    };
 }
 
 // CSS / canvas filter string for a layer's H/S/B sliders
@@ -441,7 +484,7 @@ function gcd(a, b) { while (b) { [a, b] = [b, a % b]; } return a; }
 // Number of global frames after which every visible animated layer is back at frame 0.
 function computeAutoLoopLength() {
     const lengths = layers
-        .filter(l => l.visible && l.type === 'code' && l.code && l.code.trim())
+        .filter(l => l.visible && ((l.type === 'code' && l.code && l.code.trim()) || l.type === 'text'))
         .map(l => l.maxFrames * animationFPS / (l.fps * l.speed));
     if (!lengths.length) return framesPerLoop;
     const allIntegral = lengths.every(x => Math.abs(x - Math.round(x)) < 1e-6);

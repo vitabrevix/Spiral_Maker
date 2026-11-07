@@ -111,14 +111,22 @@ function updateTextProperty(layerId, property, value) {
     if (layer && layer.type === 'text' && layer.texts.length > 0) {
         const selectedText = layer.texts[layer.selectedTextIndex];
         if (!selectedText) return;
-        if (['fontSize', 'textX', 'textY', 'textRotation'].includes(property)) {
+        if (['fontSize', 'textX', 'textY', 'textRotation', 'animAmount', 'animCycles', 'startFrame', 'endFrame', 'fadeFrames'].includes(property)) {
             const v = parseFloat(value);
             if (isNaN(v)) return;
             selectedText[property] = v;
         } else {
             selectedText[property] = value;
         }
-        scheduleLayerRestart();
+        if (property === 'text') {
+            const label = document.querySelector(`[data-layer-id="${layerId}"] .layer-header .layer-name`);
+            if (label) label.textContent = layerLabel(layer);
+        }
+        // Text layers draw every frame, so just redraw the current one
+        if (isRunning) {
+            showFrame(virtualFrameCount, true);
+            if (isPaused) updatePipWindow();
+        }
     }
 }
 
@@ -164,15 +172,7 @@ function addImageToLayer(layerId) {
 function addTextToLayer(layerId) {
     const layer = layers.find(l => l.id === layerId);
     if (layer && layer.type === 'text') {
-        const newText = {
-            text: 'Sample Text',
-            fontSize: 24,
-            fontFamily: 'Arial',
-            textX: 50,
-            textY: 50,
-            textRotation: 0,
-            textAlign: 'CENTER'
-        };
+        const newText = defaultTextItem();
         layer.texts.push(newText);
         layer.selectedTextIndex = layer.texts.length - 1;
         refreshLayerDOM(layerId);

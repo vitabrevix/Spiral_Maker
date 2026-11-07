@@ -25,7 +25,7 @@ function initializeLayerTypeData(layer) {
         layer.images = [{ imageData: null, imageName: '', imageX: 0, imageY: 0, imageWidth: 100, imageHeight: 100, imageRotation: 0 }];
         layer.selectedImageIndex = 0;
     } else if (layer.type === 'text') {
-        layer.texts = [{ text: 'Sample Text', fontSize: 24, fontFamily: 'Arial', textX: 50, textY: 50, textRotation: 0, textAlign: 'CENTER' }];
+        layer.texts = [defaultTextItem()];
         layer.selectedTextIndex = 0;
     }
 }
@@ -107,4 +107,14 @@ function duplicateLayer(layerId) {
         
         restartAnimationIfRunning();
     }
+}
+
+
+function defaultTextItem(overrides = {}) {
+    return Object.assign({
+        text: 'Sample Text', fontSize: 24, fontFamily: 'Arial', bold: false, color: '#ffffff',
+        textX: 50, textY: 50, textRotation: 0, textAlign: 'CENTER',
+        animation: 'none', animAmount: 20, animCycles: 1,
+        startFrame: 0, endFrame: -1, fadeFrames: 0
+    }, overrides);
 }

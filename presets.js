@@ -1472,55 +1472,6 @@ function drawFlowerCenter(t) {
   }
 }`, { maxFrames: 360 }),
 
-text_example: preset(`
-let textStartFrame = 120;
-let textEndFrame = 300;
-let fadeFrames = 30;
-
-function draw() {
-  textAlign(CENTER, CENTER);
-  noStroke();
-
-  fill(0, 0, 100, 80);
-  textSize(30);
-  textFont('Arial Black');
-  text('BIG TEXT', width / 2, height * 0.3);
-
-  let wave = sin(progress * TWO_PI * 3) * 20;
-  fill(200, 60, 100, 70);
-  textSize(22);
-  textFont('Arial');
-  text('Floating on Animation', width / 2, height * 0.45 + wave);
-
-  fill(20, 60, 100);
-  textAlign(LEFT, TOP);
-  textSize(14);
-  text('Frame: ' + frameCount, 12, 12);
-
-  push();
-  translate(width - 60, height - 60);
-  rotate(progress * TWO_PI * 2);
-  fill(330, 60, 100, 70);
-  textAlign(CENTER, CENTER);
-  textSize(12);
-  text('SPINNING', 0, 0);
-  pop();
-
-  if (frameCount >= textStartFrame && frameCount <= textEndFrame) {
-    let alpha = 100;
-    if (frameCount < textStartFrame + fadeFrames) {
-      alpha = map(frameCount, textStartFrame, textStartFrame + fadeFrames, 0, 100);
-    }
-    if (frameCount > textEndFrame - fadeFrames) {
-      alpha = map(frameCount, textEndFrame - fadeFrames, textEndFrame, 100, 0);
-    }
-    fill(300, 80, 90, alpha);
-    textAlign(CENTER, CENTER);
-    textSize(18);
-    text('Fade in, Fade out', width / 2, height * 0.75);
-  }
-}`, { maxFrames: 360 }),
-
 center_pulse: preset(`
 let centerLayers = 8;
 let size = 45;
@@ -1660,6 +1611,10 @@ function loadPreset(name) {
         addBackgroundImageLayer();
         return;
     }
+    if (name === 'text_example') {
+        addTextExampleLayers();
+        return;
+    }
     if (!presets[name]) {
         console.warn(`Preset '${name}' not found`);
         return;
@@ -1690,6 +1645,37 @@ function addBackgroundImageLayer() {
     runAnimation();
     const input = document.getElementById(`imageUpload-${layer.id}`);
     if (input) input.click();
+}
+
+// "Text Example": one Text layer per line, each showing a different option of
+// the visual text editor (font, colour, animation, show/hide frames, fades,
+// the {frame} counter). Everything here can be changed without code.
+function addTextExampleLayers() {
+    const examples = [
+        { text: 'BIG TEXT', fontSize: 34, fontFamily: 'Arial Black', textY: 28 },
+        { text: 'Floating on Animation', fontSize: 20, color: '#66ccff', textY: 44,
+          animation: 'float', animAmount: 14, animCycles: 3 },
+        { text: 'Frame: {frame}', fontSize: 14, color: '#ffaa66', textX: 4, textY: 6, textAlign: 'LEFT' },
+        { text: 'SPINNING', fontSize: 13, bold: true, color: '#ff77bb', textX: 80, textY: 82,
+          animation: 'spin', animCycles: 2 },
+        { text: 'Appear, Disappear', fontSize: 18, textY: 62, startFrame: 120, endFrame: 300 },
+        { text: 'Fade in, Fade out', fontSize: 18, color: '#cc66ff', textY: 76,
+          startFrame: 120, endFrame: 300, fadeFrames: 30 },
+    ];
+    let first = null;
+    examples.forEach((opts, i) => {
+        const layer = createLayer('', 'text');
+        layer.texts = [defaultTextItem(opts)];
+        layer.selectedTextIndex = 0;
+        layer.maxFrames = 360;
+        layer.fps = Math.min(60, animationFPS);
+        layer.speed = 1;
+        layer.collapsed = i > 0;      // keep the panel tidy: open the first one only
+        if (!first) first = layer;
+    });
+    refreshLayersDOM();
+    selectLayer(first.id);
+    runAnimation();
 }
 
 function getPresetCode(presetName) {

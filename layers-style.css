@@ -311,3 +311,55 @@
 .remove-tab:hover {
     background: rgba(255, 0, 0, 0.9);
 }
+/* Compact rows for the image / text property editors */
+.image-controls .control-row, .text-controls .control-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: #ccc;
+}
+
+.image-controls .control-row label, .text-controls .control-row label {
+    white-space: nowrap;
+}
+
+.image-controls input[type="number"], .text-controls input[type="number"] {
+    width: 64px;
+}
+
+.text-controls input[type="text"] {
+    flex: 1;
+    min-width: 140px;
+}
+
+.text-controls input[type="color"] {
+    width: 34px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid #555;
+    background: none;
+}
+
+.image-controls input, .image-controls select,
+.text-controls input, .text-controls select {
+    background: #1e1e1e;
+    color: #eee;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 3px 5px;
+    font-size: 12px;
+}
+
+/* Short label in the layer header (text content / image name) */
+.layer-header .layer-name {
+    flex: 0 1 auto;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    color: #bbb;
+}

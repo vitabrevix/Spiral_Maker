@@ -1,3 +1,11 @@
+const TEXT_FONTS = ['Arial', 'Arial Black', 'Impact', 'Georgia', 'Times New Roman', 'Courier New', 'Verdana', 'Trebuchet MS'];
+const TEXT_ANIMATIONS = [['none', 'None'], ['float', 'Float up/down'], ['sway', 'Sway left/right'],
+    ['spin', 'Spin'], ['pulse', 'Pulse size'], ['blink', 'Blink']];
+
+function escapeAttr(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
 function generateLayerHTML(layer) {
     return `
         <div class="layer-header">${generateLayerHeader(layer)}</div>
@@ -12,6 +20,7 @@ function generateLayerHeader(layer) {
         <span class="drag-handle">⋮⋮</span>
         <button class="layer-toggle">${layer.collapsed ? '▼' : '▲'}</button>
         <span class="layer-type-badge">${layer.type.toUpperCase()}</span>
+        <span class="layer-name">${escapeAttr(layerLabel(layer))}</span>
         ${generateColorControls(layer)}
         ${generateLayerControls(layer)}
         ${generateAnimationControls(layer)}
@@ -110,33 +119,33 @@ const LayerTemplates = {
                 <div class="text-controls">
                     <div class="control-row">
                         <label>Text:</label>
-                        <input type="text" value="${selectedText.text}" 
+                        <input type="text" value="${escapeAttr(selectedText.text)}" title="Use {frame} to show the current frame number"
                                oninput="updateTextProperty(${layer.id}, 'text', this.value)">
+                        <input type="color" value="${selectedText.color || '#ffffff'}" title="Text colour"
+                               oninput="updateTextProperty(${layer.id}, 'color', this.value)">
                     </div>
                     <div class="control-row">
                         <label>Font Size:</label>
-                        <input type="number" value="${selectedText.fontSize}" min="8" max="200" 
+                        <input type="number" value="${selectedText.fontSize}" min="4" max="300"
                                oninput="updateTextProperty(${layer.id}, 'fontSize', this.value)">
                         <label>Font:</label>
                         <select onchange="updateTextProperty(${layer.id}, 'fontFamily', this.value)">
-                            <option value="Arial" ${selectedText.fontFamily === 'Arial' ? 'selected' : ''}>Arial</option>
-                            <option value="Georgia" ${selectedText.fontFamily === 'Georgia' ? 'selected' : ''}>Georgia</option>
-                            <option value="Times New Roman" ${selectedText.fontFamily === 'Times New Roman' ? 'selected' : ''}>Times New Roman</option>
-                            <option value="Courier New" ${selectedText.fontFamily === 'Courier New' ? 'selected' : ''}>Courier New</option>
-                            <option value="Verdana" ${selectedText.fontFamily === 'Verdana' ? 'selected' : ''}>Verdana</option>
+                            ${TEXT_FONTS.map(f => `<option value="${f}" ${selectedText.fontFamily === f ? 'selected' : ''}>${f}</option>`).join('')}
                         </select>
+                        <label><input type="checkbox" ${selectedText.bold ? 'checked' : ''}
+                               onchange="updateTextProperty(${layer.id}, 'bold', this.checked)"> Bold</label>
                     </div>
                     <div class="control-row">
                         <label>X (%):</label>
-                        <input type="number" value="${selectedText.textX}" 
+                        <input type="number" value="${selectedText.textX}"
                                oninput="updateTextProperty(${layer.id}, 'textX', this.value)">
                         <label>Y (%):</label>
-                        <input type="number" value="${selectedText.textY}" 
+                        <input type="number" value="${selectedText.textY}"
                                oninput="updateTextProperty(${layer.id}, 'textY', this.value)">
                     </div>
                     <div class="control-row">
                         <label>Rotation (°):</label>
-                        <input type="number" value="${selectedText.textRotation}" step="1" 
+                        <input type="number" value="${selectedText.textRotation}" step="1"
                                oninput="updateTextProperty(${layer.id}, 'textRotation', this.value)">
                         <label>Align:</label>
                         <select onchange="updateTextProperty(${layer.id}, 'textAlign', this.value)">
@@ -144,6 +153,29 @@ const LayerTemplates = {
                             <option value="CENTER" ${selectedText.textAlign === 'CENTER' ? 'selected' : ''}>Center</option>
                             <option value="RIGHT" ${selectedText.textAlign === 'RIGHT' ? 'selected' : ''}>Right</option>
                         </select>
+                    </div>
+                    <div class="control-row">
+                        <label>Animation:</label>
+                        <select onchange="updateTextProperty(${layer.id}, 'animation', this.value)">
+                            ${TEXT_ANIMATIONS.map(([v, l]) => `<option value="${v}" ${(selectedText.animation || 'none') === v ? 'selected' : ''}>${l}</option>`).join('')}
+                        </select>
+                        <label title="Pixels for float/sway, % for pulse">Amount:</label>
+                        <input type="number" value="${selectedText.animAmount ?? 20}" min="0"
+                               oninput="updateTextProperty(${layer.id}, 'animAmount', this.value)">
+                        <label title="Repeats per loop (whole number keeps the loop seamless)">Times/loop:</label>
+                        <input type="number" value="${selectedText.animCycles ?? 1}" min="1" step="1"
+                               oninput="updateTextProperty(${layer.id}, 'animCycles', this.value)">
+                    </div>
+                    <div class="control-row">
+                        <label title="Frame the text appears on">Show from frame:</label>
+                        <input type="number" value="${selectedText.startFrame ?? 0}" min="0"
+                               oninput="updateTextProperty(${layer.id}, 'startFrame', this.value)">
+                        <label title="Frame the text disappears on (-1 = until the end of the loop)">to:</label>
+                        <input type="number" value="${selectedText.endFrame ?? -1}" min="-1"
+                               oninput="updateTextProperty(${layer.id}, 'endFrame', this.value)">
+                        <label title="Frames spent fading in and out (0 = appear instantly)">Fade:</label>
+                        <input type="number" value="${selectedText.fadeFrames ?? 0}" min="0"
+                               oninput="updateTextProperty(${layer.id}, 'fadeFrames', this.value)">
                     </div>
                 </div>
             </div>
@@ -167,10 +199,7 @@ function generateLayerContent(layer) {
     } else if (layer.type === 'text') {
         // Initialize with one text if empty
         if (!layer.texts || layer.texts.length === 0) {
-            layer.texts = [{
-                text: 'Sample Text', fontSize: 24, fontFamily: 'Arial',
-                textX: 50, textY: 50, textRotation: 0, textAlign: 'CENTER'
-            }];
+            layer.texts = [defaultTextItem()];
             layer.selectedTextIndex = 0;
         }
         return LayerTemplates.text(layer); // Use LayerTemplates.text instead of generateTextLayerContent
@@ -228,8 +257,8 @@ function generateLayerControls(layer) {
 function generateAnimationControls(layer) {
     let controls = '';
     
-    // Only show Frames and FPS for code layers
-    if (layer.type === 'code') {
+    // Frames and FPS for animated layers (code and text)
+    if (layer.type === 'code' || layer.type === 'text') {
         controls += `
             <div class="animation-control">
                 <label>Frames:</label>
@@ -252,4 +281,12 @@ function generateAnimationControls(layer) {
         </div>`;
     
     return `<div class="layer-animation-controls">${controls}</div>`;
+}
+
+
+// Short description shown in the layer header, handy when the layer is collapsed
+function layerLabel(layer) {
+    if (layer.type === 'text') return (layer.texts || []).map(t => t.text).join(' / ');
+    if (layer.type === 'image') return (layer.images || []).map(i => i.imageName).filter(Boolean).join(', ');
+    return '';
 }
