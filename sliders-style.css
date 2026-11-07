@@ -79,3 +79,8 @@ input[type="range"]:disabled {
     font-size: 11px;
     color: var(--text-dim);
 }
+
+/* Layer zoom slider: value shown as e.g. 1.25× */
+.zoom-value {
+    min-width: 36px;
+}

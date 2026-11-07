@@ -148,9 +148,7 @@ function applyCanvasSize() {
         clearTimeout(window.__resizeTimer);
         window.__resizeTimer = setTimeout(() => runAnimation(true), 150);
     }
-    if (pipWindow && !pipWindow.closed) {
-        pipWindow.resizeTo(canvasWidth + 40, canvasHeight + 80);
-    }
+    if (typeof refreshFloatingPreview === 'function') refreshFloatingPreview();
 }
 
 function setCanvasRatio(ratio, btn) {

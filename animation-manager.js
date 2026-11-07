@@ -2,7 +2,8 @@ class AnimationManager {
     static timeouts = {};
     
     static scheduleRestart(delay = 1000) {
-        if (!window.isRunning) return;
+        // isRunning is a script-level variable (declared with let), not a window property
+        if (typeof isRunning === 'undefined' || !isRunning) return;
         
         clearTimeout(this.timeouts.main);
         this.timeouts.main = setTimeout(() => {

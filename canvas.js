@@ -148,6 +148,7 @@ function createCodeLayerRenderer(layer, layerIndex) {
         p5: p,
         ready: Promise.resolve(),
         failed: false,
+        zoomByComposite: !api.draw,      // drawn once in setup(): zoom the finished image
         render(globalFrame, force) {
             if (this.failed || !api.draw) return; // static layers keep their setup() drawing
             const f = layerFrameFor(layer, globalFrame);
@@ -157,6 +158,13 @@ function createCodeLayerRenderer(layer, layerIndex) {
             p.randomSeed(seed + 1 + f);
             p.push();
             p.clear();
+            // Layer zoom: scale everything this layer draws around the canvas centre
+            const z = layerZoom(layer);
+            if (z !== 1) {
+                p.translate(p.width / 2, p.height / 2);
+                p.scale(z);
+                p.translate(-p.width / 2, -p.height / 2);
+            }
             try {
                 api.draw();
             } catch (e) {
@@ -179,6 +187,7 @@ function createStaticLayerRenderer(layer, paint) {
     const ready = Promise.resolve(paint(ctx, canvas));
     return {
         layer, canvas, ready, failed: false,
+        zoomByComposite: true,           // painted once: zoom the finished image
         render() {},
         remove() { canvas.remove(); }
     };
@@ -291,7 +300,15 @@ function createTextLayerRenderer(layer) {
             if (f === lastFrame && !force) return;
             lastFrame = f;
             ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            const z = layerZoom(layer);
+            ctx.save();
+            if (z !== 1) {
+                ctx.translate(canvasWidth / 2, canvasHeight / 2);
+                ctx.scale(z, z);
+                ctx.translate(-canvasWidth / 2, -canvasHeight / 2);
+            }
             (layer.texts || []).forEach(t => drawTextItem(ctx, t, f, layer.maxFrames));
+            ctx.restore();
         },
         remove() { canvas.remove(); }
     };
@@ -321,10 +338,17 @@ function layerVisibilityAt(layer, globalFrame) {
     return Math.max(0, Math.min(1, a));
 }
 
+function layerZoom(layer) {
+    const z = parseFloat(layer.zoom);
+    return z > 0 ? z : 1;
+}
+
 function applyLayerStyle(renderer) {
     const vis = renderer.visibility === undefined ? 1 : renderer.visibility;
     renderer.canvas.style.filter = layerFilter(renderer.layer);
     renderer.canvas.style.opacity = renderer.layer.opacity / 100 * vis;
+    const z = layerZoom(renderer.layer);
+    renderer.canvas.style.transform = renderer.zoomByComposite && z !== 1 ? `scale(${z})` : '';
 }
 
 function refreshLayerStyles() {
@@ -344,7 +368,8 @@ function compositeFrame(ctx, w = canvasWidth, h = canvasHeight) {
         if (vis <= 0) return;
         ctx.globalAlpha = r.layer.opacity / 100 * vis;
         ctx.filter = layerFilter(r.layer);
-        ctx.drawImage(r.canvas, 0, 0, w, h);
+        const z = r.zoomByComposite ? layerZoom(r.layer) : 1;
+        ctx.drawImage(r.canvas, (w - w * z) / 2, (h - h * z) / 2, w * z, h * z);
     });
     ctx.restore();
 }
@@ -429,6 +454,7 @@ function runAnimation(keepFrame = false) {
     playStartTime = performance.now();
     playStartFrame = virtualFrameCount;
     animationLoopId = requestAnimationFrame(tick);
+    if (typeof refreshFloatingPreview === 'function') refreshFloatingPreview();
 }
 
 function stopAnimation() {

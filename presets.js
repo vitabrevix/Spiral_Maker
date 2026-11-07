@@ -17,9 +17,75 @@ function loadPresetFromDropdown(selectElement) {
     const presetName = selectElement.value;
     if (presetName) {
         loadPreset(presetName);
+        const category = selectElement.closest('.preset-category');
+        if (category) setCategoryPick(category, presetName);
         selectElement.selectedIndex = 0;
     }
 }
+
+// ---------------------------------------------------------------------
+// Category buttons follow the last pick
+//
+// Picking a preset from a category's dropdown puts it on the category's
+// main button; the original default moves to the top of the dropdown.
+// Picking the original default again puts everything back as it was.
+// ---------------------------------------------------------------------
+const PRESET_PICKS_KEY = 'presetCategoryPicks';
+let presetPicks = {};
+try { presetPicks = JSON.parse(localStorage.getItem(PRESET_PICKS_KEY) || '{}'); } catch (e) { presetPicks = {}; }
+
+function savePresetPicks() {
+    try { localStorage.setItem(PRESET_PICKS_KEY, JSON.stringify(presetPicks)); } catch (e) { /* ignore */ }
+}
+
+// Remember each category's original button and list once, from the page
+function initPresetCategories() {
+    document.querySelectorAll('.preset-category').forEach(category => {
+        const button = category.querySelector('.main-preset-btn');
+        const select = category.querySelector('.preset-dropdown');
+        const match = (button.getAttribute('onclick') || '').match(/loadPreset\('([^']+)'\)/);
+        if (!match) return;
+        category._default = { value: match[1], label: button.textContent.trim() };
+        category._placeholder = select.options[0] ? select.options[0].textContent : '';
+        category._options = [...select.options].slice(1).map(o => ({ value: o.value, label: o.textContent }));
+        category._key = category.querySelector('.category-title').textContent.trim();
+        button.removeAttribute('onclick');
+        button.addEventListener('click', () => loadPreset(button.dataset.preset));
+        const saved = presetPicks[category._key];
+        const valid = saved && category._options.some(o => o.value === saved);
+        renderPresetCategory(category, valid ? saved : null);
+    });
+}
+
+function setCategoryPick(category, value) {
+    if (!category._default) return;
+    const pick = value === category._default.value ? null : value;
+    if (pick) presetPicks[category._key] = pick; else delete presetPicks[category._key];
+    savePresetPicks();
+    renderPresetCategory(category, pick);
+}
+
+function renderPresetCategory(category, pick) {
+    const button = category.querySelector('.main-preset-btn');
+    const select = category.querySelector('.preset-dropdown');
+    const picked = pick && category._options.find(o => o.value === pick);
+    const onButton = picked || category._default;
+    button.textContent = onButton.label;
+    button.dataset.preset = onButton.value;
+    button.title = picked ? `Last picked from this category (default: ${category._default.label})` : '';
+    button.classList.toggle('is-picked', !!picked);
+
+    // The default goes to the top of the list while something else is on the button
+    const list = picked
+        ? [category._default, ...category._options.filter(o => o.value !== picked.value)]
+        : category._options;
+    select.innerHTML = '';
+    select.appendChild(new Option(category._placeholder, ''));
+    list.forEach(o => select.appendChild(new Option(o.label, o.value)));
+    select.selectedIndex = 0;
+}
+
+document.addEventListener('DOMContentLoaded', initPresetCategories);
 
 function preset(code, opts = {}) {
     return Object.assign({
@@ -33,8 +99,8 @@ const presets = {
 
 // --------------------------------------------------------------------- Spirals
 ying_yang_spiral: preset(`
-let arms = 1;           // arms of each colour (2+ = bands meet in a point)
-let bandWidth = 18;     // thickness of every band (px at 300px canvas) {incr:2}
+let arms = 1;           // arms of each colour (2+ = bands meet in a point) {limlow:1}
+let bandWidth = 18;     // thickness of every band (px at 300px canvas) {incr:2} {limlow:1}
 let turnsPerLoop = 1;   // full rotations per loop (whole number = seamless)
 let lightColor = [0, 0, 100];   // light bands {color:hsb}
 let darkColor = [0, 0, 0];      // dark bands {color:hsb}
@@ -138,7 +204,7 @@ let tubeDepth = 0.45;     // bigger = tiles look further away / longer tunnel {i
 let fog = 0.45;           // how quickly the far end fades into darkness {slide:0,2} {incr:0.05}
 let lightColor = [255, 255, 255]; // light tiles {color}
 let darkColor = [0, 0, 0];      // dark tiles {color}
-let maxResolution = 400;  // render resolution cap (lower = faster, blurrier) {incr:50}
+let maxResolution = 400;  // render resolution cap (lower = faster, blurrier) {incr:50} {limlow:50} {limhigh:1200}
 
 let buffer, bctx, img, geo;
 
@@ -247,101 +313,283 @@ function draw() {
 }`, { maxFrames: 360 }),
 
 galaxy_spiral: preset(`
-let starCount = 1400;
-let arms = 3;
-let armTwist = 4.5;      // how tightly the arms wind
-let spread = 0.35;       // how fuzzy the arms are
-let spinsPerLoop = 1;
-let stars = [];
+let arms = 2;             // spiral arms {slide:1,6} {incr:1}
+let armTurns = 1.3;       // how far each arm winds around {slide:0.3,3} {incr:0.1}
+let armWidth = 0.22;      // how fuzzy the arms are {slide:0.05,0.6} {incr:0.01}
+let tilt = 0.6;           // 1 = seen from above, smaller = tilted {slide:0.15,1} {incr:0.05}
+let spinsPerLoop = 1;     // turns of the galaxy per loop (whole number)
+let starCount = 7000;     // {incr:500} {limlow:0} {limhigh:50000}
+let coreColor = '#ffd9a0';  // {color}
+let armColor = '#8fb8ff';   // {color}
+let knotColor = '#ff7fb6';  // star-forming regions {color}
+let backgroundStars = 260;  // {incr:20}
 
+let galaxy, sky, twinklers = [];
+
+// The galaxy is painted once (face-on) into an image, then rotated and tilted each frame
 function setup() {
+  let R = min(width, height) * 0.48;
+  let size = ceil(R * 2.2);
+  galaxy = document.createElement('canvas');
+  galaxy.width = galaxy.height = size;
+  let g = galaxy.getContext('2d');
+  g.translate(size / 2, size / 2);
+  g.globalCompositeOperation = 'lighter';
+
+  let armAngle = (k, r) => k * TWO_PI / arms + armTurns * TWO_PI * Math.log(1 + 6 * r) / Math.log(7);
+  let core = hexToRgbArr(coreColor), arm = hexToRgbArr(armColor), knot = hexToRgbArr(knotColor);
+
+  // Soft glow along the arms
+  for (let k = 0; k < arms; k++) {
+    for (let r = 0.08; r < 1; r += 0.006) {
+      let a = armAngle(k, r) + randomGaussian() * armWidth * 0.3;
+      let x = Math.cos(a) * r * R, y = Math.sin(a) * r * R;
+      blob(g, x, y, R * (0.05 + 0.07 * r), arm, 0.05 * (1 - r * 0.6));
+    }
+  }
+  // Stars: mostly in the arms, the rest in the disk
   for (let i = 0; i < starCount; i++) {
-    let d = pow(random(), 0.6);
-    let arm = i % arms;
-    stars.push({
-      d: d,
-      a: arm * TWO_PI / arms + d * armTwist + randomGaussian() * spread * (1.1 - d),
-      size: random(0.6, 2.4),
-      hue: d < 0.25 ? random(20, 50) : random(190, 260),
-      twinkle: floor(random(1, 5)),
-      phase: random(TWO_PI)
-    });
+    let r = Math.min(1, -Math.log(1 - random() * 0.98) * 0.3);
+    let a;
+    if (random() < 0.7) a = armAngle(floor(random(arms)), r) + randomGaussian() * armWidth * (1.2 - r * 0.5);
+    else a = random(TWO_PI);
+    let x = Math.cos(a) * r * R, y = Math.sin(a) * r * R;
+    let mix = Math.min(1, r * 1.6);
+    let c = [core[0] + (arm[0] - core[0]) * mix, core[1] + (arm[1] - core[1]) * mix, core[2] + (arm[2] - core[2]) * mix];
+    g.fillStyle = 'rgba(' + c.map(Math.round).join(',') + ',' + (0.25 + random() * 0.6).toFixed(2) + ')';
+    let sz = random() < 0.03 ? random(1.2, 2) : random(0.4, 1);
+    g.fillRect(x, y, sz, sz);
+  }
+  // Pink star-forming knots along the arms
+  for (let k = 0; k < arms; k++) {
+    for (let i = 0; i < 26; i++) {
+      let r = random(0.25, 0.95);
+      let a = armAngle(k, r) + randomGaussian() * armWidth * 0.4;
+      blob(g, Math.cos(a) * r * R, Math.sin(a) * r * R, R * random(0.012, 0.03), knot, 0.5);
+    }
+  }
+  // Dark dust lanes on the inner edge of each arm
+  g.globalCompositeOperation = 'source-over';
+  for (let k = 0; k < arms; k++) {
+    for (let r = 0.12; r < 0.85; r += 0.008) {
+      let a = armAngle(k, r) - 0.18 + randomGaussian() * 0.04;
+      blob(g, Math.cos(a) * r * R, Math.sin(a) * r * R, R * 0.035, [10, 6, 4], 0.10);
+    }
+  }
+  // Bright core
+  g.globalCompositeOperation = 'lighter';
+  blob(g, 0, 0, R * 0.42, core, 0.55);
+  blob(g, 0, 0, R * 0.16, [255, 245, 230], 0.9);
+
+  // Background starfield
+  sky = document.createElement('canvas');
+  sky.width = width; sky.height = height;
+  let k2 = sky.getContext('2d');
+  for (let i = 0; i < backgroundStars; i++) {
+    k2.fillStyle = 'rgba(255,255,255,' + random(0.15, 0.7).toFixed(2) + ')';
+    let sz = random(0.5, 1.4);
+    k2.fillRect(random(width), random(height), sz, sz);
+  }
+  for (let i = 0; i < 40; i++) {
+    twinklers.push({ x: random(width), y: random(height), speed: floor(random(1, 4)), phase: random(TWO_PI), size: random(1, 2.2) });
   }
 }
 
+function hexToRgbArr(hex) {
+  let h = hex.replace('#', '');
+  return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+}
+
+function blob(g, x, y, r, rgb, alpha) {
+  let grad = g.createRadialGradient(x, y, 0, x, y, r);
+  grad.addColorStop(0, 'rgba(' + rgb.join(',') + ',' + alpha + ')');
+  grad.addColorStop(1, 'rgba(' + rgb.join(',') + ',0)');
+  g.fillStyle = grad;
+  g.fillRect(x - r, y - r, r * 2, r * 2);
+}
+
 function draw() {
-  let s = min(width, height) / 2 * 0.95;
+  let ctx = drawingContext;
   let t = progress * TWO_PI;
-  translate(width / 2, height / 2);
-
-  // Core glow
-  noStroke();
-  for (let g = 10; g > 0; g--) {
-    fill(40, 40, 100, 4);
-    circle(0, 0, s * 0.06 * g);
+  ctx.drawImage(sky, 0, 0);
+  for (let st of twinklers) {
+    let a = 0.5 + 0.5 * Math.sin(t * st.speed + st.phase);
+    ctx.fillStyle = 'rgba(255,255,255,' + (a * a).toFixed(3) + ')';
+    ctx.fillRect(st.x, st.y, st.size, st.size);
   }
-
-  rotate(t * spinsPerLoop);
-  for (let st of stars) {
-    let alpha = 55 + 45 * sin(t * st.twinkle + st.phase);
-    fill(st.hue, st.d < 0.25 ? 40 : 55, 100, alpha);
-    circle(cos(st.a) * st.d * s, sin(st.a) * st.d * s * 0.92, st.size * s / 150);
-  }
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+  ctx.rotate(-0.35);
+  ctx.scale(1, tilt);
+  ctx.rotate(t * spinsPerLoop);
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.drawImage(galaxy, -galaxy.width / 2, -galaxy.height / 2);
+  ctx.restore();
 }`, { maxFrames: 720 }),
 
 vortex: preset(`
-let rings = 22;
-let gap = 7;
-let twist = 0.35;
+let particles = 520;      // streaks being pulled in {incr:20} {limlow:0} {limhigh:5000}
+let swirl = 2.4;          // how much they spin on the way in {slide:0,6} {incr:0.1}
+let flowPerLoop = 1;      // trips from the rim to the centre per loop (whole number)
+let trail = 7;            // length of each streak {slide:1,14} {incr:1}
+let arms = 4;             // faint spiral arms behind the streaks
+let rimHue = 195;         // colour at the rim {slide:0,360} {incr:5}
+let coreHue = 285;        // colour near the centre {slide:0,360} {incr:5}
+let eyeSize = 0.07;       // size of the dark centre {slide:0,0.3} {incr:0.01}
+
+let parts = [];
+
+function setup() {
+  for (let i = 0; i < particles; i++) {
+    parts.push({ a: random(TWO_PI), offset: random(), size: random(0.6, 1.8), drift: random(-0.25, 0.25) });
+  }
+}
+
+// Position of a streak at depth u (0 = rim, 1 = centre)
+function vortexPoint(pt, u, R, spin) {
+  let r = R * (eyeSize + (1 - eyeSize) * pow(1 - u, 1.4));
+  let a = pt.a + spin + swirl * -log(1 - u * 0.985) * 1.6 + pt.drift * u;
+  return [cos(a) * r, sin(a) * r];
+}
+
+// Hue/sat/bright (360/100/100) + alpha (0..100) as a CSS colour, for fast native drawing
+function hsba(h, sat, bri, a) {
+  sat /= 100; bri /= 100;
+  let l = bri * (1 - sat / 2);
+  let sl = (l === 0 || l === 1) ? 0 : (bri - l) / Math.min(l, 1 - l);
+  return 'hsla(' + (((h % 360) + 360) % 360).toFixed(1) + ',' + (sl * 100).toFixed(1) + '%,' + (l * 100).toFixed(1) + '%,' + (a / 100).toFixed(3) + ')';
+}
 
 function draw() {
+  let R = dist(0, 0, width, height) / 2;
   let s = min(width, height) / 300;
   let t = progress * TWO_PI;
-  translate(width / 2, height / 2);
-  noStroke();
+  let ctx = drawingContext;
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
 
-  for (let j = 1; j <= rings; j++) {
-    let r = j * gap * s;
-    let count = 6 + j * 3;
-    let speed = ceil((rings + 1 - j) / 4);  // inner rings spin faster (whole numbers)
-    let rot = t * speed + j * twist;
-    fill((j * 14 + progress * 360) % 360, 85, 100, 85);
-    for (let k = 0; k < count; k++) {
-      let a = rot + k * TWO_PI / count;
-      circle(cos(a) * r, sin(a) * r, (1.5 + j * 0.25) * s);
+  // Faint spiral arms, one turn per loop
+  ctx.lineWidth = 1.2 * s;
+  ctx.strokeStyle = hsba(rimHue, 60, 100, 9);
+  for (let k = 0; k < arms; k++) {
+    ctx.beginPath();
+    let arm = { a: k * TWO_PI / arms, drift: 0 };
+    for (let u = 0; u < 0.97; u += 0.01) {
+      let q = vortexPoint(arm, u, R, t);
+      if (u === 0) ctx.moveTo(q[0], q[1]); else ctx.lineTo(q[0], q[1]);
     }
+    ctx.stroke();
   }
+
+  // Streaks: a faint full-length tail plus a brighter head
+  ctx.globalCompositeOperation = 'lighter';
+  let du = 0.007;
+  for (let pt of parts) {
+    let u = (progress * flowPerLoop + pt.offset) % 1;
+    let fade = Math.pow(Math.sin(u * Math.PI), 0.7);
+    if (fade < 0.02) continue;
+    let h = rimHue + (coreHue - rimHue) * u;
+    let w = pt.size * s * (1.6 - u * 1.1);
+    let pts = [];
+    for (let k = 0; k <= trail && u - k * du >= 0; k++) pts.push(vortexPoint(pt, u - k * du, R, t));
+    if (pts.length < 2) continue;
+
+    ctx.strokeStyle = hsba(h, 75 - u * 40, 100, 38 * fade);
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.stroke();
+
+    ctx.strokeStyle = hsba(h, 45 - u * 30, 100, 85 * fade);
+    ctx.lineWidth = w * 0.9;
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < Math.min(3, pts.length); i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.stroke();
+  }
+
+  // Glowing rim of the eye, then the dark centre
+  let eyeR = R * eyeSize;
+  ctx.fillStyle = hsba(coreHue, 70, 100, 4);
+  for (let g = 6; g > 0; g--) {
+    ctx.beginPath();
+    ctx.arc(0, 0, eyeR + g * 3 * s, 0, TWO_PI);
+    ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = 'rgba(0,0,0,0.92)';
+  ctx.beginPath();
+  ctx.arc(0, 0, eyeR, 0, TWO_PI);
+  ctx.fill();
+  ctx.restore();
 }`, { maxFrames: 360 }),
 
 circling_spiral: preset(`
-let turns = 6;
-let orbitRadius = 55;
-let spinsPerLoop = 3;
-let lineWeight = 4;
+let rings = 16;           // rings of dots from the centre outwards {slide:4,30} {incr:1} {limlow:1} {limhigh:60}
+let spacing = 11;         // distance between rings (px at 300px canvas) {slide:5,25} {incr:1}
+let circleSize = 5;       // radius of the little circle each dot travels {slide:0,15} {incr:0.5}
+let arms = 3;             // spiral arms that appear (whole number) {slide:1,8} {incr:1}
+let twist = 1.5;          // how strongly the arms curl {slide:-4,4} {incr:0.1}
+let cyclesPerLoop = 2;    // laps each dot makes per loop (whole number) {incr:1}
+let dotSize = 3.2;        // {slide:1,8} {incr:0.2}
+let contrast = 2.5;       // how strongly the arms stand out {slide:0,6} {incr:0.1}
+let showCircles = true;   // draw the little circles to reveal the trick
+let rainbow = true;       // colour by position in the spiral
+let dotColor = '#ffd27a'; // dot colour when rainbow is off {color}
+
+function hsba(h, sat, bri, a) {
+  sat /= 100; bri /= 100;
+  let l = bri * (1 - sat / 2);
+  let sl = (l === 0 || l === 1) ? 0 : (bri - l) / Math.min(l, 1 - l);
+  return 'hsla(' + (((h % 360) + 360) % 360).toFixed(1) + ',' + (sl * 100).toFixed(1) + '%,' + (l * 100).toFixed(1) + '%,' + (a / 100).toFixed(3) + ')';
+}
 
 function draw() {
   let s = min(width, height) / 300;
-  let t = progress * TWO_PI;
-  translate(width / 2, height / 2);
+  let ctx = drawingContext;
+  let t = progress * TWO_PI * cyclesPerLoop;
+  let orbit = circleSize * s;
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
 
-  // Orbit path
-  noFill();
-  stroke(0, 0, 100, 12);
-  strokeWeight(1);
-  circle(0, 0, orbitRadius * 2 * s);
+  for (let ring = 0; ring <= rings; ring++) {
+    let r = ring * spacing * s;
+    let count = ring === 0 ? 1 : ring * 6;           // evenly spaced dots on each ring
+    let depth = ring / rings;
+    for (let i = 0; i < count; i++) {
+      let theta = i * TWO_PI / count;
+      let ax = Math.cos(theta) * r, ay = Math.sin(theta) * r;
 
-  translate(cos(t) * orbitRadius * s, sin(t) * orbitRadius * s);
-  rotate(t * spinsPerLoop);
+      // Each dot only circles its own anchor; the phase offsets build the spiral
+      let phase = arms * theta + twist * depth * TWO_PI - t;
+      let x = ax + Math.cos(phase) * orbit;
+      let y = ay + Math.sin(phase) * orbit;
 
-  let steps = turns * 60;
-  let maxR = 85 * s;
-  strokeWeight(lineWeight * s);
-  for (let i = 0; i < steps; i++) {
-    let a1 = i / 60 * TWO_PI, a2 = (i + 1) / 60 * TWO_PI;
-    let r1 = maxR * i / steps, r2 = maxR * (i + 1) / steps;
-    stroke((i / steps * 300 + progress * 360) % 360, 80, 100);
-    line(cos(a1) * r1, sin(a1) * r1, cos(a2) * r2, sin(a2) * r2);
+      if (showCircles && orbit > 0.5) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(ax, ay, orbit, 0, TWO_PI);
+        ctx.stroke();
+      }
+
+      // Dots pushed outwards light up and grow: together they draw the arms
+      let facing = Math.cos(phase - theta) * 0.5 + 0.5;
+      let glow = Math.pow(facing, contrast);
+      ctx.fillStyle = rainbow
+        ? hsba(200 + depth * 140 + progress * 360, 75 - 35 * glow, 100, 100)
+        : dotColor;
+      ctx.globalAlpha = 0.12 + 0.88 * glow;
+      ctx.beginPath();
+      ctx.arc(x, y, dotSize * s * (0.6 + 0.6 * depth) * (0.45 + 0.75 * glow), 0, TWO_PI);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
   }
+  ctx.restore();
 }`, { maxFrames: 360 }),
 
 // --------------------------------------------------------------------- Circles
@@ -365,9 +613,9 @@ function draw() {
 }`, { maxFrames: 360 }),
 
 pulsing_bw: preset(`
-let bandWidth = 16;       // average band thickness (px at 300px canvas)
+let bandWidth = 16;       // average band thickness (px at 300px canvas) {limlow:1}
 let pulsesPerLoop = 2;    // breaths per loop (whole number)
-let breathe = 0.25;       // how much the whole pattern expands / contracts {slide:0,0.6} {incr:0.01}
+let breathe = 0.25;       // how much the whole pattern expands / contracts {slide:0,0.6} {incr:0.01} {limlow:0} {limhigh:0.9}
 let ripple = 0.5;         // wave running through the rings (0 = uniform breathing)
 let rippleLength = 0.6;   // spacing of that wave between rings
 let flowPerLoop = 0;      // rings flowing outward per loop (even whole number, 0 = none)
@@ -433,50 +681,148 @@ function draw() {
 }`, { maxFrames: 360 }),
 
 orbit_dance: preset(`
-let planets = 6;
-let trail = 14;          // trail segments behind each planet
-let planetData = [];
+let planets = 5;          // {slide:1,7} {incr:1}
+let tilt = 0.45;          // 1 = seen from above, smaller = more side-on {slide:0.1,1} {incr:0.02}
+let trailLength = 0.9;    // length of the fading trails (radians) {slide:0,3} {incr:0.1}
+let sunSize = 16;         // {slide:6,50} {incr:1}
+let sunColor = '#ffcf6b'; // {color}
+let showOrbits = true;
+let starCount = 160;      // {incr:20}
+
+// Planet looks, from the inside out
+const PALETTE = ['#9ad0ff', '#ff9a6b', '#c9a3ff', '#7be0b0', '#ffd27a', '#ff7fa8', '#8fe3ff'];
+let planetData = [], sky;
 
 function setup() {
   for (let i = 0; i < planets; i++) {
     planetData.push({
-      orbit: 0.16 + i * 0.13,
-      speed: planets - i,             // whole revolutions per loop
+      orbit: 0.3 + i * (0.64 / Math.max(1, planets - 1)),
+      speed: planets - i,                    // whole laps per loop: inner planets are faster
       phase: random(TWO_PI),
-      size: random(5, 11),
-      hue: (i * 360 / planets + 20) % 360
+      size: random(6, 10) + i * 1.3,
+      color: PALETTE[i % PALETTE.length],
+      moons: i >= 1 ? floor(random(0, 3)) : 0,
+      ring: i === planets - 2,
+      moonPhase: random(TWO_PI)
     });
+  }
+  sky = document.createElement('canvas');
+  sky.width = width; sky.height = height;
+  let g = sky.getContext('2d');
+  for (let i = 0; i < starCount; i++) {
+    g.fillStyle = 'rgba(255,255,255,' + random(0.15, 0.7).toFixed(2) + ')';
+    let sz = random(0.5, 1.5);
+    g.fillRect(random(width), random(height), sz, sz);
   }
 }
 
+function rgbaOf(hex, a) {
+  let h = hex.replace('#', '');
+  return 'rgba(' + [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)).join(',') + ',' + a + ')';
+}
+
 function draw() {
+  let ctx = drawingContext;
   let s = min(width, height) / 2;
   let t = progress * TWO_PI;
-  translate(width / 2, height / 2);
+  ctx.drawImage(sky, 0, 0);
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
 
-  // Orbits
-  noFill();
-  strokeWeight(1);
-  stroke(0, 0, 100, 10);
-  for (let pl of planetData) circle(0, 0, pl.orbit * s * 2);
+  // Where every planet is: angle, screen position and depth (+1 = in front of the sun)
+  let bodies = planetData.map(pl => {
+    let a = t * pl.speed + pl.phase;
+    return { pl, a, x: Math.cos(a) * pl.orbit * s, y: Math.sin(a) * pl.orbit * s * tilt, z: Math.sin(a) };
+  });
 
-  // Sun
-  noStroke();
-  for (let g = 6; g > 0; g--) {
-    fill(40, 90, 100, 12);
-    circle(0, 0, s * 0.05 * g);
-  }
-  fill(45, 70, 100);
-  circle(0, 0, s * 0.12);
-
-  for (let pl of planetData) {
-    let r = pl.orbit * s;
-    for (let k = trail; k >= 0; k--) {
-      let a = t * pl.speed + pl.phase - k * 0.045 * pl.speed;
-      fill(pl.hue, 80, 100, 100 * (1 - k / trail) * (k ? 0.4 : 1));
-      circle(cos(a) * r, sin(a) * r, pl.size * s / 150 * (1 - k / (trail * 1.5)));
+  if (showOrbits) {
+    ctx.lineWidth = 1;
+    for (let pl of planetData) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.09)';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, pl.orbit * s, pl.orbit * s * tilt, 0, 0, TWO_PI);
+      ctx.stroke();
     }
   }
+
+  // Behind the sun first, then the sun, then the ones in front
+  bodies.filter(b => b.z < 0).forEach(b => drawPlanet(ctx, b, s, t));
+  drawSun(ctx, s, t);
+  bodies.filter(b => b.z >= 0).forEach(b => drawPlanet(ctx, b, s, t));
+  ctx.restore();
+}
+
+function drawSun(ctx, s, t) {
+  let r = sunSize * s / 150;
+  let pulse = 1 + 0.04 * Math.sin(t * 4);
+  ctx.globalCompositeOperation = 'lighter';
+  let glow = ctx.createRadialGradient(0, 0, r * 0.6, 0, 0, r * 2.6 * pulse);
+  glow.addColorStop(0, rgbaOf(sunColor, 0.5));
+  glow.addColorStop(1, rgbaOf(sunColor, 0));
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(0, 0, r * 2.6 * pulse, 0, TWO_PI); ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+  let body = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
+  body.addColorStop(0, '#fffbe8');
+  body.addColorStop(0.5, sunColor);
+  body.addColorStop(1, rgbaOf(sunColor, 0.9));
+  ctx.fillStyle = body;
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, TWO_PI); ctx.fill();
+}
+
+function drawPlanet(ctx, b, s, t) {
+  let pl = b.pl;
+  let depth = 0.8 + 0.25 * b.z;                 // closer = bigger
+  let r = pl.size * s / 150 * depth;
+  let R = pl.orbit * s;
+
+  // Fading trail along the orbit
+  if (trailLength > 0) {
+    let steps = 14;
+    ctx.lineCap = 'round';
+    for (let k = 0; k < steps; k++) {
+      let a0 = b.a - trailLength * k / steps, a1 = b.a - trailLength * (k + 1) / steps;
+      ctx.strokeStyle = rgbaOf(pl.color, (0.45 * (1 - k / steps)).toFixed(3));
+      ctx.lineWidth = r * 0.8 * (1 - k / steps);
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a0) * R, Math.sin(a0) * R * tilt);
+      ctx.lineTo(Math.cos(a1) * R, Math.sin(a1) * R * tilt);
+      ctx.stroke();
+    }
+  }
+
+  // Ring (back half)
+  if (pl.ring) drawRing(ctx, b.x, b.y, r, pl.color, true);
+
+  // Sphere lit from the sun's side
+  let len = Math.hypot(b.x, b.y) || 1;
+  let lx = -b.x / len, ly = -b.y / len;
+  let shade = ctx.createRadialGradient(b.x + lx * r * 0.45, b.y + ly * r * 0.45, r * 0.1, b.x, b.y, r);
+  shade.addColorStop(0, '#ffffff');
+  shade.addColorStop(0.25, pl.color);
+  shade.addColorStop(1, 'rgba(10,10,20,1)');
+  ctx.fillStyle = shade;
+  ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, TWO_PI); ctx.fill();
+
+  if (pl.ring) drawRing(ctx, b.x, b.y, r, pl.color, false);
+
+  // Moons
+  for (let m = 0; m < pl.moons; m++) {
+    let ma = t * (pl.speed * 3 + 4 + m * 3) + pl.moonPhase + m * 2;
+    let mr = r * (1.9 + m * 0.8);
+    let mx = b.x + Math.cos(ma) * mr, my = b.y + Math.sin(ma) * mr * tilt;
+    let mz = Math.sin(ma);
+    ctx.fillStyle = mz >= 0 ? 'rgba(235,235,245,0.95)' : 'rgba(150,150,165,0.8)';
+    ctx.beginPath(); ctx.arc(mx, my, Math.max(0.8, r * 0.22), 0, TWO_PI); ctx.fill();
+  }
+}
+
+function drawRing(ctx, x, y, r, color, backHalf) {
+  ctx.strokeStyle = rgbaOf(color, 0.7);
+  ctx.lineWidth = Math.max(1, r * 0.25);
+  ctx.beginPath();
+  ctx.ellipse(x, y, r * 1.9, r * 1.9 * tilt * 0.9, -0.2, backHalf ? Math.PI : 0, backHalf ? TWO_PI : Math.PI);
+  ctx.stroke();
 }`, { maxFrames: 360 }),
 
 ripple_effect: preset(`
@@ -511,33 +857,60 @@ function draw() {
 }`, { maxFrames: 360 }),
 
 flower_circles: preset(`
-let petalRings = 3;
-let baseRadius = 34;
+let sets = 3;             // overlapping sets of rings {slide:2,6} {incr:1}
+let ringSpacing = 13;     // gap between rings (px at 300px canvas) {slide:4,30} {incr:0.5} {limlow:1}
+let lineWidth = 1.6;      // {slide:0.5,6} {incr:0.1}
+let wobble = 38;          // how far each set's centre drifts (px) {slide:0,100} {incr:1}
+let flowPerLoop = 3;      // rings flowing outward per loop (whole number) {incr:1}
+let dancesPerLoop = 1;    // laps of the centres per loop (whole number) {incr:1}
+let color1 = '#ff3b6b';   // {color}
+let color2 = '#3bff9d';   // {color}
+let color3 = '#4b7bff';   // {color}
+let extraColor = '#ffd23b'; // used by sets 4 and up {color}
 
 function draw() {
+  let ctx = drawingContext;
   let s = min(width, height) / 300;
+  let gap = ringSpacing * s;
+  let maxR = dist(0, 0, width, height) / 2 + wobble * s + gap;
   let t = progress * TWO_PI;
-  translate(width / 2, height / 2);
-  noFill();
-  strokeWeight(1.6);
+  let colors = [color1, color2, color3];
 
-  for (let ring = petalRings; ring >= 1; ring--) {
-    let count = ring * 6;
-    let breathe = 1 + 0.18 * sin(t * 2 + ring);
-    let r = baseRadius * s * breathe;
-    let dir = ring % 2 ? 1 : -1;
-    push();
-    rotate(t * dir);
-    for (let i = 0; i < count; i++) {
-      let a = i * TWO_PI / count;
-      let d = ring * r * 0.9;
-      stroke((ring * 70 + i * 360 / count + progress * 360) % 360, 70, 100, 85);
-      circle(cos(a) * d, sin(a) * d, r * 2);
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+  ctx.globalCompositeOperation = 'lighter';     // overlapping colours add up
+  ctx.lineWidth = lineWidth * s;
+
+  for (let k = 0; k < sets; k++) {
+    // Each set's centre circles the middle; neighbours go opposite ways
+    let dir = k % 2 ? -1 : 1;
+    let a = dir * t * dancesPerLoop + k * TWO_PI / sets;
+    let cx = Math.cos(a) * wobble * s;
+    let cy = Math.sin(a * 2) * wobble * s * 0.6;
+    ctx.strokeStyle = colors[k] || extraColor;
+    ctx.globalAlpha = 0.9;
+
+    // Rings flow outward; shifting by whole ring gaps keeps the loop seamless
+    let shift = (progress * flowPerLoop % 1) * gap;
+    ctx.beginPath();
+    for (let r = shift; r < maxR; r += gap) {
+      if (r < 0.5) continue;
+      ctx.moveTo(cx + r, cy);
+      ctx.arc(cx, cy, r, 0, TWO_PI);
     }
-    pop();
+    ctx.stroke();
   }
-  stroke(0, 0, 100, 90);
-  circle(0, 0, baseRadius * s * 2 * (1 + 0.18 * sin(t * 2)));
+
+  // Soft fade towards the edges
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.globalAlpha = 1;
+  let edge = min(width, height) / 2;
+  let fade = ctx.createRadialGradient(0, 0, edge * 0.55, 0, 0, edge * 1.25);
+  fade.addColorStop(0, 'rgba(0,0,0,0)');
+  fade.addColorStop(1, 'rgba(0,0,0,1)');
+  ctx.fillStyle = fade;
+  ctx.fillRect(-width, -height, width * 2, height * 2);
+  ctx.restore();
 }`, { maxFrames: 360 }),
 
 // --------------------------------------------------------------------- Objects
@@ -991,7 +1364,7 @@ function draw() {
 }`, { maxFrames: 360 }),
 
 metronome: preset(`
-let beatsPerLoop = 6;      // ticks per loop (even number keeps it seamless)
+let beatsPerLoop = 6;      // ticks per loop (even number keeps it seamless) {incr:2}
 let swingAngle = 24;       // degrees
 let weightPosition = 0.5;  // 0 = pivot, 1 = tip of the rod
 let woodLight = '#9a5a2c';  // wood colour {color}
@@ -1118,15 +1491,17 @@ function woodFill(ctx, x0, x1) {
 
 // --------------------------------------------------------------------- Chill
 waves: preset(`
-let lineGap = 8;
-let lineWeight = 5;
+let lineGap = 16;         // gap between lines {limlow:1} {incr:1}
+let lineWeight = 17;      // thicker than the gap: lines blend into smooth colour in places {limlow:0} {incr:1}
 
 function draw() {
   let t = progress * TWO_PI;
   strokeWeight(lineWeight);
   noFill();
 
-  for (let y = 0; y < height + lineGap; y += lineGap) {
+  // Start and end a few lines past the edges so the wave dips never leave a gap
+  let margin = Math.ceil((20 + lineWeight) / lineGap) * lineGap;
+  for (let y = -margin; y < height + margin; y += lineGap) {
     stroke((180 + 60 * sin(t + y * 0.01) + 360) % 360, 100, 100);
     beginShape();
     for (let x = 0; x <= width + 5; x += 5) {
@@ -1194,7 +1569,7 @@ function draw() {
 
 aurora: preset(`
 let curtains = 3;
-let columnStep = 3;
+let columnStep = 3;       // width of each light column {limlow:1}
 let starCount = 120;
 let stars = [];
 
@@ -1309,8 +1684,8 @@ function draw() {
 }`, { maxFrames: 480 }),
 
 water: preset(`
-let samples = 120;       // horizontal resolution of the effect (higher = sharper, slower)
-let iterations = 5;
+let samples = 120;       // horizontal resolution of the effect (higher = sharper, slower) {limlow:10} {limhigh:400}
+let iterations = 5;       // detail of the light pattern {limlow:1} {limhigh:20}
 let intensity = 0.005;
 let speeds = [1, -1, 2, -1, 1];   // whole numbers = seamless loop
 let buffer, bctx, img;
@@ -1354,8 +1729,261 @@ function draw() {
   drawingContext.drawImage(buffer, 0, 0, width, height);
 }`, { maxFrames: 480 }),
 
+heat_waves: preset(`
+let detail = 4;           // grid step for tracing (px, smaller = smoother but slower) {slide:2,10} {incr:0.5} {limlow:1.5}
+let levels = 5;           // brightness levels traced as lines {slide:2,10} {incr:1} {limlow:1} {limhigh:20}
+let lineWidth = 1.4;      // {slide:0.4,4} {incr:0.1}
+let glow = 5;             // blur around the light (px) {slide:0,12} {incr:0.5}
+let smoothing = 2;        // passes that smooth out small wobbles {slide:0,5} {incr:1} {limlow:0} {limhigh:8}
+let zoom = 1;             // size of the pattern {slide:0.5,2} {incr:0.05} {limlow:0.1}
+let baseColor = '#2a0700';   // the dark background heat {color}
+let heatColor = '#ffc46b';   // the hottest shimmer {color}
+let showBackground = true;   // fill the background colour behind the shimmer
+let iterations = 5;       // detail of the light pattern {limlow:1} {limhigh:20}
+let intensity = 0.005;
+let speeds = [1, -1, 2, -1, 1];   // whole numbers = seamless loop
+
+// A rippling light field (the same maths as "Water (shader)"), sampled on a coarse grid
+function lightAt(u, v, t) {
+  let TAU2 = Math.PI * 2;
+  let px = u * TAU2 - 250, py = v * TAU2 - 250;
+  let ix = px, iy = py, c = 1;
+  for (let n = 0; n < iterations; n++) {
+    let tt = t * speeds[n % speeds.length] + n * 1.7;
+    ix = px + Math.cos(tt - ix) + Math.sin(tt + iy);
+    iy = py + Math.sin(tt - iy) + Math.cos(tt + ix);
+    let ax = px / (Math.sin(ix + tt) / intensity);
+    let ay = py / (Math.cos(iy + tt) / intensity);
+    c += 1 / Math.sqrt(ax * ax + ay * ay);
+  }
+  c /= iterations;
+  c = 1.17 - Math.pow(c, 1.4);
+  return Math.pow(Math.abs(c), 8);
+}
+
+// Marching squares: adds the line where field == level to the current path
+function traceLevel(ctx, F, cols, rows, step, level) {
+  let edge = (x1, y1, v1, x2, y2, v2) => { let k = v1 / (v1 - v2); return [x1 + (x2 - x1) * k, y1 + (y2 - y1) * k]; };
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      let a = F[j * (cols + 1) + i] - level, b = F[j * (cols + 1) + i + 1] - level;
+      let c = F[(j + 1) * (cols + 1) + i + 1] - level, d = F[(j + 1) * (cols + 1) + i] - level;
+      if ((a > 0) === (b > 0) && (b > 0) === (c > 0) && (c > 0) === (d > 0)) continue;
+      let x = i * step, y = j * step, pts = [];
+      if ((a > 0) !== (b > 0)) pts.push(edge(x, y, a, x + step, y, b));
+      if ((b > 0) !== (c > 0)) pts.push(edge(x + step, y, b, x + step, y + step, c));
+      if ((c > 0) !== (d > 0)) pts.push(edge(x + step, y + step, c, x, y + step, d));
+      if ((d > 0) !== (a > 0)) pts.push(edge(x, y + step, d, x, y, a));
+      for (let p = 0; p + 1 < pts.length; p += 2) {
+        ctx.moveTo(pts[p][0], pts[p][1]);
+        ctx.lineTo(pts[p + 1][0], pts[p + 1][1]);
+      }
+    }
+  }
+}
+
+function hexRgb(hex) {
+  let h = hex.replace('#', '');
+  return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+}
+
+// Colour at brightness v: background + heat
+function lightColorAt(v, alpha) {
+  let d = hexRgb(baseColor), l = hexRgb(heatColor);
+  let rgb = d.map((c, i) => Math.min(255, Math.round(c + l[i] * v)));
+  return 'rgba(' + rgb.join(',') + ',' + alpha + ')';
+}
+
+function draw() {
+  let ctx = drawingContext;
+  let s = min(width, height) / 300;
+  let t = progress * TWO_PI;
+  let step = detail * s;
+  let cols = Math.ceil(width / step), rows = Math.ceil(height / step);
+
+  if (showBackground) {
+    ctx.fillStyle = baseColor;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  // Sample the light field
+  let F = new Float32Array((cols + 1) * (rows + 1));
+  for (let j = 0; j <= rows; j++) {
+    for (let i = 0; i <= cols; i++) {
+      let u = (i * step - width / 2) / (width * zoom) + 0.5;
+      let v = (j * step - height / 2) / (height * zoom) + 0.5;
+      F[j * (cols + 1) + i] = lightAt(u, v, t);
+    }
+  }
+
+  // Smooth the sampled light so the traced lines flow instead of wobbling
+  for (let pass = 0; pass < smoothing; pass++) {
+    let G = new Float32Array(F.length);
+    for (let j = 0; j <= rows; j++) {
+      for (let i = 0; i <= cols; i++) {
+        let sum = 0, n = 0;
+        for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+          let jj = j + dj, ii = i + di;
+          if (jj < 0 || jj > rows || ii < 0 || ii > cols) continue;
+          sum += F[jj * (cols + 1) + ii]; n++;
+        }
+        G[j * (cols + 1) + i] = sum / n;
+      }
+    }
+    F = G;
+  }
+
+  // Brightness levels from dim to bright (more levels near the bright end)
+  let lv = [];
+  for (let k = 0; k < levels; k++) lv.push(0.1 + 0.8 * Math.pow((k + 1) / levels, 1.4));
+
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.globalCompositeOperation = 'lighter';
+
+  // Soft blurred glow under everything
+  if (glow > 0) {
+    ctx.filter = 'blur(' + (glow * s).toFixed(1) + 'px)';
+    ctx.beginPath();
+    for (let L of lv) traceLevel(ctx, F, cols, rows, step, L);
+    ctx.strokeStyle = lightColorAt(0.5, 0.45);
+    ctx.lineWidth = lineWidth * 4 * s;
+    ctx.stroke();
+    ctx.filter = 'none';
+  }
+
+  // Each level: dim ones wide and faint, bright ones thin and hottest
+  for (let L of lv) {
+    ctx.beginPath();
+    traceLevel(ctx, F, cols, rows, step, L);
+    ctx.strokeStyle = lightColorAt(L, 0.35 + 0.5 * L);
+    ctx.lineWidth = lineWidth * s * (1.8 - L);
+    ctx.stroke();
+  }
+  ctx.restore();
+}`, { maxFrames: 480 }),
+
+height_map: preset(`
+let terrainSeed = 0;      // 0 = this layer's own random terrain, any other number = a fixed one {incr:1} {limlow:0}
+let hills = 9;            // mountains on the map {slide:1,25} {incr:1} {limlow:1} {limhigh:60}
+let roughness = 0.35;     // small bumps on the slopes {slide:0,1} {incr:0.05} {limlow:0}
+let lineSpacing = 0.05;   // height between contour lines {slide:0.02,0.2} {incr:0.005} {limlow:0.01}
+let flowPerLoop = 5;      // lines that grow out of the peaks per loop (whole number) {incr:5}
+let majorEvery = 5;       // every Nth line is thicker (keep flowPerLoop a multiple of it) {incr:1} {limlow:1}
+let lineWidth = 1.2;      // {slide:0.4,4} {incr:0.1} {limlow:0.1}
+let detail = 4;           // grid step for tracing (px, smaller = smoother) {slide:2,10} {incr:0.5} {limlow:1.5}
+let showBackground = true;
+let mapBackground = '#0b1116';  // {color}
+
+let terrain, gridCols, gridRows, gridStep;
+
+// Colour by height: water, lowland, sand, rock, snow
+const RAMP = [[0, '#2b5c9e'], [0.22, '#2f8f6a'], [0.45, '#b9c46a'], [0.65, '#c08a4a'], [0.85, '#8a5a3c'], [1, '#f4f4f4']];
+
+function rampColor(h, alpha) {
+  h = Math.max(0, Math.min(1, h));
+  for (let i = 1; i < RAMP.length; i++) {
+    if (h <= RAMP[i][0]) {
+      let [h0, c0] = RAMP[i - 1], [h1, c1] = RAMP[i];
+      let k = (h - h0) / (h1 - h0);
+      let a = hexRgb(c0), b = hexRgb(c1);
+      return 'rgba(' + a.map((v, j) => Math.round(v + (b[j] - v) * k)).join(',') + ',' + alpha + ')';
+    }
+  }
+  return 'rgba(244,244,244,' + alpha + ')';
+}
+
+function hexRgb(hex) {
+  let h = hex.replace('#', '');
+  return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+}
+
+// Random terrain: a few round hills of random size and height, plus gentle bumps
+function setup() {
+  if (terrainSeed > 0) randomSeed(terrainSeed);
+  let s = min(width, height) / 300;
+  gridStep = detail * s;
+  gridCols = Math.ceil(width / gridStep);
+  gridRows = Math.ceil(height / gridStep);
+
+  let peaks = [];
+  for (let i = 0; i < hills; i++) {
+    peaks.push({ x: random(-0.1, 1.1) * width, y: random(-0.1, 1.1) * height,
+                 r: random(0.12, 0.32) * min(width, height), h: random(0.45, 1) });
+  }
+  let bumps = [];
+  for (let i = 0; i < 4; i++) bumps.push({ fx: random(0.01, 0.03) / s, fy: random(0.01, 0.03) / s, p: random(TWO_PI) });
+
+  terrain = new Float32Array((gridCols + 1) * (gridRows + 1));
+  let maxH = 0;
+  for (let j = 0; j <= gridRows; j++) {
+    for (let i = 0; i <= gridCols; i++) {
+      let x = i * gridStep, y = j * gridStep, h = 0;
+      for (let pk of peaks) {
+        let dx = x - pk.x, dy = y - pk.y;
+        h += pk.h * Math.exp(-(dx * dx + dy * dy) / (2 * pk.r * pk.r));
+      }
+      for (let b of bumps) h += roughness * 0.08 * Math.sin(x * b.fx + b.p) * Math.sin(y * b.fy - b.p);
+      terrain[j * (gridCols + 1) + i] = h;
+      maxH = Math.max(maxH, h);
+    }
+  }
+  for (let k = 0; k < terrain.length; k++) terrain[k] = Math.max(0, terrain[k] / (maxH || 1));
+}
+
+// Marching squares: adds the line where terrain == level to the current path
+function traceLevel(ctx, F, cols, rows, step, level) {
+  let edge = (x1, y1, v1, x2, y2, v2) => { let k = v1 / (v1 - v2); return [x1 + (x2 - x1) * k, y1 + (y2 - y1) * k]; };
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      let a = F[j * (cols + 1) + i] - level, b = F[j * (cols + 1) + i + 1] - level;
+      let c = F[(j + 1) * (cols + 1) + i + 1] - level, d = F[(j + 1) * (cols + 1) + i] - level;
+      if ((a > 0) === (b > 0) && (b > 0) === (c > 0) && (c > 0) === (d > 0)) continue;
+      let x = i * step, y = j * step, pts = [];
+      if ((a > 0) !== (b > 0)) pts.push(edge(x, y, a, x + step, y, b));
+      if ((b > 0) !== (c > 0)) pts.push(edge(x + step, y, b, x + step, y + step, c));
+      if ((c > 0) !== (d > 0)) pts.push(edge(x + step, y + step, c, x, y + step, d));
+      if ((d > 0) !== (a > 0)) pts.push(edge(x, y + step, d, x, y, a));
+      for (let p = 0; p + 1 < pts.length; p += 2) {
+        ctx.moveTo(pts[p][0], pts[p][1]);
+        ctx.lineTo(pts[p + 1][0], pts[p + 1][1]);
+      }
+    }
+  }
+}
+
+function draw() {
+  let ctx = drawingContext;
+  let s = min(width, height) / 300;
+  if (showBackground) {
+    ctx.fillStyle = mapBackground;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  // Lines move down in height over the loop, so new rings appear at the peaks
+  // and spread outwards. Shifting by whole lines keeps the loop seamless.
+  let shift = progress * flowPerLoop;
+  let first = Math.floor(shift), last = Math.ceil(1 / lineSpacing + shift) + 1;
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (let k = first; k <= last; k++) {
+    let level = (k - shift) * lineSpacing;
+    if (level <= 0.002 || level >= 0.998) continue;
+    let major = ((k % majorEvery) + majorEvery) % majorEvery === 0;
+    let fadeIn = Math.min(1, (1 - level) / 0.06);     // new rings fade in at the peaks
+    ctx.beginPath();
+    traceLevel(ctx, terrain, gridCols, gridRows, gridStep, level);
+    ctx.strokeStyle = rampColor(level, ((major ? 0.95 : 0.6) * fadeIn).toFixed(3));
+    ctx.lineWidth = lineWidth * s * (major ? 1.8 : 1);
+    ctx.stroke();
+  }
+  ctx.restore();
+}`, { maxFrames: 480 }),
+
 wagon_wave: preset(`
-let gridSize = 30;
+let gridSize = 30;        // {limlow:1} {limhigh:200}
 let offsetMultiplier = 5;
 let zoom = 1.11;
 let dotSize = 0.7;
@@ -1532,7 +2160,7 @@ function setup() {
 }`),
 
 static: preset(`
-let grain = 2;           // size of each noise pixel
+let grain = 2;           // size of each noise pixel {limlow:1}
 let colorNoise = 0.15;   // chance of a coloured speck
 let buffer, bctx, img;
 
@@ -1606,7 +2234,7 @@ function resetLayer(layer, type) {
     delete layer.texts;
     Object.assign(layer, { hue: 360, saturation: 100, brightness: 100, opacity: 100,
                            maxFrames: 120, fps: Math.min(60, animationFPS), speed: 1,
-                           startFrame: 0, endFrame: -1, fadeFrames: 0,
+                           startFrame: 0, endFrame: -1, fadeFrames: 0, zoom: 1,
                            visible: true, collapsed: false });
     initializeLayerTypeData(layer);
     return layer;
@@ -1647,7 +2275,14 @@ function applyPresetToLayer(layer, name) {
 
 // Friendly name of a preset, taken from its button / dropdown label
 function presetDisplayName(name) {
+    // Original labels first (the buttons and lists can be swapped around)
+    for (const category of document.querySelectorAll('.preset-category')) {
+        if (category._default && category._default.value === name) return category._default.label;
+        const opt = (category._options || []).find(o => o.value === name);
+        if (opt) return opt.label;
+    }
     const el = document.querySelector(`option[value="${name}"]`) ||
+        document.querySelector(`.main-preset-btn[data-preset="${name}"]`) ||
         [...document.querySelectorAll('.main-preset-btn')].find(b => (b.getAttribute('onclick') || '').includes(`'${name}'`));
     return el ? el.textContent.trim() : name.replace(/_/g, ' ');
 }

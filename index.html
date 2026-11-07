@@ -35,11 +35,10 @@
                     <button class="main-preset-btn" onclick="loadPreset('ying_yang_spiral')">Ying Yang</button>
                     <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
                         <option value="">More spirals...</option>
-                        <option value="dot_spiral">Dot Spiral</option>
                         <option value="tunnel">Tunnel</option>
+                        <option value="dot_spiral">Dot Spiral</option>
                         <option value="tunnel_2">Square Tunnel</option>
                         <option value="fibonacci_spiral">Fibonacci Spiral</option>
-                        <option value="galaxy_spiral">Galaxy Spiral</option>
                         <option value="vortex">Vortex</option>
                         <option value="circling_spiral">Circling Spiral</option>
                     </select>
@@ -51,9 +50,8 @@
                         <option value="">More circles...</option>
                         <option value="pulsing">Pulsing Lines</option>
                         <option value="kaleidoscope">Kaleidoscope</option>
-                        <option value="orbit_dance">Orbit Dance</option>
                         <option value="ripple_effect">Ripple Effect</option>
-                        <option value="flower_circles">Flower Circles</option>
+                        <option value="flower_circles">Moiré Bloom</option>
                         <option value="center_pulse">Center Pulse</option>
                     </select>
                 </div>
@@ -76,10 +74,13 @@
                     <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
                         <option value="">More chill...</option>
                         <option value="night_sky">Night Sky</option>
+                        <option value="galaxy_spiral">Galaxy Spiral</option>
+                        <option value="orbit_dance">Orbit Dance</option>
                         <option value="aurora">Aurora</option>
                         <option value="crystal">Crystal Formation</option>
-                        <option value="water">Water</option>
-                        <option value="wagon_wave">Wagon Wave</option>
+                        <option value="water">Water (shader)</option>
+                        <option value="heat_waves">Heat Waves</option>
+                        <option value="height_map">Height Map</option>
                     </select>
                 </div>
                 <div class="preset-category">
@@ -87,6 +88,7 @@
                     <button class="main-preset-btn" onclick="loadPreset('petals')">Petals</button>
                     <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
                         <option value="">More others...</option>
+                        <option value="wagon_wave">Wagon Wave</option>
                         <option value="text_example">Text Example</option>
                         <option value="bg_gradient">BG Gradient</option>
                         <option value="bg_image">BG Image</option>
@@ -122,7 +124,7 @@
         </section>
 
         <div id="errorDisplay" class="error-display"></div>
-        <div id="canvasContainer"></div>
+        <div id="canvasDock"><div id="canvasContainer"></div></div>
     </div>
 
     <div class="preview-panel">
@@ -139,7 +141,7 @@
                 <div class="controls">
                     <button class="btn btn-primary" onclick="runWithoutLag()" title="Start / restart the animation">Run</button>
                     <button class="btn btn-secondary" onclick="stopAnimation()" title="Stop the animation">Stop</button>
-                    <button class="btn btn-secondary pip-btn" onclick="openPipWindow()" id="pipBtn" title="Open the preview in a separate window">Open PiP</button>
+                    <button class="btn btn-secondary pip-btn" onclick="togglePreviewFloating()" id="pipBtn" title="Show the preview in a floating window you can drag around">Float preview</button>
                 </div>
                 <div class="frame-controls">
                     <button class="frame-btn" id="prevFrameBtn" onclick="previousFrame()" title="Previous frame">‹</button>

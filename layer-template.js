@@ -291,6 +291,12 @@ function generateColorControls(layer) {
                 ${slider('saturation', 'sat', 'Sat', 'Saturation (%)', 1, 100)}
                 ${slider('brightness', 'bright', 'Bright', 'Brightness (%)', 1, 100)}
                 ${slider('opacity', 'opacity', 'Opacity', 'Opacity (%)', 1, 100)}
+                <div class="color-control" title="Zoom in or out around the centre of the canvas (double-click to reset)">
+                    <label>Zoom</label>
+                    <input type="range" class="color-slider zoom-slider" min="0.25" max="4" step="0.05" value="${layerZoom(layer)}"
+                           oninput="updateLayerZoom(${layer.id}, this.value)" ondblclick="updateLayerZoom(${layer.id}, 1, true)">
+                    <span class="color-value zoom-value">${layerZoom(layer).toFixed(2)}×</span>
+                </div>
             </div>
         </div>
     `;

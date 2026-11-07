@@ -8,6 +8,7 @@
 // The code editor below shows only the rest of the code.
 //
 // Comment tags (hidden in the panel):
+//   {limlow:X}      the value can't go below X ({limhigh:Y}: can't go above Y)
 //   {incr:X}        arrows / slider change the value by X (e.g. {incr:2}, {incr:0.1}).
 //                   Without it the step follows the value: 1 for whole numbers,
 //                   0.1 for one decimal, 0.01 for two, and so on.
@@ -22,7 +23,20 @@ const NUMBER_RE = /^-?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i;
 const INCR_RE = /\{incr:\s*(-?[\d.]+)\s*\}/i;
 const SLIDE_RE = /\{slide:\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\}/i;
 const COLOR_RE = /\{colou?r(?::\s*(hsb|rgb))?\s*\}/i;
-const ANY_TAG_RE = /\{(?:incr|slide|colou?r)\b[^}]*\}/gi;
+const LIMLOW_RE = /\{limlow:\s*(-?[\d.]+)\s*\}/i;
+const LIMHIGH_RE = /\{limhigh:\s*(-?[\d.]+)\s*\}/i;
+const ANY_TAG_RE = /\{(?:incr|slide|colou?r|limlow|limhigh)\b[^}]*\}/gi;
+
+// {limlow:x} / {limhigh:y} keep a number inside a safe range
+function varLimits(comment) {
+    const lo = comment.match(LIMLOW_RE), hi = comment.match(LIMHIGH_RE);
+    return { low: lo ? parseFloat(lo[1]) : -Infinity, high: hi ? parseFloat(hi[1]) : Infinity };
+}
+
+function clampToLimits(value, comment) {
+    const { low, high } = varLimits(comment);
+    return Math.min(high, Math.max(low, value));
+}
 
 // Splits "code part" and "// comment" at the first // that is not inside quotes
 function splitLineComment(line) {
@@ -188,7 +202,9 @@ function generateVarsPanel(layer, split, viewButton = '') {
                     <span>${color.hex}</span>
                 </label>`;
         } else if (slideTag && NUMBER_RE.test(v.value)) {
-            const min = parseFloat(slideTag[1]), max = parseFloat(slideTag[2]);
+            const lim = varLimits(v.comment);
+            const min = Math.max(Math.min(parseFloat(slideTag[1]), parseFloat(slideTag[2])), lim.low);
+            const max = Math.min(Math.max(parseFloat(slideTag[1]), parseFloat(slideTag[2])), lim.high);
             const incrTag = v.comment.match(INCR_RE);
             const step = incrTag ? Math.abs(parseFloat(incrTag[1])) : Math.min(varStep(v), Math.abs(max - min) / 100 || 1);
             input = `
@@ -248,6 +264,17 @@ function setLayerVar(layerId, lineIndex, newValue) {
     if (!v) return;
     newValue = String(newValue).trim();
     if (!newValue) return;
+    // Numbers are kept inside their {limlow}/{limhigh} range
+    if (NUMBER_RE.test(v.value)) {
+        const num = parseFloat(newValue);
+        if (isNaN(num) || !NUMBER_RE.test(newValue)) {
+            const input = document.getElementById(`var-${layerId}-${lineIndex}`);
+            if (input && input.type === 'text') input.value = v.value;   // not a number: undo
+            return;
+        }
+        const clamped = clampToLimits(num, v.comment);
+        if (clamped !== num) newValue = String(clamped);
+    }
     split.lines[lineIndex] = v.prefix + newValue + v.afterValue + v.comment;
     const header = split.lines.join('\n') + (split.header.endsWith('\n') ? '\n' : '');
     layer.code = header + split.body;

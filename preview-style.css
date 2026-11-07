@@ -69,3 +69,96 @@
 .export-progress {
     background: linear-gradient(90deg, #00a855, #33e08a);
 }
+
+/* ---------- Floating preview window ---------- */
+#canvasDock {
+    align-self: flex-start;
+}
+
+#canvasDock.is-empty {
+    display: none;
+}
+
+.float-preview {
+    position: fixed;
+    z-index: 4500;
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+    user-select: none;
+}
+
+.float-preview.is-dragging {
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.75);
+    opacity: 0.95;
+}
+
+.float-preview-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 6px 5px 10px;
+    background: var(--surface-3);
+    border-bottom: 1px solid var(--border);
+    cursor: grab;
+    touch-action: none;
+}
+
+.float-preview.is-dragging .float-preview-bar {
+    cursor: grabbing;
+}
+
+.float-preview-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+}
+
+.float-preview-size {
+    flex: 1;
+    font-size: 10px;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+}
+
+.float-preview-btn {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    line-height: 1;
+}
+
+.float-preview-body {
+    position: relative;
+    overflow: hidden;
+    background: #000;
+}
+
+.float-preview-scale {
+    transform-origin: 0 0;
+}
+
+.float-preview-scale #canvasContainer {
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.float-preview-resize {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 16px;
+    height: 16px;
+    cursor: nwse-resize;
+    touch-action: none;
+    background: linear-gradient(135deg, transparent 50%, rgba(255, 255, 255, 0.35) 50%, rgba(255, 255, 255, 0.35) 60%, transparent 60%, transparent 72%, rgba(255, 255, 255, 0.35) 72%, rgba(255, 255, 255, 0.35) 82%, transparent 82%);
+}

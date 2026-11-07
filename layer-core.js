@@ -13,7 +13,8 @@ function createLayer(code = '', type = 'code') {
         // Default properties
         hue: 360, saturation: 100, brightness: 100, opacity: 100,
         maxFrames: 120, fps: 60, speed: 1,
-        startFrame: 0, endFrame: -1, fadeFrames: 0   // on the main timeline; -1 = until the end
+        startFrame: 0, endFrame: -1, fadeFrames: 0,  // on the main timeline; -1 = until the end
+        zoom: 1
     };
     
     initializeLayerTypeData(layer);
@@ -95,6 +96,7 @@ function duplicateLayer(layerId) {
         newLayer.startFrame = layer.startFrame;
         newLayer.endFrame = layer.endFrame;
         newLayer.fadeFrames = layer.fadeFrames;
+        newLayer.zoom = layer.zoom;
         newLayer.visible = layer.visible;
         newLayer.name = layer.name ? layer.name + ' copy' : layer.name;
         

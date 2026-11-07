@@ -81,6 +81,29 @@ function updateLayerColor(layerId, property, value) {
     refreshLayerStyles();
 }
 
+// Zoom a layer in/out around the canvas centre (live, no restart)
+function updateLayerZoom(layerId, value, resetSlider = false) {
+    const layer = layers.find(l => l.id === layerId);
+    if (!layer) return;
+    const z = Math.max(0.25, Math.min(4, parseFloat(value) || 1));
+    layer.zoom = z;
+    const layerDiv = document.querySelector(`[data-layer-id="${layerId}"]`);
+    if (layerDiv) {
+        const out = layerDiv.querySelector('.zoom-value');
+        if (out) out.textContent = z.toFixed(2) + '×';
+        if (resetSlider) {
+            const slider = layerDiv.querySelector('.zoom-slider');
+            if (slider) slider.value = z;
+        }
+    }
+    const renderer = canvasLayers.find(r => r.layer === layer);
+    if (renderer) {
+        applyLayerStyle(renderer);
+        if (!renderer.zoomByComposite) renderer.render(virtualFrameCount, true);
+    }
+    updatePipWindow();
+}
+
 function updateLayerAnimation(layerId, property, value) {
     const layer = layers.find(l => l.id === layerId);
     if (!layer) return;
