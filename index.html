@@ -104,6 +104,7 @@
                     <button class="btn btn-secondary" onclick="addLayer()" title="Add an empty code layer"><span class="btn-plus">+</span> Code</button>
                     <button class="btn btn-secondary" onclick="addImageLayer()" title="Add an image layer"><span class="btn-plus">+</span> Image</button>
                     <button class="btn btn-secondary" onclick="addTextLayer()" title="Add a text layer"><span class="btn-plus">+</span> Text</button>
+                    <button class="btn btn-secondary" id="pasteLayerBtn" onclick="pasteLayerFromClipboard(this)" title="Paste a copied layer (JSON) from the clipboard">Paste</button>
                 </div>
                 <div class="toolbar-spacer"></div>
                 <label class="background-color-control" title="Canvas background colour">
@@ -227,6 +228,7 @@
     <script src="animation-manager.js"></script>
     <script src="layer-core.js"></script>
     <script src="layer-template.js"></script>
+    <script src="layer-vars.js"></script>
     <script src="layer-events.js"></script>
     <script src="layer-dom.js"></script>	
 	<script src="layers.js"></script>

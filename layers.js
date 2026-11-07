@@ -140,12 +140,17 @@ function updateTextProperty(layerId, property, value) {
     if (layer && layer.type === 'text' && layer.texts.length > 0) {
         const selectedText = layer.texts[layer.selectedTextIndex];
         if (!selectedText) return;
-        if (['fontSize', 'textX', 'textY', 'textRotation', 'animAmount', 'animCycles', 'startFrame', 'endFrame', 'fadeFrames'].includes(property)) {
+        if (['fontSize', 'textX', 'textY', 'textRotation', 'animAmount', 'animCycles', 'animOffset', 'blinkOn', 'startFrame', 'endFrame', 'fadeFrames'].includes(property)) {
             const v = parseFloat(value);
             if (isNaN(v)) return;
             selectedText[property] = v;
         } else {
             selectedText[property] = value;
+        }
+        if (property === 'animation') {
+            // Different animations use different settings: re-render the editor
+            LayerDOM.refresh(layerId);
+            updateLayerSelection();
         }
         if (property === 'text') {
             const label = document.querySelector(`[data-layer-id="${layerId}"] .layer-header .layer-name`);

@@ -123,3 +123,13 @@
     padding: 2px;
     gap: 2px;
 }
+
+#pasteLayerBtn.is-done {
+    color: #00cc66;
+    border-color: rgba(0, 204, 102, 0.5);
+}
+
+#pasteLayerBtn.is-error {
+    color: #ff8a8a;
+    border-color: rgba(230, 70, 70, 0.5);
+}

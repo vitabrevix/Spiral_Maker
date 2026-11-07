@@ -30,7 +30,8 @@ class LayerEventManager {
 
     static attachCodeEvents(layerDiv, layer) {
         const textarea = layerDiv.querySelector('.layer-textarea');
-        
+        if (!textarea) return;          // "Controls only" view has no editor
+
         textarea.addEventListener('focus', () => selectLayer(layer.id));
         textarea.addEventListener('keydown', this.handleTabKey);
     }

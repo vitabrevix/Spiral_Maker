@@ -213,3 +213,42 @@ input[type="checkbox"] {
     white-space: pre-wrap;
     display: none;
 }
+
+/* ---------- Toast (short confirmation messages) ---------- */
+.app-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translate(-50%, 12px);
+    z-index: 5000;
+    padding: 9px 16px;
+    border-radius: 8px;
+    background: #262626;
+    border: 1px solid var(--border-strong);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    color: var(--text);
+    font-size: 12px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s, transform 0.18s;
+}
+
+.app-toast.is-visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+.app-toast.is-ok {
+    border-color: rgba(0, 204, 102, 0.55);
+}
+
+.app-toast.is-ok::before {
+    content: '✓ ';
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.app-toast.is-error {
+    border-color: rgba(230, 70, 70, 0.6);
+    color: #ff9e9e;
+}

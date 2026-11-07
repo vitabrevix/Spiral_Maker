@@ -240,7 +240,12 @@ function drawTextItem(ctx, t, f, maxFrames) {
     let alpha = textVisibility(t, f, maxFrames);
     if (alpha <= 0) return;
 
-    const phase = f / maxFrames * Math.PI * 2 * Math.max(1, Math.round(t.animCycles || 1));
+    // Position within the current animation cycle (0..1). The offset delays the
+    // animation, so offsets 0 / 33 / 67 play one after another in that order.
+    const cycles = Math.max(1, Math.round(t.animCycles || 1));
+    const pos = f / maxFrames * cycles - (t.animOffset || 0) / 100;
+    const cyclePos = pos - Math.floor(pos);
+    const phase = cyclePos * Math.PI * 2;
     const amount = t.animAmount || 0;
     let dx = 0, dy = 0, rot = (t.textRotation || 0) * Math.PI / 180, scale = 1;
     switch (t.animation) {
@@ -248,7 +253,15 @@ function drawTextItem(ctx, t, f, maxFrames) {
         case 'sway': dx = Math.sin(phase) * amount; break;
         case 'spin': rot += phase; break;
         case 'pulse': scale = Math.max(0, 1 + amount / 100 * Math.sin(phase)); break;
-        case 'blink': if (Math.sin(phase) < 0) alpha = 0; break;
+        case 'blink': {
+            // Worked out in whole frames so texts that take turns line up exactly
+            const cycleLen = maxFrames / cycles;
+            const offsetFrames = Math.round((t.animOffset || 0) / 100 * cycleLen);
+            const onFrames = Math.round((t.blinkOn ?? 50) / 100 * cycleLen);
+            const inCycle = (((f - offsetFrames) % cycleLen) + cycleLen) % cycleLen;
+            if (inCycle >= onFrames - 1e-6) alpha = 0;
+            break;
+        }
     }
     if (alpha <= 0) return;
 

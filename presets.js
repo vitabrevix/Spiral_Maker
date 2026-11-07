@@ -33,14 +33,11 @@ const presets = {
 
 // --------------------------------------------------------------------- Spirals
 ying_yang_spiral: preset(`
-// Two-tone hypnotic spiral that turns seamlessly.
-// With 1 arm, the light and dark bands interlock through the centre in an
-// S-curve (like a yin-yang), so each colour is one unbroken band.
 let arms = 1;           // arms of each colour (2+ = bands meet in a point)
-let bandWidth = 18;     // thickness of every band (px at 300px canvas)
+let bandWidth = 18;     // thickness of every band (px at 300px canvas) {incr:2}
 let turnsPerLoop = 1;   // full rotations per loop (whole number = seamless)
-let lightColor = [0, 0, 100];
-let darkColor = [0, 0, 0];
+let lightColor = [0, 0, 100];   // light bands {color:hsb}
+let darkColor = [0, 0, 0];      // dark bands {color:hsb}
 let drawDarkBands = true;
 
 function draw() {
@@ -80,10 +77,9 @@ function draw() {
 }`, { maxFrames: 120 }),
 
 dot_spiral: preset(`
-// Glowing dots streaming out of the centre along curved spiral arms.
 let arms = 7;             // number of spiral arms
 let dotsPerArm = 40;      // dots on each arm
-let curl = 4.2;           // how far each arm winds (radians from centre to edge)
+let curl = 4.2;           // how far each arm winds (radians from centre to edge) {incr:0.2}
 let flowPerLoop = 4;      // dots that leave each arm per loop (whole number)
 let spinsPerLoop = 1;     // rotations of the whole spiral per loop (whole number)
 let minDot = 1.5;         // dot size at the centre
@@ -133,18 +129,16 @@ function draw() {
 }`, { maxFrames: 240 }),
 
 tunnel: preset(`
-// Flying down a tiled tube: every pixel is mapped onto the inside wall, so the
-// sides wrap around you, tiles shrink with distance and the far end fades out.
-let tilesAround = 12;     // tiles around the wall (even number)
+let tilesAround = 12;     // tiles around the wall (even number) {incr:2}
 let ringsPerUnit = 2;     // tile rows per unit of depth (whole number)
 let twist = 1;            // spiral twist of the wall pattern (whole number, 0 = straight)
 let travelPerLoop = 1;    // depth units flown per loop (whole number)
 let spinsPerLoop = 0;     // extra rotation of the whole tunnel (whole number)
-let tubeDepth = 0.45;     // bigger = tiles look further away / longer tunnel
-let fog = 0.45;           // how quickly the far end fades into darkness
-let lightColor = [255, 255, 255];
-let darkColor = [0, 0, 0];
-let maxResolution = 400;  // render resolution cap (lower = faster, blurrier)
+let tubeDepth = 0.45;     // bigger = tiles look further away / longer tunnel {incr:0.05}
+let fog = 0.45;           // how quickly the far end fades into darkness {slide:0,2} {incr:0.05}
+let lightColor = [255, 255, 255]; // light tiles {color}
+let darkColor = [0, 0, 0];      // dark tiles {color}
+let maxResolution = 400;  // render resolution cap (lower = faster, blurrier) {incr:50}
 
 let buffer, bctx, img, geo;
 
@@ -228,7 +222,6 @@ function draw() {
 }`, { maxFrames: 240 }),
 
 fibonacci_spiral: preset(`
-// Sunflower / phyllotaxis pattern built on the golden angle.
 let seeds = 700;
 let spread = 5.5;
 let dotSize = 7;
@@ -321,7 +314,6 @@ function draw() {
 }`, { maxFrames: 360 }),
 
 circling_spiral: preset(`
-// A spinning spiral whose centre orbits the middle of the canvas.
 let turns = 6;
 let orbitRadius = 55;
 let spinsPerLoop = 3;
@@ -373,15 +365,14 @@ function draw() {
 }`, { maxFrames: 360 }),
 
 pulsing_bw: preset(`
-// Hypnotic black & white rings that breathe in and out.
 let bandWidth = 16;       // average band thickness (px at 300px canvas)
 let pulsesPerLoop = 2;    // breaths per loop (whole number)
-let breathe = 0.25;       // how much the whole pattern expands / contracts
+let breathe = 0.25;       // how much the whole pattern expands / contracts {slide:0,0.6} {incr:0.01}
 let ripple = 0.5;         // wave running through the rings (0 = uniform breathing)
 let rippleLength = 0.6;   // spacing of that wave between rings
 let flowPerLoop = 0;      // rings flowing outward per loop (even whole number, 0 = none)
-let lightColor = [0, 0, 100];
-let darkColor = [0, 0, 0];
+let lightColor = [0, 0, 100];   // light rings {color:hsb}
+let darkColor = [0, 0, 0];      // dark rings {color:hsb}
 
 function ringRadius(x, t, gap) {
   return gap * x * (1 + breathe * sin(t)) + ripple * gap * sin(t - x * rippleLength);
@@ -520,7 +511,6 @@ function draw() {
 }`, { maxFrames: 360 }),
 
 flower_circles: preset(`
-// Flower-of-life rings that breathe and counter-rotate.
 let petalRings = 3;
 let baseRadius = 34;
 
@@ -552,7 +542,6 @@ function draw() {
 
 // --------------------------------------------------------------------- Objects
 stopwatch: preset(`
-// Hypnotist's pocket watch swinging on a golden chain.
 let swingsPerLoop = 3;     // full back-and-forth swings per loop
 let swingAngle = 32;       // degrees
 let chainLinks = 14;
@@ -655,7 +644,7 @@ function drawWatch(size, s) {
 
 pendulum: preset(`
 let swingsPerLoop = 3;
-let swingAngle = 36;    // degrees
+let swingAngle = 36;    // degrees {slide:0,80} {incr:1}
 let bobSize = 70;
 let ghosts = 0;         // motion-blur copies (e.g. 4) - looks nice, but makes GIFs bigger
 
@@ -689,9 +678,6 @@ function draw() {
 }`, { maxFrames: 360 }),
 
 mandala: preset(`
-// Layered ornamental mandala: rings of petals, scallops, diamonds and dots
-// that breathe and counter-rotate. Each ring turns by one symmetry step per
-// loop, so the motion is gentle and the loop is seamless.
 let baseHue = 35;          // starting colour (gold); the palette drifts once per loop
 let hueDrift = 360;        // how far the palette travels per loop (0 = fixed colours)
 let breathsPerLoop = 2;
@@ -817,7 +803,6 @@ function roundPetal(len, wid, start, h, a) {
 }`, { maxFrames: 480 }),
 
 particules: preset(`
-// Particles spiralling out from the centre, endlessly.
 let count = 260;
 let curl = 2.2;          // how much each particle swirls on its way out
 let parts = [];
@@ -851,7 +836,6 @@ function draw() {
 }`, { maxFrames: 360 }),
 
 coin: preset(`
-// Chinese coin swinging on a red silk string.
 let swingsPerLoop = 3;
 let swingAngle = 40;     // degrees
 let coinSize = 120;
@@ -1007,14 +991,12 @@ function draw() {
 }`, { maxFrames: 360 }),
 
 metronome: preset(`
-// Classic wooden pyramid metronome: the pendulum rod swings in front of the
-// tempo scale, pivoting behind the lower front panel.
 let beatsPerLoop = 6;      // ticks per loop (even number keeps it seamless)
 let swingAngle = 24;       // degrees
 let weightPosition = 0.5;  // 0 = pivot, 1 = tip of the rod
-let woodLight = '#9a5a2c';
-let woodMid = '#6e3818';
-let woodDark = '#3a1a08';
+let woodLight = '#9a5a2c';  // wood colour {color}
+let woodMid = '#6e3818';  // wood colour {color}
+let woodDark = '#3a1a08';  // wood colour {color}
 
 function draw() {
   let s = min(width, height) / 300;
@@ -1263,7 +1245,6 @@ function draw() {
 }`, { maxFrames: 600 }),
 
 crystal: preset(`
-// Crystal shards growing and shrinking around a glowing core.
 let shards = 14;
 let maxLength = 120;
 let shardData = [];
@@ -1328,7 +1309,6 @@ function draw() {
 }`, { maxFrames: 480 }),
 
 water: preset(`
-// Water caustics (port of a classic shader), rendered at low resolution.
 let samples = 120;       // horizontal resolution of the effect (higher = sharper, slower)
 let iterations = 5;
 let intensity = 0.005;
@@ -1509,7 +1489,6 @@ function draw() {
 }`, { maxFrames: 360 }),
 
 bg_gradient: preset(`
-// Static background gradient (put this layer at the top of the list = bottom of the stack).
 let gradientColors = ['#FF6B6B', '#FFE66D', '#4ECDC4', '#4F81C2', '#6B4C93'];
 let gradientPercentages = [0.3, 0.2, 0.1, 0.2, 0.3];
 let gradientRotation = 0;   // degrees
@@ -1539,7 +1518,6 @@ function setup() {
 }`),
 
 vignette: preset(`
-// Static dark vignette - place it on the last layer so it sits on top.
 let vignetteSize = 0.55;      // 0..1 where the darkening starts
 let vignetteStrength = 0.9;   // 0..1 darkness at the corners
 
@@ -1554,7 +1532,6 @@ function setup() {
 }`),
 
 static: preset(`
-// Old TV static with scan lines and a rolling bar.
 let grain = 2;           // size of each noise pixel
 let colorNoise = 0.15;   // chance of a coloured speck
 let buffer, bctx, img;

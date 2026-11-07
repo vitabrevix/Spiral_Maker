@@ -2,6 +2,37 @@ const TEXT_FONTS = ['Arial', 'Arial Black', 'Impact', 'Georgia', 'Times New Roma
 const TEXT_ANIMATIONS = [['none', 'None'], ['float', 'Float up/down'], ['sway', 'Sway left/right'],
     ['spin', 'Spin'], ['pulse', 'Pulse size'], ['blink', 'Blink']];
 
+// Which settings each text animation uses (only those are shown)
+const TEXT_ANIMATION_FIELDS = {
+    none:  [],
+    float: ['amount', 'cycles', 'offset'],
+    sway:  ['amount', 'cycles', 'offset'],
+    pulse: ['amount', 'cycles', 'offset'],
+    spin:  ['cycles', 'offset'],
+    blink: ['cycles', 'offset', 'on'],
+};
+
+function textAnimationFields(layer, t) {
+    const anim = t.animation || 'none';
+    const fields = TEXT_ANIMATION_FIELDS[anim] || [];
+    const amountTitle = anim === 'pulse' ? 'How much the size grows/shrinks (%)' : 'How far it moves (pixels)';
+    const html = {
+        amount: `<label title="${amountTitle}">Amount:</label>
+            <input type="number" value="${t.animAmount ?? 20}" min="0"
+                   oninput="updateTextProperty(${layer.id}, 'animAmount', this.value)">`,
+        cycles: `<label title="Repeats per loop (whole number keeps the loop seamless)">Times/loop:</label>
+            <input type="number" value="${t.animCycles ?? 1}" min="1" step="1"
+                   oninput="updateTextProperty(${layer.id}, 'animCycles', this.value)">`,
+        offset: `<label title="Shifts this animation by a part of one cycle (%). E.g. two blinking texts with offsets 0 and 50 take turns.">Offset (%):</label>
+            <input type="number" value="${t.animOffset ?? 0}" min="0" max="100" step="any"
+                   oninput="updateTextProperty(${layer.id}, 'animOffset', this.value)">`,
+        on: `<label title="How much of each blink cycle the text is visible (%). Three texts taking turns: On 33.33, offsets 0 / 33.33 / 66.67. Four: On 25, offsets 0 / 25 / 50 / 75.">On (%):</label>
+            <input type="number" value="${t.blinkOn ?? 50}" min="1" max="100" step="any"
+                   oninput="updateTextProperty(${layer.id}, 'blinkOn', this.value)">`,
+    };
+    return fields.map(f => html[f]).join('');
+}
+
 function escapeAttr(str) {
     return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
@@ -13,6 +44,8 @@ const LAYER_ICONS = {
     down: '<svg viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>',
     copy: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>',
     trash: '<svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>',
+    clipboard: '<svg viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 10h6M9 14h6M9 18h3"/></svg>',
+    check: '<svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg>',
     chevron: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
     grip: '<svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>',
 };
@@ -50,20 +83,38 @@ function generateLayerHeader(layer) {
 }
 
 const LayerTemplates = {
-    code: (layer) => `
+    code: (layer) => {
+        // Three views, switched with one button:
+        //   mixed    - settings as controls, the rest of the code in the editor
+        //   controls - settings as controls only, no code
+        //   code     - everything as code
+        const split = splitCodeHeader(layer.code);
+        const hasVars = !!split.header;
+        const mode = hasVars ? codeViewMode(layer) : 'code';
+        const showPanel = mode !== 'code';
+        const showEditor = mode !== 'controls';
+        const editorText = mode === 'mixed' ? split.body : layer.code;
+        const onInput = mode === 'mixed' ? 'updateLayerBodyCode' : 'updateLayerCodeWithHighlight';
+        const viewButton = hasVars ? codeViewButton(layer, mode) : '';
+        return `
+        ${showPanel ? generateVarsPanel(layer, split, viewButton) : ''}
+        ${showEditor ? `
         <div class="code-editor-container">
-            <textarea class="layer-textarea" 
+            ${mode === 'code' ? `<div class="code-view-float">${viewButton}</div>` : ''}
+            <textarea class="layer-textarea"
               id="textarea-${layer.id}"
-              placeholder="// Layer code here..." 
+              placeholder="// Layer code here..."
               spellcheck="false"
               autocomplete="off"
               autocorrect="off"
               autocapitalize="off"
-              oninput="updateLayerCodeWithHighlight(${layer.id}, this.value)">${layer.code}</textarea>
+              oninput="${onInput}(${layer.id}, this.value)"
+              ${mode === 'mixed' ? `onblur="refreshVarsIfNeeded(${layer.id}, this.value)"` : ''}>${escapeHtml(editorText)}</textarea>
             <div class="syntax-highlighter" id="highlighter-${layer.id}"></div>
-        </div>
-    `,
-    
+        </div>` : ''}
+    `;
+    },
+
     image: (layer) => {
         const selectedImage = layer.images[layer.selectedImageIndex] || layer.images[0];
         return `
@@ -180,12 +231,7 @@ const LayerTemplates = {
                         <select onchange="updateTextProperty(${layer.id}, 'animation', this.value)">
                             ${TEXT_ANIMATIONS.map(([v, l]) => `<option value="${v}" ${(selectedText.animation || 'none') === v ? 'selected' : ''}>${l}</option>`).join('')}
                         </select>
-                        <label title="Pixels for float/sway, % for pulse">Amount:</label>
-                        <input type="number" value="${selectedText.animAmount ?? 20}" min="0"
-                               oninput="updateTextProperty(${layer.id}, 'animAmount', this.value)">
-                        <label title="Repeats per loop (whole number keeps the loop seamless)">Times/loop:</label>
-                        <input type="number" value="${selectedText.animCycles ?? 1}" min="1" step="1"
-                               oninput="updateTextProperty(${layer.id}, 'animCycles', this.value)">
+                        ${textAnimationFields(layer, selectedText)}
                     </div>
                     <div class="control-row">
                         <label title="Frame of this layer's loop where this text appears">This text from frame:</label>
@@ -258,6 +304,7 @@ function generateLayerControls(layer) {
                     onclick="toggleLayerVisibility(${layer.id}, ${!layer.visible})">${layer.visible ? LAYER_ICONS.eye : LAYER_ICONS.eyeOff}</button>
             <button class="icon-btn" title="Move up (further back)" onclick="moveLayerUp(${layer.id})" ${layerIndex === 0 ? 'disabled' : ''}>${LAYER_ICONS.up}</button>
             <button class="icon-btn" title="Move down (further front)" onclick="moveLayerDown(${layer.id})" ${layerIndex === layers.length - 1 ? 'disabled' : ''}>${LAYER_ICONS.down}</button>
+            <button class="icon-btn" data-role="copy" title="Copy layer to clipboard (JSON) - or select the layer and press Ctrl+C" onclick="copyLayerToClipboard(${layer.id})">${LAYER_ICONS.clipboard}</button>
             <button class="icon-btn" title="Duplicate layer" onclick="duplicateLayer(${layer.id})">${LAYER_ICONS.copy}</button>
             <button class="icon-btn danger" title="Delete layer" onclick="deleteLayer(${layer.id})">${LAYER_ICONS.trash}</button>
         </div>

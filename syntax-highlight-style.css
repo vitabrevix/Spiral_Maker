@@ -1,69 +1,73 @@
-code-editor-container {
+/* =====================================================================
+   Code editor colouring: a transparent <textarea> on top of a coloured
+   <pre>. Both use exactly the same font, padding and (non-wrapping) layout.
+   ===================================================================== */
+.code-editor-container {
     position: relative;
-    flex: 1;
-    min-height: 200px;
+    background: #1a1a1a;
 }
 
-.syntax-highlighter {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: transparent;
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+.code-editor-container .layer-textarea,
+.code-editor-container .syntax-highlighter {
+    font-family: 'Monaco', 'Menlo', 'Consolas', 'Ubuntu Mono', monospace;
     font-size: 12px;
-    line-height: 1.4;
-    padding: 15px;
-    border: 1px solid transparent; /* Match textarea border but make it transparent */
-    resize: none;
-    white-space: pre-wrap;
-    word-wrap: break-word;
+    line-height: 1.5;
+    letter-spacing: normal;
+    tab-size: 2;
+    padding: 12px 14px;
+    margin: 0;
+    border: none;
+    white-space: pre;
+    overflow-wrap: normal;
+    word-wrap: normal;
+}
+
+.code-editor-container .layer-textarea {
+    position: relative;
+    z-index: 2;
+    display: block;
+    width: 100%;
+    min-height: 240px;
+    resize: vertical;
+    overflow: auto;
+    background: transparent !important;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    caret-color: #ffffff;
+}
+
+.code-editor-container .layer-textarea::selection {
+    background: rgba(38, 79, 120, 0.85);
+    -webkit-text-fill-color: transparent;
+}
+
+.code-editor-container .layer-textarea::placeholder {
+    -webkit-text-fill-color: #555;
+    color: #555;
+}
+
+.code-editor-container .syntax-highlighter {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
     overflow: hidden;
     pointer-events: none;
-    tab-size: 2;
-    z-index: 1;
-    box-sizing: border-box;
-    margin: 0;
-    color: transparent; /* Hide the actual text, only show spans */
+    color: #d4d4d4;
+    opacity: 1 !important;
 }
 
-/* Make sure syntax highlighting spans are visible */
-.syntax-highlighter span {
-    color: inherit !important; /* Override the transparent color for spans */
-}
-
-/* Syntax highlighting colors */
-.syntax-keyword { 
-    color: #c586c0; 
-    font-weight: bold; 
-}
-
-.syntax-function { 
-    color: #4fc1ff; 
-}
-
-.syntax-string { 
-    color: #ce9178; 
-}
-
-.syntax-comment { 
-    color: #6a9955; 
-}
-
-.syntax-number { 
-    color: #b5cea8; 
-}
-
-.syntax-operator { 
-    color: #d4d4d4; 
-}
-
-.syntax-property { 
-    color: #9cdcfe; 
-}
-
-.p5-function { 
-    color: #ff6b9d; 
-    font-weight: bold; 
-}
+/* Token colours (VS Code Dark+) */
+.tok-comment  { color: #6a9955; }
+.tok-string   { color: #ce9178; }
+.tok-number   { color: #b5cea8; }
+.tok-keyword  { color: #569cd6; }
+.tok-control  { color: #c586c0; }
+.tok-literal  { color: #569cd6; }
+.tok-function { color: #dcdcaa; }
+.tok-builtin  { color: #4ec9b0; }
+.tok-constant { color: #4fc1ff; }
+.tok-engine   { color: #c8a2f5; }
+.tok-class    { color: #4ec9b0; }
+.tok-property { color: #9cdcfe; }
+.tok-variable { color: #9cdcfe; }
+.tok-punct    { color: #d4d4d4; }
