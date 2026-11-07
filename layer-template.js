@@ -79,6 +79,12 @@ const LayerTemplates = {
                         <label>Rotation (°):</label>
                         <input type="number" value="${selectedImage.imageRotation}" step="1" 
                                oninput="updateImageProperty(${layer.id}, 'imageRotation', this.value)">
+                        <label>Fit:</label>
+                        <select onchange="updateImageProperty(${layer.id}, 'imageFit', this.value)">
+                            <option value="none" ${(selectedImage.imageFit || 'none') === 'none' ? 'selected' : ''}>Manual (X/Y/size)</option>
+                            <option value="cover" ${selectedImage.imageFit === 'cover' ? 'selected' : ''}>Fill canvas</option>
+                            <option value="contain" ${selectedImage.imageFit === 'contain' ? 'selected' : ''}>Fit inside canvas</option>
+                        </select>
                     </div>
                 </div>
             </div>

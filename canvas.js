@@ -201,9 +201,20 @@ function createImageLayerRenderer(layer) {
         items.forEach((item, idx) => {
             const img = imgs[idx];
             if (!img) return;
-            const w = item.imageWidth, h = item.imageHeight;
+            let w = item.imageWidth, h = item.imageHeight;
+            let cx = item.imageX + w / 2, cy = item.imageY + h / 2;
+            if (item.imageFit === 'cover' || item.imageFit === 'contain') {
+                // Fill / fit the whole canvas, keeping the image's aspect ratio
+                const k = item.imageFit === 'cover'
+                    ? Math.max(canvasWidth / img.width, canvasHeight / img.height)
+                    : Math.min(canvasWidth / img.width, canvasHeight / img.height);
+                w = img.width * k;
+                h = img.height * k;
+                cx = canvasWidth / 2;
+                cy = canvasHeight / 2;
+            }
             ctx.save();
-            ctx.translate(item.imageX + w / 2, item.imageY + h / 2);
+            ctx.translate(cx, cy);
             ctx.rotate((item.imageRotation || 0) * Math.PI / 180);
             ctx.drawImage(img, -w / 2, -h / 2, w, h);
             ctx.restore();

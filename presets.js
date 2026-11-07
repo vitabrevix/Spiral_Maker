@@ -73,62 +73,130 @@ function draw() {
 }`, { maxFrames: 120 }),
 
 dot_spiral: preset(`
-let dots = 400;
-let spacing = 0.5;
-let dotSize = 10;
-let spinsPerLoop = 1;
+// Glowing dots streaming out of the centre along curved spiral arms.
+let arms = 7;             // number of spiral arms
+let dotsPerArm = 40;      // dots on each arm
+let curl = 4.2;           // how far each arm winds (radians from centre to edge)
+let flowPerLoop = 4;      // dots that leave each arm per loop (whole number)
+let spinsPerLoop = 1;     // rotations of the whole spiral per loop (whole number)
+let minDot = 1.5;         // dot size at the centre
+let maxDot = 16;          // dot size at the edge
+let hueStart = 185;       // colour at the centre (cyan)
+let hueRange = 130;       // colour change towards the edge (to magenta)
+let colorCyclesPerLoop = 1;
+let pulsesPerLoop = 2;    // brightness waves travelling outwards
+let glow = true;
 
 function draw() {
   let s = min(width, height) / 300;
-  let t = progress * TWO_PI * spinsPerLoop;
+  let maxR = dist(0, 0, width, height) / 2 * 1.05;
+  let t = progress * TWO_PI;
   translate(width / 2, height / 2);
   noStroke();
+  blendMode(ADD);
 
-  for (let i = 0; i < dots; i++) {
-    let angle = i * 0.1 + t;
-    let radius = i * spacing * s;
-    let h = (i * 2 + progress * 360) % 360;
-    fill(h, 100, 100, 40);
-    ellipse(cos(angle) * radius, sin(angle) * radius, dotSize * s);
+  // Soft core
+  for (let g = 6; g > 0; g--) {
+    fill(hueStart + progress * 360 * colorCyclesPerLoop, 60, 100, 5);
+    circle(0, 0, g * 9 * s);
+  }
+
+  // Inner dots first, so the bigger outer dots sit on top
+  for (let j = 0; j < dotsPerArm; j++) {
+    let u = ((j + progress * flowPerLoop) % dotsPerArm) / dotsPerArm;   // 0 = centre, 1 = edge
+    let r = maxR * pow(u, 1.5);
+    let size = (minDot + (maxDot - minDot) * u) * s;
+    let fadeIn = min(1, u * 8);
+    let wave = 0.65 + 0.35 * sin(u * TWO_PI * 3 - t * pulsesPerLoop);
+    let h = (hueStart + u * hueRange + progress * 360 * colorCyclesPerLoop) % 360;
+
+    for (let a = 0; a < arms; a++) {
+      let angle = a * TWO_PI / arms + u * curl + t * spinsPerLoop;
+      let x = cos(angle) * r, y = sin(angle) * r;
+      if (glow) {
+        fill(h, 80, 100, 10 * fadeIn * wave);
+        circle(x, y, size * 2.8);
+      }
+      fill(h, 70, 100, 85 * fadeIn * wave);
+      circle(x, y, size);
+      fill(h, 15, 100, 60 * fadeIn * wave);
+      circle(x - size * 0.15, y - size * 0.15, size * 0.35);
+    }
   }
 }`, { maxFrames: 240 }),
 
 tunnel: preset(`
-// Black & white tunnel rushing towards the viewer, twisting as it goes.
-let rings = 24;          // keep this an even number
-let ringsPerLoop = 2;    // rings that pass the camera each loop
-let twist = 1.5;         // extra turn from the near end to the far end
-let spinsPerLoop = 1;
-let lightColor = [0, 0, 100];
+// Flying down a tiled tube: every pixel is mapped onto the inside wall, so the
+// sides wrap around you, tiles shrink with distance and the far end fades out.
+let tilesAround = 12;     // tiles around the wall (even number)
+let ringsPerUnit = 2;     // tile rows per unit of depth (whole number)
+let twist = 1;            // spiral twist of the wall pattern (whole number, 0 = straight)
+let travelPerLoop = 1;    // depth units flown per loop (whole number)
+let spinsPerLoop = 0;     // extra rotation of the whole tunnel (whole number)
+let tubeDepth = 0.45;     // bigger = tiles look further away / longer tunnel
+let fog = 0.45;           // how quickly the far end fades into darkness
+let lightColor = [255, 255, 255];
 let darkColor = [0, 0, 0];
+let maxResolution = 400;  // render resolution cap (lower = faster, blurrier)
+
+let buffer, bctx, img, geo;
+
+// Per-pixel tunnel geometry never changes, so compute it once
+function buildGeometry(w, h) {
+  let n = w * h, TAU = Math.PI * 2;
+  let half = Math.min(w, h) / 2;
+  let maxR = Math.sqrt(w * w + h * h) / 2 / half;
+  geo = { A: new Float32Array(n), B: new Float32Array(n), eA: new Float32Array(n),
+          eB: new Float32Array(n), light: new Float32Array(n) };
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let k = x + y * w;
+      let dx = (x + 0.5 - w / 2) / half, dy = (y + 0.5 - h / 2) / half;
+      let r = Math.sqrt(dx * dx + dy * dy) + 1e-4;
+      let depth = tubeDepth / r;                       // distance down the tube
+      geo.A[k] = Math.atan2(dy, dx) * tilesAround / 2 + depth * TAU * twist;
+      geo.B[k] = depth * TAU * ringsPerUnit;
+      // Width of one pixel in pattern units -> anti-aliasing / blur at the far end
+      let dDepth = tubeDepth / (r * r * half);
+      let angular = tilesAround / 2 / (r * half), radial = dDepth * TAU * twist;
+      geo.eA[k] = Math.sqrt(angular * angular + radial * radial) + 0.02;
+      geo.eB[k] = dDepth * TAU * ringsPerUnit + 0.02;
+      geo.light[k] = Math.exp(-fog * (depth - tubeDepth / maxR));
+    }
+  }
+}
 
 function draw() {
-  let R = dist(0, 0, width, height) / 2;
-  let t = progress * TWO_PI * spinsPerLoop;
-  translate(width / 2, height / 2);
-  noStroke();
-
-  let list = [];
-  for (let i = 0; i < rings; i++) {
-    let phase = (((i - progress * ringsPerLoop) / rings) % 1 + 1) % 1;
-    list.push({ i: i, phase: phase });
+  let w = min(width, maxResolution), h = max(1, round(w * height / width));
+  if (!buffer || buffer.width !== w || buffer.height !== h) {
+    buffer = document.createElement('canvas');
+    buffer.width = w; buffer.height = h;
+    bctx = buffer.getContext('2d');
+    img = bctx.createImageData(w, h);
+    buildGeometry(w, h);
   }
-  list.sort((a, b) => a.phase - b.phase);   // nearest (biggest) first
+  let d = img.data, TAU = Math.PI * 2;
+  let travel = progress * travelPerLoop;
+  let shiftA = travel * TAU * twist + progress * TAU * spinsPerLoop;
+  let shiftB = travel * TAU * ringsPerUnit;
+  let dr = lightColor[0] - darkColor[0], dg = lightColor[1] - darkColor[1], db = lightColor[2] - darkColor[2];
 
-  for (let ring of list) {
-    let r = R * 0.06 / (ring.phase + 0.045);
-    let a = t + ring.phase * twist * TWO_PI;
-    let fade = constrain(map(ring.phase, 0.55, 1, 1, 0), 0, 1);
-    let swap = ring.i % 2;
-    let c1 = swap ? darkColor : lightColor;
-    let c2 = swap ? lightColor : darkColor;
-    fill(c1[0], c1[1], c1[2] * fade);
-    arc(0, 0, r * 2, r * 2, a, a + PI, PIE);
-    fill(c2[0], c2[1], c2[2] * fade);
-    arc(0, 0, r * 2, r * 2, a + PI, a + TWO_PI, PIE);
+  for (let k = 0, n = w * h; k < n; k++) {
+    let sa = Math.sin(geo.A[k] + shiftA) / geo.eA[k];
+    let sb = Math.sin(geo.B[k] + shiftB) / geo.eB[k];
+    sa = sa > 1 ? 1 : sa < -1 ? -1 : sa;
+    sb = sb > 1 ? 1 : sb < -1 ? -1 : sb;
+    let v = 0.5 + 0.5 * sa * sb;          // checkerboard of wall tiles
+    let l = geo.light[k];
+    let i = k * 4;
+    d[i] = (darkColor[0] + dr * v) * l;
+    d[i + 1] = (darkColor[1] + dg * v) * l;
+    d[i + 2] = (darkColor[2] + db * v) * l;
+    d[i + 3] = 255;
   }
-  fill(darkColor);
-  circle(0, 0, R * 0.06 / 1.045 * 2);
+  bctx.putImageData(img, 0, 0);
+  drawingContext.imageSmoothingEnabled = true;
+  drawingContext.drawImage(buffer, 0, 0, width, height);
 }`, { maxFrames: 240 }),
 
 tunnel_2: preset(`
@@ -296,6 +364,42 @@ function draw() {
     ellipse(0, 0, size * 2, size * 2);
   }
 }`, { maxFrames: 360 }),
+
+pulsing_bw: preset(`
+// Hypnotic black & white rings that breathe in and out.
+let bandWidth = 16;       // average band thickness (px at 300px canvas)
+let pulsesPerLoop = 2;    // breaths per loop (whole number)
+let breathe = 0.25;       // how much the whole pattern expands / contracts
+let ripple = 0.5;         // wave running through the rings (0 = uniform breathing)
+let rippleLength = 0.6;   // spacing of that wave between rings
+let flowPerLoop = 0;      // rings flowing outward per loop (even whole number, 0 = none)
+let lightColor = [0, 0, 100];
+let darkColor = [0, 0, 0];
+
+function ringRadius(x, t, gap) {
+  return gap * x * (1 + breathe * sin(t)) + ripple * gap * sin(t - x * rippleLength);
+}
+
+function draw() {
+  let gap = bandWidth * min(width, height) / 300;
+  let maxR = dist(0, 0, width, height) / 2;
+  let t = progress * TWO_PI * pulsesPerLoop;
+  let shift = progress * flowPerLoop;
+  translate(width / 2, height / 2);
+  noStroke();
+
+  // Find how many rings are needed to cover the canvas
+  let count = 1;
+  while (ringRadius(count - shift, t, gap) < maxR + gap) count++;
+
+  // Largest first; each smaller disc paints the next band on top
+  for (let k = count; k >= 0; k--) {
+    let r = ringRadius(k - shift, t, gap);
+    if (r <= 0) continue;
+    fill(k % 2 ? darkColor : lightColor);
+    circle(0, 0, r * 2);
+  }
+}`, { maxFrames: 240 }),
 
 kaleidoscope: preset(`
 let symmetry = 16;
@@ -578,28 +682,131 @@ function draw() {
 }`, { maxFrames: 360 }),
 
 mandala: preset(`
-let rings = 5;
+// Layered ornamental mandala: rings of petals, scallops, diamonds and dots
+// that breathe and counter-rotate. Each ring turns by one symmetry step per
+// loop, so the motion is gentle and the loop is seamless.
+let baseHue = 35;          // starting colour (gold); the palette drifts once per loop
+let hueDrift = 360;        // how far the palette travels per loop (0 = fixed colours)
+let breathsPerLoop = 2;
+let lineWeight = 1.2;
 
 function draw() {
   let s = min(width, height) / 300;
   let t = progress * TWO_PI;
+  let breath = sin(t * breathsPerLoop);
+  let h0 = baseHue + progress * hueDrift;
+  let hue = k => ((h0 + k) % 360 + 360) % 360;
   translate(width / 2, height / 2);
+  scale(s * (1 + 0.03 * breath));
+  strokeJoin(ROUND);
 
-  for (let ring = 0; ring < rings; ring++) {
-    let petals = 6 + ring * 2;
-    let dir = ring % 2 ? -1 : 1;
-    let h = (ring * 60 + progress * 360) % 360;
-    for (let i = 0; i < petals; i++) {
-      push();
-      rotate(TWO_PI * i / petals + t * dir);
-      fill(h, 60, 90, 70);
-      stroke(h, 100, 100);
-      strokeWeight(1);
-      let size = (30 + ring * 15) * s;
-      ellipse((40 + ring * 10) * s, 0, size, size * 0.6);
-      pop();
-    }
+  // Soft glow behind everything
+  noStroke();
+  for (let g = 8; g > 0; g--) {
+    fill(hue(0), 60, 40, 5);
+    circle(0, 0, g * 36);
   }
+
+  // 1. Outer dot ring
+  ring(48, 1, t, () => {
+    fill(hue(0), 30, 100, 80);
+    circle(0, -138, 3.2);
+    fill(hue(180), 50, 100, 60);
+    circle(0, -128, 1.8);
+  });
+
+  // 2. Outer pointed petals
+  ring(16, -1, t, () => {
+    petal(52 + 4 * breath, 34, 74, hue(0), 70);
+    petal(36 + 3 * breath, 18, 80, hue(30), 85);
+    stroke(hue(0), 30, 100, 80);
+    strokeWeight(lineWeight * 0.7);
+    line(0, -78, 0, -112 - 4 * breath);
+  });
+
+  // 3. Scalloped ring
+  noFill();
+  ring(24, 1, t, () => {
+    stroke(hue(200), 50, 100, 85);
+    strokeWeight(lineWeight);
+    arc(0, -72, 20, 14, 0, PI);
+    noStroke();
+    fill(hue(200), 40, 100, 90);
+    circle(0, -62, 2.6);
+  });
+
+  // 4. Middle rounded petals with inner petal
+  ring(12, -1, t, () => {
+    roundPetal(44 + 3 * breath, 26, 24, hue(300), 65);
+    roundPetal(28 + 2 * breath, 14, 28, hue(330), 85);
+    noStroke();
+    fill(hue(60), 30, 100, 90);
+    circle(0, -58 - 2 * breath, 3.5);
+  });
+
+  // 5. Diamond ring
+  ring(24, 1, t, () => {
+    noStroke();
+    fill(hue(150), 60, 95, 90);
+    quad(0, -24, 3.5, -19, 0, -14, -3.5, -19);
+  });
+
+  // 6. Inner lotus
+  ring(8, -1, t, () => {
+    petal(20 + 2 * breath, 12, 2, hue(20), 90);
+  });
+
+  // 7. Centre
+  noFill();
+  stroke(hue(180), 40, 100, 90);
+  strokeWeight(lineWeight);
+  circle(0, 0, 18 + 2 * breath);
+  noStroke();
+  fill(hue(40), 50, 100);
+  circle(0, 0, 9 + 2 * breath);
+  fill(0, 0, 100, 80);
+  circle(0, 0, 3);
+}
+
+// Draws one element 'count' times around the circle. The ring turns by exactly
+// one symmetry step per loop (dir = 1 / -1), which keeps the loop seamless.
+function ring(count, dir, t, drawOne) {
+  push();
+  rotate(dir * t / count);
+  for (let i = 0; i < count; i++) {
+    push();
+    rotate(i * TWO_PI / count);
+    drawOne();
+    pop();
+  }
+  pop();
+}
+
+// Pointed petal starting at distance 'start' from the centre, pointing outwards
+function petal(len, wid, start, h, a) {
+  fill(h, 70, 90, a * 0.55);
+  stroke(h, 40, 100, a);
+  strokeWeight(lineWeight);
+  beginShape();
+  vertex(0, -start);
+  bezierVertex(wid * 0.6, -start - len * 0.25, wid * 0.45, -start - len * 0.75, 0, -start - len);
+  bezierVertex(-wid * 0.45, -start - len * 0.75, -wid * 0.6, -start - len * 0.25, 0, -start);
+  endShape(CLOSE);
+  stroke(h, 20, 100, a * 0.6);
+  strokeWeight(lineWeight * 0.6);
+  line(0, -start - len * 0.15, 0, -start - len * 0.8);
+}
+
+// Rounded (tear-drop) petal
+function roundPetal(len, wid, start, h, a) {
+  fill(h, 65, 90, a * 0.5);
+  stroke(h, 35, 100, a);
+  strokeWeight(lineWeight);
+  beginShape();
+  vertex(0, -start);
+  bezierVertex(wid, -start - len * 0.2, wid * 0.8, -start - len, 0, -start - len);
+  bezierVertex(-wid * 0.8, -start - len, -wid, -start - len * 0.2, 0, -start);
+  endShape(CLOSE);
 }`, { maxFrames: 480 }),
 
 particules: preset(`
@@ -793,67 +1000,131 @@ function draw() {
 }`, { maxFrames: 360 }),
 
 metronome: preset(`
-// Wooden metronome ticking back and forth.
-let beatsPerLoop = 6;     // ticks per loop (even number keeps it seamless)
-let swingAngle = 28;      // degrees
-let weightPosition = 0.62;
+// Classic wooden pyramid metronome: the pendulum rod swings in front of the
+// tempo scale, pivoting behind the lower front panel.
+let beatsPerLoop = 6;      // ticks per loop (even number keeps it seamless)
+let swingAngle = 24;       // degrees
+let weightPosition = 0.5;  // 0 = pivot, 1 = tip of the rod
+let woodLight = '#9a5a2c';
+let woodMid = '#6e3818';
+let woodDark = '#3a1a08';
 
 function draw() {
   let s = min(width, height) / 300;
-  let cx = width / 2, base = height * 0.88;
-  let bodyH = 210 * s, bodyTop = 46 * s, bodyBottom = 140 * s;
+  let cx = width / 2;
+  let B = height * 0.93;                     // bottom of the plinth
+  let bodyBottom = B - 14 * s, bodyTop = B - 244 * s;
+  let halfBottom = 75 * s, halfTop = 15 * s;
+  let halfAt = y => lerp(halfBottom, halfTop, (bodyBottom - y) / (bodyBottom - bodyTop));
+  let panelTop = B - 92 * s;                 // top edge of the lower front panel
+  let pivotY = B - 78 * s;
+  let ctx = drawingContext;
 
-  // Body
+  // Ground shadow
   noStroke();
-  fill(22, 70, 38);
-  quad(cx - bodyTop / 2, base - bodyH, cx + bodyTop / 2, base - bodyH,
-       cx + bodyBottom / 2, base, cx - bodyBottom / 2, base);
-  fill(25, 60, 55);
-  quad(cx - bodyTop / 2 + 8 * s, base - bodyH + 12 * s, cx + bodyTop / 2 - 8 * s, base - bodyH + 12 * s,
-       cx + bodyBottom / 2 - 22 * s, base - 30 * s, cx - bodyBottom / 2 + 22 * s, base - 30 * s);
-  fill(20, 60, 25);
-  rect(cx - bodyBottom / 2 - 8 * s, base, bodyBottom + 16 * s, 12 * s, 3 * s);
+  fill(0, 0, 0, 35);
+  ellipse(cx + 6 * s, B + 2 * s, 210 * s, 14 * s);
 
-  // Scale marks
-  stroke(40, 30, 90, 70);
-  strokeWeight(1 * s);
-  for (let i = -4; i <= 4; i++) {
-    let a = radians(i * 7);
-    let px = cx, py = base - 34 * s;
-    line(px + sin(a) * 120 * s, py - cos(a) * 120 * s, px + sin(a) * 128 * s, py - cos(a) * 128 * s);
+  // Plinth
+  woodFill(ctx, cx - 88 * s, cx + 88 * s);
+  rect(cx - 88 * s, B - 14 * s, 176 * s, 14 * s, 2 * s);
+  fill(30, 50, 75, 60);
+  rect(cx - 88 * s, B - 14 * s, 176 * s, 2.5 * s);
+
+  // Pyramid case
+  woodFill(ctx, cx - halfBottom, cx + halfBottom);
+  quad(cx - halfTop, bodyTop, cx + halfTop, bodyTop, cx + halfBottom, bodyBottom, cx - halfBottom, bodyBottom);
+
+  // Recessed opening with the tempo scale
+  let openTop = bodyTop + 20 * s;
+  let inset = 11 * s;
+  fill(15, 70, 12);
+  quad(cx - halfAt(openTop) + inset, openTop, cx + halfAt(openTop) - inset, openTop,
+       cx + halfAt(panelTop) - inset, panelTop, cx - halfAt(panelTop) + inset, panelTop);
+  fill(0, 0, 0, 30);                         // inner shadow along the top/left
+  quad(cx - halfAt(openTop) + inset, openTop, cx + halfAt(openTop) - inset, openTop,
+       cx + halfAt(openTop) - inset, openTop + 4 * s, cx - halfAt(openTop + 4 * s) + inset + 3 * s, openTop + 4 * s);
+
+  let scaleTop = openTop + 8 * s, scaleBottom = panelTop - 4 * s;
+  fill(42, 18, 94);
+  quad(cx - 5 * s, scaleTop, cx + 5 * s, scaleTop, cx + 9 * s, scaleBottom, cx - 9 * s, scaleBottom);
+  let tempos = [208, 176, 144, 120, 100, 84, 72, 60, 50, 40];
+  textAlign(LEFT, CENTER);
+  textSize(5.5 * s);
+  textStyle(NORMAL);
+  for (let i = 0; i < tempos.length; i++) {
+    let y = lerp(scaleTop + 6 * s, scaleBottom - 6 * s, i / (tempos.length - 1));
+    stroke(20, 60, 25);
+    strokeWeight(0.7 * s);
+    line(cx - 7 * s, y, cx - 3 * s, y);
+    noStroke();
+    fill(20, 60, 22);
+    text(tempos[i], cx - 1.5 * s, y);
   }
 
-  // Arm: sine swing, a tick at each extreme
-  let phase = progress * PI * beatsPerLoop;
-  let a = radians(swingAngle) * sin(phase);
-  let px = cx, py = base - 34 * s;
-  let armLen = 160 * s;
-  stroke(0, 0, 80);
-  strokeWeight(3 * s);
-  line(px, py, px + sin(a) * armLen, py - cos(a) * armLen);
+  // Pendulum (rod pivots behind the lower panel)
+  let a = radians(swingAngle) * sin(progress * PI * beatsPerLoop);
+  let rodLen = 192 * s;
+  push();
+  translate(cx, pivotY);
+  rotate(a);
+  stroke(0, 0, 25);
+  strokeWeight(3.2 * s);
+  line(0, 0, 0, -rodLen);
+  stroke(0, 0, 85);
+  strokeWeight(1.4 * s);
+  line(-0.6 * s, 0, -0.6 * s, -rodLen);
+  noStroke();
+  fill(0, 0, 80);
+  circle(0, -rodLen, 4 * s);
 
   // Sliding weight
-  let wx = px + sin(a) * armLen * weightPosition;
-  let wy = py - cos(a) * armLen * weightPosition;
-  push();
-  translate(wx, wy);
-  rotate(a);
-  noStroke();
-  fill(45, 70, 85);
-  rect(-10 * s, -9 * s, 20 * s, 18 * s, 3 * s);
-  fill(45, 40, 100, 70);
-  rect(-8 * s, -7 * s, 6 * s, 14 * s, 2 * s);
+  let wy = -rodLen * weightPosition;
+  fill(0, 0, 30);
+  quad(-11 * s, wy - 9 * s, 11 * s, wy - 9 * s, 13 * s, wy + 9 * s, -13 * s, wy + 9 * s);
+  fill(0, 0, 62);
+  quad(-10 * s, wy - 8 * s, 10 * s, wy - 8 * s, 12 * s, wy + 8 * s, -12 * s, wy + 8 * s);
+  fill(0, 0, 92, 70);
+  quad(-8 * s, wy - 7 * s, -4 * s, wy - 7 * s, -5 * s, wy + 7 * s, -10 * s, wy + 7 * s);
+  fill(0, 0, 20);
+  rect(-12 * s, wy - 0.6 * s, 4 * s, 1.2 * s);   // reading notch
   pop();
 
-  // Pivot and tick light
-  noStroke();
-  fill(0, 0, 70);
-  circle(px, py, 10 * s);
-  let tick = pow(abs(sin(phase)), 30);
-  fill(5, 90, 100, 100 * tick);
-  circle(cx, base - bodyH - 10 * s, 12 * s);
-  fill(5, 90, 100, 25 * tick);
-  circle(cx, base - bodyH - 10 * s, 30 * s);
+  // Lower front panel hides the pivot
+  woodFill(ctx, cx - halfBottom, cx + halfBottom);
+  quad(cx - halfAt(panelTop), panelTop, cx + halfAt(panelTop), panelTop,
+       cx + halfBottom, bodyBottom, cx - halfBottom, bodyBottom);
+  fill(30, 40, 80, 45);
+  quad(cx - halfAt(panelTop), panelTop, cx + halfAt(panelTop), panelTop,
+       cx + halfAt(panelTop + 2 * s), panelTop + 2 * s, cx - halfAt(panelTop + 2 * s), panelTop + 2 * s);
+
+  // Brass plate
+  fill(42, 70, 75);
+  rect(cx - 22 * s, B - 52 * s, 44 * s, 12 * s, 2 * s);
+  fill(45, 40, 100, 50);
+  rect(cx - 21 * s, B - 51 * s, 42 * s, 3 * s, 1.5 * s);
+
+  // Winding key on the right side
+  let kx = cx + halfAt(B - 45 * s);
+  fill(42, 65, 70);
+  rect(kx, B - 47 * s, 7 * s, 4 * s);
+  ellipse(kx + 11 * s, B - 45 * s, 8 * s, 14 * s);
+  fill(42, 40, 95, 60);
+  ellipse(kx + 10 * s, B - 47 * s, 3 * s, 6 * s);
+
+  // Top cap
+  woodFill(ctx, cx - halfTop - 3 * s, cx + halfTop + 3 * s);
+  rect(cx - halfTop - 3 * s, bodyTop - 6 * s, (halfTop + 3 * s) * 2, 6 * s, 2 * s);
+}
+
+// Horizontal wood gradient: lit from the left
+function woodFill(ctx, x0, x1) {
+  fill(0);
+  let g = ctx.createLinearGradient(x0, 0, x1, 0);
+  g.addColorStop(0, woodLight);
+  g.addColorStop(0.45, woodMid);
+  g.addColorStop(1, woodDark);
+  ctx.fillStyle = g;
 }`, { maxFrames: 360 }),
 
 // --------------------------------------------------------------------- Chill
@@ -1385,6 +1656,10 @@ function applyPresetToLayer(layer, name) {
 
 // Load a preset into the selected layer (or a new layer) and play it
 function loadPreset(name) {
+    if (name === 'bg_image') {
+        addBackgroundImageLayer();
+        return;
+    }
     if (!presets[name]) {
         console.warn(`Preset '${name}' not found`);
         return;
@@ -1401,6 +1676,20 @@ function loadPreset(name) {
         updateLayerSelection();
     }
     runAnimation();
+}
+
+// "BG Image": an image layer at the bottom of the stack that fills the canvas.
+// Opens the file picker straight away so you can choose the picture.
+function addBackgroundImageLayer() {
+    const layer = createLayer('', 'image');
+    layer.images[0].imageFit = 'cover';
+    layers.splice(layers.indexOf(layer), 1);
+    layers.unshift(layer);                  // first in the list = drawn underneath
+    refreshLayersDOM();
+    selectLayer(layer.id);
+    runAnimation();
+    const input = document.getElementById(`imageUpload-${layer.id}`);
+    if (input) input.click();
 }
 
 function getPresetCode(presetName) {

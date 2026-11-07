@@ -93,6 +93,11 @@ function updateImageProperty(layerId, property, value) {
     const layer = layers.find(l => l.id === layerId);
     if (layer && layer.type === 'image' && layer.images.length > 0) {
         const selectedImage = layer.images[layer.selectedImageIndex];
+        if (selectedImage && property === 'imageFit') {
+            selectedImage.imageFit = value;
+            scheduleLayerRestart(50);
+            return;
+        }
         const v = parseFloat(value);
         if (selectedImage && !isNaN(v)) {
             selectedImage[property] = v;
