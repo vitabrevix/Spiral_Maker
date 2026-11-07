@@ -199,69 +199,174 @@ async function exportGif(quality, scale) {
 }
 
 // ---------------------------------------------------------------- MP4
-async function pickAvcCodec(w, h, fps, bitrate) {
-    const candidates = ['avc1.640028', 'avc1.4d0028', 'avc1.42e028', 'avc1.42001f'];
-    for (const codec of candidates) {
-        const config = { codec, width: w, height: h, bitrate, framerate: fps, avc: { format: 'avc' } };
+//
+// Robustness notes:
+//  - Encoder setups are tried from most to least compatible: software
+//    encoder + Baseline profile first (no frame reordering, plays everywhere),
+//    hardware encoders only as a fallback - their output differs per GPU.
+//  - Constant-quality ("quantizer") mode where supported: simple animations
+//    stay small, very fast / busy ones (e.g. Tunnel at speed 4) get the bits
+//    they need instead of turning into blocky mush.
+//  - The finished stream is decoded again before saving; if any frame fails
+//    to decode, the next encoder setup is tried.
+//  - Timestamps go into a fine 57600 Hz timeline (the muxer default), so frame
+//    times never get rounded onto each other.
+
+const MP4_QP = { high: 20, medium: 25, small: 31 };
+
+function mp4Candidates(w, h, fps, bitrate) {
+    const list = [];
+    for (const hardwareAcceleration of ['prefer-software', 'no-preference']) {
+        for (const codec of ['avc1.42E028', 'avc1.4D0028', 'avc1.640028']) {
+            for (const bitrateMode of ['quantizer', 'variable']) {
+                list.push({
+                    codec, width: w, height: h, framerate: fps, hardwareAcceleration,
+                    bitrateMode, latencyMode: 'quality', avc: { format: 'avc' },
+                    ...(bitrateMode === 'quantizer' ? {} : { bitrate }),
+                });
+            }
+        }
+    }
+    return list;
+}
+
+async function supportedMp4Configs(w, h, fps, bitrate) {
+    const ok = [];
+    for (const config of mp4Candidates(w, h, fps, bitrate)) {
         try {
             const support = await VideoEncoder.isConfigSupported(config);
-            if (support.supported) return config;
-        } catch (e) { /* try next */ }
+            if (support.supported) ok.push(config);
+        } catch (e) { /* not supported */ }
     }
-    return null;
+    return ok;
+}
+
+// Encodes every planned frame with one encoder setup; returns the encoded chunks
+async function encodeMp4Chunks(config, plan, canvas, ctx, w, h, qp, attemptLabel) {
+    const chunks = [];
+    let decoderConfig = null;
+    let encodeError = null;
+    const encoder = new VideoEncoder({
+        output: (chunk, meta) => {
+            if (meta && meta.decoderConfig && !decoderConfig) decoderConfig = meta.decoderConfig;
+            chunks.push({ chunk, meta });
+        },
+        error: e => { encodeError = e; },
+    });
+    encoder.configure(config);
+
+    const fps = config.framerate;
+    const keyEvery = Math.max(1, Math.round(fps));      // a keyframe every second
+    try {
+        for (let k = 0; k < plan.frames.length; k++) {
+            if (encodeError) throw encodeError;
+            const f = plan.frames[k];
+            renderExportFrame(ctx, w, h, f.globalFrame);
+            const timestamp = Math.round(f.startMs * 1000);
+            const duration = Math.round(f.endMs * 1000) - timestamp;
+            const frame = new VideoFrame(canvas, { timestamp, duration });
+            const options = { keyFrame: k % keyEvery === 0 };
+            if (config.bitrateMode === 'quantizer') options.avc = { quantizer: qp };
+            encoder.encode(frame, options);
+            frame.close();
+
+            while (encoder.encodeQueueSize > 6 && !encodeError) {
+                await new Promise(r => encoder.addEventListener('dequeue', r, { once: true }));
+            }
+            updateExportProgress((k + 1) / plan.frames.length * 90);
+            updateExportStatus(`Encoding MP4${attemptLabel}... ${k + 1}/${plan.frames.length}`);
+            if (k % 4 === 0) await nextTick();
+        }
+        await encoder.flush();
+    } finally {
+        if (encoder.state !== 'closed') encoder.close();
+    }
+    if (encodeError) throw encodeError;
+    return { chunks, decoderConfig };
+}
+
+// Decodes the encoded stream to make sure every frame is valid
+async function verifyMp4Chunks(chunks, decoderConfig) {
+    if (!decoderConfig || !chunks.length || typeof VideoDecoder === 'undefined') return !!decoderConfig;
+    // Presentation timestamps must strictly increase (no reordered / duplicate frames)
+    for (let i = 1; i < chunks.length; i++) {
+        if (chunks[i].chunk.timestamp <= chunks[i - 1].chunk.timestamp) return false;
+    }
+    try {
+        const support = await VideoDecoder.isConfigSupported(decoderConfig);
+        if (!support.supported) return true;          // can't check here; trust the encoder
+    } catch (e) { return true; }
+
+    let decoded = 0, failed = false;
+    const decoder = new VideoDecoder({
+        output: frame => { decoded++; frame.close(); },
+        error: () => { failed = true; },
+    });
+    try {
+        decoder.configure(decoderConfig);
+        for (const { chunk } of chunks) {
+            if (failed) break;
+            decoder.decode(chunk);
+            while (decoder.decodeQueueSize > 8 && !failed) {
+                await new Promise(r => decoder.addEventListener('dequeue', r, { once: true }));
+            }
+        }
+        if (!failed) await decoder.flush();
+    } catch (e) {
+        failed = true;
+    } finally {
+        if (decoder.state !== 'closed') decoder.close();
+    }
+    return !failed && decoded === chunks.length;
 }
 
 async function exportVideo(quality, scale) {
     const plan = planFrames(60);
     const fps = Math.max(1, Math.round(plan.fps));
     const { canvas, ctx, w, h } = makeExportCanvas(scale, true);
-    const bitrate = Math.round(Math.min(12e6, Math.max(250e3, w * h * fps * quality.mp4BitsPerPixel)));
+    const qualityName = Object.keys(EXPORT_QUALITY).find(k => EXPORT_QUALITY[k] === quality) || 'medium';
+    const qp = MP4_QP[qualityName];
+    // Used only when constant-quality mode is unavailable; scaled up for fast animations
+    const motion = Math.max(1, Math.sqrt(animationSpeed));
+    const bitrate = Math.round(Math.min(16e6, Math.max(400e3, w * h * fps * quality.mp4BitsPerPixel * motion)));
 
-    const config = typeof VideoEncoder !== 'undefined' ? await pickAvcCodec(w, h, fps, bitrate) : null;
-    if (!config) {
+    const configs = typeof VideoEncoder !== 'undefined' ? await supportedMp4Configs(w, h, fps, bitrate) : [];
+    if (!configs.length) {
         updateExportStatus('MP4 not supported in this browser, recording WebM...');
         return exportWebmFallback(canvas, ctx, w, h, plan, bitrate);
     }
 
     updateExportStatus('Loading MP4 muxer...');
     const { Muxer, ArrayBufferTarget } = await import(MP4_LIB_URL);
-    const muxer = new Muxer({
-        target: new ArrayBufferTarget(),
-        video: { codec: 'avc', width: w, height: h, frameRate: fps },
-        fastStart: 'in-memory',
-    });
 
-    let encodeError = null;
-    const encoder = new VideoEncoder({
-        output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-        error: e => { encodeError = e; },
-    });
-    encoder.configure(Object.assign({}, config, { latencyMode: 'quality', bitrateMode: 'variable' }));
-
-    const keyEvery = fps * 2;
-    for (let k = 0; k < plan.frames.length; k++) {
-        if (encodeError) throw encodeError;
-        const f = plan.frames[k];
-        renderExportFrame(ctx, w, h, f.globalFrame);
-        const timestamp = Math.round(f.startMs * 1000);
-        const duration = Math.round(f.endMs * 1000) - timestamp;
-        const frame = new VideoFrame(canvas, { timestamp, duration });
-        encoder.encode(frame, { keyFrame: k % keyEvery === 0 });
-        frame.close();
-
-        while (encoder.encodeQueueSize > 6) {
-            await new Promise(r => encoder.addEventListener('dequeue', r, { once: true }));
+    let lastError = null;
+    const maxAttempts = Math.min(configs.length, 4);
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const config = configs[attempt];
+        const label = attempt ? ` (retry ${attempt})` : '';
+        try {
+            const { chunks, decoderConfig } = await encodeMp4Chunks(config, plan, canvas, ctx, w, h, qp, label);
+            updateExportStatus('Checking video...');
+            if (!(await verifyMp4Chunks(chunks, decoderConfig))) {
+                console.warn('MP4 self-check failed with', config);
+                lastError = new Error('encoded video did not pass the decode check');
+                continue;
+            }
+            const muxer = new Muxer({
+                target: new ArrayBufferTarget(),
+                video: { codec: 'avc', width: w, height: h },
+                fastStart: 'in-memory',
+            });
+            for (const { chunk, meta } of chunks) muxer.addVideoChunk(chunk, meta);
+            muxer.finalize();
+            console.info('MP4 exported with', config.codec, config.hardwareAcceleration, config.bitrateMode);
+            return { blob: new Blob([muxer.target.buffer], { type: 'video/mp4' }), filename: `spiral-${Date.now()}.mp4` };
+        } catch (e) {
+            console.warn('MP4 encode attempt failed', config, e);
+            lastError = e;
         }
-        updateExportProgress((k + 1) / plan.frames.length * 95);
-        updateExportStatus(`Encoding MP4... ${k + 1}/${plan.frames.length}`);
-        if (k % 4 === 0) await nextTick();
     }
-    await encoder.flush();
-    encoder.close();
-    if (encodeError) throw encodeError;
-    muxer.finalize();
-
-    return { blob: new Blob([muxer.target.buffer], { type: 'video/mp4' }), filename: `spiral-${Date.now()}.mp4` };
+    throw lastError || new Error('MP4 encoding failed');
 }
 
 // Browsers without WebCodecs H.264 (e.g. some Firefox builds): real-time WebM recording

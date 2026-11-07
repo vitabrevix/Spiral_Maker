@@ -3,314 +3,427 @@
     margin-bottom: 20px;
 }
 
-.layer-item {
-    background: #2d2d2d;
-    border: 1px solid #555;
-    border-radius: 4px;
-    margin-bottom: 10px;
+#layersContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
+/* ---------- Card ---------- */
+.layer-item {
+    background: #242424;
+    border: 1px solid #383838;
+    border-left: 3px solid #383838;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
+}
+
+.layer-item:hover {
+    border-color: #4a4a4a;
+}
+
+.layer-item.selected {
+    border-color: #2f6b4b;
+    border-left-color: #00cc66;
+    box-shadow: 0 0 0 1px rgba(0, 204, 102, 0.15), 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.layer-item.is-hidden {
+    opacity: 0.55;
+}
+
+.layer-item.is-hidden .layer-name {
+    text-decoration: line-through;
+    text-decoration-color: #777;
+}
+
+/* ---------- Header ---------- */
 .layer-header {
     display: flex;
     align-items: center;
-    gap: 5px;
-    flex-wrap: wrap;
-    padding: 10px;
+    gap: 8px;
+    padding: 7px 8px 7px 6px;
     cursor: pointer;
-    background: #333;
-    border-radius: 4px 4px 0 0;
+    background: #2b2b2b;
     user-select: none;
+    min-height: 36px;
+}
+
+.layer-header.selected {
+    background: #26332c;
+}
+
+.layer-header svg {
+    width: 15px;
+    height: 15px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.drag-handle {
+    display: flex;
+    align-items: center;
+    color: #666;
+    cursor: grab;
+    padding: 2px;
+}
+
+.drag-handle svg {
+    fill: currentColor;
+    stroke: none;
+}
+
+.drag-handle:hover {
+    color: #bbb;
 }
 
 .layer-toggle {
-    background: none;
-    border: none;
-    color: #ccc;
-    font-size: 12px;
-    margin-right: 8px;
-    cursor: pointer;
-    width: 20px;
-    height: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
-}
-
-.layer-name {
-    flex: 1;
-    color: #fff;
-    font-size: 14px;
-}
-
-.layer-controls {
-    display: flex;
-    gap: 5px;
-    margin-left: auto;
-}
-
-.layer-content {
+    width: 22px;
+    height: 22px;
     padding: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease;
-}
-
-.layer-content.collapsed {
-    max-height: 0;
-}
-
-.layer-content.expanded {
-    max-height: 600px;
-}
-
-.layer-textarea {
-    width: 100%;
-    background: #1a1a1a;
-    color: #ffffff;
+    background: none;
     border: none;
-    padding: 15px;
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 12px;
-    line-height: 1.4;
-    resize: vertical;
-    min-height: 200px;
-    tab-size: 2;
-    box-sizing: border-box;
-    position: relative;
-    z-index: 2;
-    background: rgba(26, 26, 26, 0.95); /* Slightly transparent to see highlights behind */
-    color: #ffffff;
-    caret-color: #ffffff;
+    border-radius: 4px;
+    color: #aaa;
+    cursor: pointer;
 }
 
-.layer-textarea:focus {
-    outline: none;
-    background: rgba(26, 26, 26, 0.98);
+.layer-toggle:hover {
+    background: #3a3a3a;
+    color: #fff;
 }
 
-/* When focused, make textarea more opaque and dim highlights */
-.layer-textarea:focus + .syntax-highlighter {
-    opacity: 0.3; /* Dim instead of hide completely for better UX */
+.layer-toggle svg {
+    transition: transform 0.15s;
+}
+
+.layer-toggle.is-collapsed svg {
+    transform: rotate(-90deg);
 }
 
 .layer-type-badge {
-    background: #444;
-    color: #fff;
-    font-size: 10px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
     padding: 2px 6px;
-    border-radius: 3px;
-    margin-right: 8px;
-    font-weight: bold;
+    border-radius: 4px;
+    background: #3a3a3a;
+    color: #ddd;
+    flex-shrink: 0;
 }
 
-/* Image and Text Controls */
-.image-controls, .text-controls {
-    padding: 15px;
-    background: #2a2a2a;
-    border-radius: 8px;
-    margin: 10px 0;
+.layer-type-badge.type-code  { background: rgba(74, 144, 226, 0.18); color: #7fb5f0; }
+.layer-type-badge.type-image { background: rgba(170, 110, 230, 0.18); color: #c59af0; }
+.layer-type-badge.type-text  { background: rgba(240, 170, 60, 0.18);  color: #f0c070; }
+
+.layer-index {
+    font-size: 11px;
+    color: #777;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
 }
 
-/* Layer Color Controls */
-.layer-color-controls {
+.layer-header .layer-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    color: #e6e6e6;
+}
+
+.layer-header.selected .layer-name {
+    color: #fff;
+}
+
+/* ---------- Header buttons ---------- */
+.layer-controls {
     display: flex;
-    gap: 8px;
+    gap: 2px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.icon-btn {
+    display: flex;
     align-items: center;
-    margin: 0 10px;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 5px;
+    color: #aaa;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+
+.icon-btn:hover:not(:disabled) {
+    background: #3a3a3a;
+    color: #fff;
+}
+
+.icon-btn.danger:hover:not(:disabled) {
+    background: rgba(230, 70, 70, 0.18);
+    color: #ff7070;
+}
+
+.icon-btn.is-off {
+    color: #e0a040;
+}
+
+.icon-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+    background: none !important;
+}
+
+/* ---------- Body ---------- */
+.layer-content {
+    padding: 0;
+    overflow: hidden;
+    border-top: 1px solid #333;
+}
+
+.layer-content.collapsed {
+    display: none;
+}
+
+.layer-content.expanded {
+    display: block;
+}
+
+/* Adjust + Timing panel */
+.layer-props {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+    padding: 10px 12px;
+    background: #202020;
+    border-bottom: 1px solid #333;
+}
+
+.prop-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.prop-group:first-child {
+    flex: 1 1 300px;
+}
+
+.prop-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #777;
+}
+
+.layer-color-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 16px;
 }
 
 .color-control {
-    display: flex;
+    display: grid;
+    grid-template-columns: 52px 1fr 28px;
     align-items: center;
-    gap: 3px;
+    gap: 6px;
 }
 
 .color-control label {
     font-size: 11px;
-    color: #ccc;
-    min-width: 12px;
+    color: #aaa;
+}
+
+.color-control .color-slider {
+    width: 100%;
+    min-width: 0;
 }
 
 .color-value {
-    font-size: 10px;
-    color: #999;
-    min-width: 20px;
-    text-align: center;
+    font-size: 11px;
+    color: #888;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
 }
 
-/* Layer Animation Controls */
 .layer-animation-controls {
     display: flex;
     gap: 8px;
     align-items: center;
-    margin: 0 10px;
 }
 
 .animation-control {
     display: flex;
-    align-items: center;
-    gap: 3px;
-}
-
-.animation-control label {
-    font-size: 11px;
-    color: #ccc;
-    min-width: 12px;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 10px;
+    color: #999;
 }
 
 .animation-input {
-    align-items: center;
-    gap: 8px;
-    font-size: 10px;
-    width: 40px;
+    width: 58px;
+    background: #1a1a1a;
+    color: #eee;
+    border: 1px solid #3c3c3c;
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 12px;
 }
 
-.animation-input label {
-    font-size: 8px;
-    color: #ccc;
+.animation-input:focus {
+    outline: none;
+    border-color: #00cc66;
 }
 
-/* Drag and Drop */
-.drag-handle {
-    cursor: move;
-    padding: 0 5px;
-    color: #888;
+/* ---------- Code editor ---------- */
+.layer-textarea {
+    width: 100%;
+    color: #ffffff;
+    border: none;
+    padding: 12px 14px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    line-height: 1.45;
+    resize: vertical;
+    min-height: 220px;
+    tab-size: 2;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 2;
+    background: #1a1a1a;
+    caret-color: #ffffff;
+    display: block;
 }
 
-.drag-handle:hover {
-    color: #ccc;
+.layer-textarea:focus {
+    outline: none;
+    background: #181818;
 }
 
+.layer-textarea:focus + .syntax-highlighter {
+    opacity: 0.3;
+}
+
+/* ---------- Image / text editors ---------- */
+.image-editor-container, .text-editor-container {
+    padding: 10px 12px;
+}
+
+.image-controls, .text-controls {
+    padding: 12px;
+    background: #2a2a2a;
+    border-radius: 6px;
+    margin: 10px 0 0;
+}
+
+/* ---------- Drag and drop ---------- */
 .layer-item.dragging {
     opacity: 0.5;
-    transform: rotate(2deg);
 }
 
 .layer-item.drag-over {
     border-top: 3px solid #00cc66;
 }
 
-.layer-item.selected {
-    border-color: #00cc66;
-    box-shadow: 0 0 0 2px rgba(0, 204, 102, 0.3);
-}
-
-.layer-header.selected {
-    background: #2a4a2a;
-}
-
-.layer-name.selected {
-    color: #00ff88;
-}
-
-/* Container styling with maximum width */
-.image-list-controls, .text-list-controls {
-    margin-bottom: 15px;
-    padding: 10px;
-    border: 1px solid #444;
-    border-radius: 6px;
-    background: #222;
-    max-width: 100%;
-    overflow: hidden;
-}
-
-/* Horizontal scrolling tabs container */
-.image-tabs, .text-tabs {
-    display: flex;
-    gap: 5px;
-    align-items: center;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 2px 0;
-    width: 100%;
-    max-width: 100%;
-    scrollbar-width: thin;
-    scrollbar-color: #555 #333;
-}
-
-/* Webkit scrollbar styling */
-.image-tabs::-webkit-scrollbar, .text-tabs::-webkit-scrollbar {
-    height: 6px;
-}
-
-.image-tabs::-webkit-scrollbar-track, .text-tabs::-webkit-scrollbar-track {
-    background: #333;
-    border-radius: 3px;
-}
-
-.image-tabs::-webkit-scrollbar-thumb, .text-tabs::-webkit-scrollbar-thumb {
-    background: #555;
-    border-radius: 3px;
-}
-
-.image-tabs::-webkit-scrollbar-thumb:hover, .text-tabs::-webkit-scrollbar-thumb:hover {
-    background: #666;
-}
-
-/* Make tabs not wrap and maintain minimum width */
+/* Item tabs inside image / text layers */
 .image-tab, .text-tab {
     position: relative;
     padding: 5px 10px;
-    background: #333;
-    border: 1px solid #555;
-    border-radius: 4px;
-    color: #ccc;
+    background: var(--surface-3, #2b2b2b);
+    border: 1px solid var(--border, #383838);
+    border-radius: 5px;
+    color: #bbb;
     font-size: 12px;
     cursor: pointer;
-    transition: all 0.2s;
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
     white-space: nowrap;
     flex-shrink: 0;
-    min-width: fit-content;
 }
 
 .image-tab:hover, .text-tab:hover {
-    background: #444;
-    border-color: #666;
+    background: #353535;
+    border-color: #4a4a4a;
+    color: #fff;
 }
 
 .image-tab.active, .text-tab.active {
-    background: #4a90e2;
-    border-color: #5ba0f2;
-    color: white;
+    background: rgba(0, 204, 102, 0.14);
+    border-color: rgba(0, 204, 102, 0.5);
+    color: #fff;
 }
 
 .add-item-btn {
-    background: #4a90e2 !important;
-    border-color: #5ba0f2 !important;
-    color: white !important;
-    order: -1; /* Ensure Add button appears first */
+    order: -1;  /* Add button first */
+    color: #ddd;
 }
 
-.add-item-btn:hover {
-    background: #5ba0f2 !important;
-    border-color: #6bb0ff !important;
-}
-
-.add-item-btn:active {
-    background: #3a80d2 !important;
-    transform: translateY(1px);
+.add-item-btn::first-letter {
+    color: #00cc66;
 }
 
 .remove-tab {
-    background: rgba(255, 0, 0, 0.7);
-    color: white;
-    border-radius: 50%;
     width: 16px;
     height: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1;
+    border-radius: 50%;
+    color: #999;
     cursor: pointer;
-    transition: background 0.2s;
 }
 
 .remove-tab:hover {
-    background: rgba(255, 0, 0, 0.9);
+    background: rgba(230, 70, 70, 0.25);
+    color: #ff7070;
 }
+
+.image-tabs, .text-tabs {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 2px 0;
+    scrollbar-width: thin;
+    scrollbar-color: #555 transparent;
+}
+
+.image-list-controls, .text-list-controls {
+    padding: 0;
+    border: none;
+    background: none;
+}
+
+.image-upload-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: #aaa;
+}
+
 /* Compact rows for the image / text property editors */
 .image-controls .control-row, .text-controls .control-row {
     display: flex;
@@ -353,13 +466,3 @@
     font-size: 12px;
 }
 
-/* Short label in the layer header (text content / image name) */
-.layer-header .layer-name {
-    flex: 0 1 auto;
-    max-width: 160px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 12px;
-    color: #bbb;
-}

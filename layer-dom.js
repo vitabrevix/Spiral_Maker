@@ -36,7 +36,7 @@ class LayerDOM {
     
     static createElement(layer) {
         const layerDiv = document.createElement('div');
-        layerDiv.className = 'layer-item';
+        layerDiv.className = 'layer-item' + (layer.visible ? '' : ' is-hidden');
         layerDiv.setAttribute('data-layer-id', layer.id);
         layerDiv.draggable = true;
         return layerDiv;
@@ -76,7 +76,17 @@ function updateLayerSelection() {
             el.classList.remove('selected');
             header.classList.remove('selected');
         }
+
+        // Keep position number and up/down availability in sync with the list
+        const index = layers.findIndex(l => l.id === layerId);
+        const indexEl = el.querySelector('.layer-index');
+        if (indexEl) indexEl.textContent = index + 1;
+        const up = el.querySelector('.layer-controls [title^="Move up"]');
+        const down = el.querySelector('.layer-controls [title^="Move down"]');
+        if (up) up.disabled = index <= 0;
+        if (down) down.disabled = index === layers.length - 1;
     });
+    if (typeof updateLayersEmptyState === 'function') updateLayersEmptyState();
 }
 
 // Re-render every layer panel (keeps order in sync with the layers array)

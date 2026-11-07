@@ -34,7 +34,9 @@ const presets = {
 // --------------------------------------------------------------------- Spirals
 ying_yang_spiral: preset(`
 // Two-tone hypnotic spiral that turns seamlessly.
-let arms = 2;           // arms of each colour
+// With 1 arm, the light and dark bands interlock through the centre in an
+// S-curve (like a yin-yang), so each colour is one unbroken band.
+let arms = 1;           // arms of each colour (2+ = bands meet in a point)
 let bandWidth = 18;     // thickness of every band (px at 300px canvas)
 let turnsPerLoop = 1;   // full rotations per loop (whole number = seamless)
 let lightColor = [0, 0, 100];
@@ -58,16 +60,21 @@ function draw() {
   }
 
   fill(lightColor);
+  let step = 0.04;
   for (let k = 0; k < arms; k++) {
     let offset = k * TWO_PI / arms + t;
     beginShape();
-    for (let u = 0; u <= maxU; u += 0.06) {
+    // Inner edge: spiral leaving the centre
+    for (let u = 0; u <= maxU; u += step) {
       vertex(cos(u + offset) * c * u, sin(u + offset) * c * u);
     }
-    for (let u = maxU; u >= 0; u -= 0.06) {
-      let r = c * u + band;
+    // Outer edge: the neighbouring spiral, followed all the way back into the
+    // centre (instead of stopping one band-width out), so bands meet smoothly
+    for (let u = maxU; u >= -PI / arms; u -= step) {
+      let r = max(0, c * u + band);
       vertex(cos(u + offset) * r, sin(u + offset) * r);
     }
+    vertex(0, 0);
     endShape(CLOSE);
   }
 }`, { maxFrames: 120 }),
@@ -1589,12 +1596,68 @@ function draw() {
 
 };
 
+// ---------------------------------------------------------------------
+// Loading presets
+//
+// One rule for every preset: it REPLACES ALL LAYERS (the preset becomes the
+// whole scene), unless "Add as new layer" is switched on, in which case it is
+// added as a new layer on top of what is already there.
+// ---------------------------------------------------------------------
+let presetAddsLayer = false;
+try { presetAddsLayer = localStorage.getItem('presetAddsLayer') === '1'; } catch (e) { /* ignore */ }
+
+function setPresetAddsLayer(on) {
+    presetAddsLayer = !!on;
+    try { localStorage.setItem('presetAddsLayer', presetAddsLayer ? '1' : '0'); } catch (e) { /* ignore */ }
+    syncPresetModeUI();
+}
+
+function syncPresetModeUI() {
+    const input = document.getElementById('presetAddLayer');
+    if (input) input.checked = presetAddsLayer;
+    const hint = document.getElementById('presetModeHint');
+    if (hint) hint.textContent = presetAddsLayer ? 'Presets are added as a new layer' : 'Presets replace all layers';
+}
+document.addEventListener('DOMContentLoaded', syncPresetModeUI);
+
+// Turns an existing layer into a fresh layer of the given type (same id and position)
+function resetLayer(layer, type) {
+    layer.type = type;
+    layer.code = '';
+    layer.name = undefined;
+    delete layer.images;
+    delete layer.texts;
+    Object.assign(layer, { hue: 360, saturation: 100, brightness: 100, opacity: 100,
+                           maxFrames: 120, fps: Math.min(60, animationFPS), speed: 1,
+                           startFrame: 0, endFrame: -1, fadeFrames: 0,
+                           visible: true, collapsed: false });
+    initializeLayerTypeData(layer);
+    return layer;
+}
+
+// The layer a preset goes into. In replace mode every existing layer is
+// removed first, so the preset becomes the whole scene.
+function presetTargetLayer(type) {
+    if (!presetAddsLayer) {
+        layers = [];
+        selectedLayerId = null;
+    }
+    return createLayer('', type);
+}
+
+function finishPresetLoad(selectId) {
+    refreshLayersDOM();
+    selectLayer(selectId);
+    runAnimation();
+}
+
 // Copy a preset's code and settings onto a layer object
 function applyPresetToLayer(layer, name) {
     const p = presets[name];
     if (!p) return false;
-    layer.type = 'code';
+    if (layer.type !== 'code') resetLayer(layer, 'code');
     layer.code = p.code;
+    layer.name = presetDisplayName(name);
     layer.hue = p.hue;
     layer.saturation = p.saturation;
     layer.brightness = p.brightness;
@@ -1605,44 +1668,34 @@ function applyPresetToLayer(layer, name) {
     return true;
 }
 
-// Load a preset into the selected layer (or a new layer) and play it
+// Friendly name of a preset, taken from its button / dropdown label
+function presetDisplayName(name) {
+    const el = document.querySelector(`option[value="${name}"]`) ||
+        [...document.querySelectorAll('.main-preset-btn')].find(b => (b.getAttribute('onclick') || '').includes(`'${name}'`));
+    return el ? el.textContent.trim() : name.replace(/_/g, ' ');
+}
+
 function loadPreset(name) {
-    if (name === 'bg_image') {
-        addBackgroundImageLayer();
-        return;
-    }
-    if (name === 'text_example') {
-        addTextExampleLayers();
-        return;
-    }
+    if (name === 'bg_image') return loadBackgroundImagePreset();
+    if (name === 'text_example') return loadTextExamplePreset();
     if (!presets[name]) {
         console.warn(`Preset '${name}' not found`);
         return;
     }
-    let layer = getSelectedLayer();
-    if (!layer || layer.type !== 'code') {
-        layer = createLayer('');
-        applyPresetToLayer(layer, name);
-        refreshLayersDOM();
-        selectLayer(layer.id);
-    } else {
-        applyPresetToLayer(layer, name);
-        LayerDOM.refresh(layer.id);
-        updateLayerSelection();
-    }
-    runAnimation();
+    const layer = presetTargetLayer('code');
+    applyPresetToLayer(layer, name);
+    finishPresetLoad(layer.id);
 }
 
-// "BG Image": an image layer at the bottom of the stack that fills the canvas.
-// Opens the file picker straight away so you can choose the picture.
-function addBackgroundImageLayer() {
-    const layer = createLayer('', 'image');
+// "BG Image": an image layer that fills the canvas. When added as a new
+// layer it goes to the back of the stack. Opens the file picker straight away.
+function loadBackgroundImagePreset() {
+    const layer = presetTargetLayer('image');
+    layer.name = 'Background image';
     layer.images[0].imageFit = 'cover';
     layers.splice(layers.indexOf(layer), 1);
     layers.unshift(layer);                  // first in the list = drawn underneath
-    refreshLayersDOM();
-    selectLayer(layer.id);
-    runAnimation();
+    finishPresetLoad(layer.id);
     const input = document.getElementById(`imageUpload-${layer.id}`);
     if (input) input.click();
 }
@@ -1650,7 +1703,7 @@ function addBackgroundImageLayer() {
 // "Text Example": one Text layer per line, each showing a different option of
 // the visual text editor (font, colour, animation, show/hide frames, fades,
 // the {frame} counter). Everything here can be changed without code.
-function addTextExampleLayers() {
+function loadTextExamplePreset() {
     const examples = [
         { text: 'BIG TEXT', fontSize: 34, fontFamily: 'Arial Black', textY: 28 },
         { text: 'Floating on Animation', fontSize: 20, color: '#66ccff', textY: 44,
@@ -1662,20 +1715,23 @@ function addTextExampleLayers() {
         { text: 'Fade in, Fade out', fontSize: 18, color: '#cc66ff', textY: 76,
           startFrame: 120, endFrame: 300, fadeFrames: 30 },
     ];
-    let first = null;
+    const first = presetTargetLayer('text');
+    let insertAt = layers.indexOf(first) + 1;
     examples.forEach((opts, i) => {
-        const layer = createLayer('', 'text');
+        let layer = first;
+        if (i > 0) {
+            layer = createLayer('', 'text');
+            layers.splice(layers.indexOf(layer), 1);
+            layers.splice(insertAt++, 0, layer);
+        }
         layer.texts = [defaultTextItem(opts)];
         layer.selectedTextIndex = 0;
         layer.maxFrames = 360;
         layer.fps = Math.min(60, animationFPS);
         layer.speed = 1;
         layer.collapsed = i > 0;      // keep the panel tidy: open the first one only
-        if (!first) first = layer;
     });
-    refreshLayersDOM();
-    selectLayer(first.id);
-    runAnimation();
+    finishPresetLoad(first.id);
 }
 
 function getPresetCode(presetName) {

@@ -16,167 +16,208 @@
 </head>
 <body>
     <div class="editor-panel">
-        <h1>Spiral Editor</h1>
-        
-        <div class="preset-categories">
-            <div class="preset-category">
-                <div class="category-title">Spirals</div>
-                <button class="main-preset-btn" onclick="loadPreset('ying_yang_spiral')">Ying Yang</button>
-                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
-                    <option value="">More spirals...</option>
-                    <option value="dot_spiral">Dot Spiral</option>
-                    <option value="tunnel">Tunnel</option>
-                    <option value="tunnel_2">Square Tunnel</option>
-                    <option value="fibonacci_spiral">Fibonacci Spiral</option>
-                    <option value="galaxy_spiral">Galaxy Spiral</option>
-                    <option value="vortex">Vortex</option>
-                    <option value="circling_spiral">Circling Spiral</option>
-                </select>
+
+        <section class="card presets-card">
+            <div class="card-header">
+                <span class="section-title">Presets</span>
+                <div class="preset-mode">
+                    <span id="presetModeHint" class="preset-mode-hint">Presets replace all layers</span>
+                    <label class="switch" title="When on, choosing a preset adds it as a new layer. When off, the preset replaces all layers.">
+                        <input type="checkbox" id="presetAddLayer" onchange="setPresetAddsLayer(this.checked)">
+                        <span class="switch-track"><span class="switch-thumb"></span></span>
+                        <span class="switch-label">Add as new layer</span>
+                    </label>
+                </div>
             </div>
-            <div class="preset-category">
-                <div class="category-title">Circles</div>
-                <button class="main-preset-btn" onclick="loadPreset('pulsing')">Pulsing</button>
-                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
-                    <option value="">More circles...</option>
-                    <option value="kaleidoscope">Kaleidoscope</option>
-                    <option value="orbit_dance">Orbit Dance</option>
-                    <option value="ripple_effect">Ripple Effect</option>
-                    <option value="flower_circles">Flower Circles</option>
-                    <option value="center_pulse">Center Pulse</option>
-                    <option value="pulsing_bw">Pulsing B&amp;W</option>
-                </select>
+            <div class="preset-categories">
+                <div class="preset-category">
+                    <div class="category-title">Spirals</div>
+                    <button class="main-preset-btn" onclick="loadPreset('ying_yang_spiral')">Ying Yang</button>
+                    <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
+                        <option value="">More spirals...</option>
+                        <option value="dot_spiral">Dot Spiral</option>
+                        <option value="tunnel">Tunnel</option>
+                        <option value="tunnel_2">Square Tunnel</option>
+                        <option value="fibonacci_spiral">Fibonacci Spiral</option>
+                        <option value="galaxy_spiral">Galaxy Spiral</option>
+                        <option value="vortex">Vortex</option>
+                        <option value="circling_spiral">Circling Spiral</option>
+                    </select>
+                </div>
+                <div class="preset-category">
+                    <div class="category-title">Circles</div>
+                    <button class="main-preset-btn" onclick="loadPreset('pulsing_bw')">Pulsing</button>
+                    <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
+                        <option value="">More circles...</option>
+                        <option value="pulsing">Pulsing Lines</option>
+                        <option value="kaleidoscope">Kaleidoscope</option>
+                        <option value="orbit_dance">Orbit Dance</option>
+                        <option value="ripple_effect">Ripple Effect</option>
+                        <option value="flower_circles">Flower Circles</option>
+                        <option value="center_pulse">Center Pulse</option>
+                    </select>
+                </div>
+                <div class="preset-category">
+                    <div class="category-title">Objects</div>
+                    <button class="main-preset-btn" onclick="loadPreset('stopwatch')">Stopwatch</button>
+                    <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
+                        <option value="">More objects...</option>
+                        <option value="pendulum">Pendulum</option>
+                        <option value="coin">Coin</option>
+                        <option value="pendant">Crystal Pendant</option>
+                        <option value="metronome">Metronome</option>
+                        <option value="mandala">Mandala</option>
+                        <option value="particules">Particles</option>
+                    </select>
+                </div>
+                <div class="preset-category">
+                    <div class="category-title">Chill</div>
+                    <button class="main-preset-btn" onclick="loadPreset('waves')">Wave Pattern</button>
+                    <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
+                        <option value="">More chill...</option>
+                        <option value="night_sky">Night Sky</option>
+                        <option value="aurora">Aurora</option>
+                        <option value="crystal">Crystal Formation</option>
+                        <option value="water">Water</option>
+                        <option value="wagon_wave">Wagon Wave</option>
+                    </select>
+                </div>
+                <div class="preset-category">
+                    <div class="category-title">Others</div>
+                    <button class="main-preset-btn" onclick="loadPreset('petals')">Petals</button>
+                    <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
+                        <option value="">More others...</option>
+                        <option value="text_example">Text Example</option>
+                        <option value="bg_gradient">BG Gradient</option>
+                        <option value="bg_image">BG Image</option>
+                        <option value="vignette">Vignette</option>
+                        <option value="static">Screen Static</option>
+                    </select>
+                </div>
             </div>
-            <div class="preset-category">
-                <div class="category-title">Objects</div>
-                <button class="main-preset-btn" onclick="loadPreset('stopwatch')">Stopwatch</button>
-                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
-                    <option value="">More objects...</option>
-                    <option value="pendulum">Pendulum</option>
-                    <option value="coin">Coin</option>
-                    <option value="pendant">Crystal Pendant</option>
-                    <option value="metronome">Metronome</option>
-                    <option value="mandala">Mandala</option>
-                    <option value="particules">Particles</option>
-                </select>
+        </section>
+
+        <section class="layers-container">
+            <div class="layers-toolbar">
+                <span class="section-title">Layers</span>
+                <div class="toolbar-group">
+                    <button class="btn btn-secondary" onclick="addLayer()" title="Add an empty code layer"><span class="btn-plus">+</span> Code</button>
+                    <button class="btn btn-secondary" onclick="addImageLayer()" title="Add an image layer"><span class="btn-plus">+</span> Image</button>
+                    <button class="btn btn-secondary" onclick="addTextLayer()" title="Add a text layer"><span class="btn-plus">+</span> Text</button>
+                </div>
+                <div class="toolbar-spacer"></div>
+                <label class="background-color-control" title="Canvas background colour">
+                    <span>Background</span>
+                    <input type="color" id="backgroundColorPicker" value="#000000" oninput="updateBackgroundColor(this.value)">
+                </label>
+                <button class="btn btn-ghost-danger" id="clearLayersBtn" onclick="clearAllLayers()" title="Remove every layer">Clear all</button>
             </div>
-            <div class="preset-category">
-                <div class="category-title">Chill</div>
-                <button class="main-preset-btn" onclick="loadPreset('waves')">Wave Pattern</button>
-                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
-                    <option value="">More chill...</option>
-                    <option value="night_sky">Night Sky</option>
-                    <option value="aurora">Aurora</option>
-                    <option value="crystal">Crystal Formation</option>
-                    <option value="water">Water</option>
-                    <option value="wagon_wave">Wagon Wave</option>
-                </select>
-            </div>
-            <div class="preset-category">
-                <div class="category-title">Others</div>
-                <button class="main-preset-btn" onclick="loadPreset('petals')">Petals</button>
-                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
-                    <option value="">More others...</option>
-                    <option value="text_example">Text Example</option>
-                    <option value="bg_gradient">BG Gradient</option>
-                    <option value="bg_image">BG Image</option>
-                    <option value="vignette">Vignette</option>
-                    <option value="static">Screen Static</option>
-                </select>
-            </div>
-        </div>
-        
-        <div class="layers-container">
-            <div class="layer-controls-top">
-				<button class="add-layer-btn" onclick="addLayer()">+ Add Layer</button>
-				<button class="add-layer-btn" onclick="addImageLayer()">+ Add Image</button>
-				<button class="add-layer-btn" onclick="addTextLayer()">+ Add Text</button>
-				<div class="background-color-control">
-					<label for="backgroundColorPicker">BG:</label>
-					<input type="color" id="backgroundColorPicker" value="#000000" onchange="updateBackgroundColor(this.value)">
-				</div>
-				<button class="pip-btn" onclick="openPipWindow()" id="pipBtn">Open PiP</button>
-			</div>
             <div id="layersContainer">
                 <!-- Layers will be added here dynamically -->
             </div>
-        </div>
+            <div id="layersEmpty" class="layers-empty" style="display: none;">
+                No layers yet. Pick a preset above, or add a Code, Image or Text layer.
+            </div>
+        </section>
+
         <div id="errorDisplay" class="error-display"></div>
         <div id="canvasContainer"></div>
     </div>
-    
+
     <div class="preview-panel">
-        <button class="collapse-btn" id="collapseBtn" onclick="toggleCollapse()">
+        <button class="collapse-btn" id="collapseBtn" onclick="toggleCollapse()" title="Collapse panel">
             <span class="collapse-icon">›</span>
         </button>
         <div class="collapsible-content">
-        <div class="preview-container">
-            <div class="controls">
-                <button onclick="runWithoutLag()">Run</button>
-                <button onclick="stopAnimation()">Stop</button>
-                <button onclick="clearCode()">Clear</button>
-                <span id="status" style="color: #00cc66;"></span>
-            </div>
-            
-            <div class="export-controls">
-                <button class="export-btn" id="exportMP4Btn" onclick="exportAnimation('mp4')" disabled>MP4</button>
-                <button class="export-btn" id="exportGifBtn" onclick="exportAnimation('gif')" disabled>GIF</button>
-                <select id="exportQuality" class="export-select" title="Export quality (affects file size)">
-                    <option value="high">High quality</option>
-                    <option value="medium" selected>Balanced</option>
-                    <option value="small">Smallest file</option>
-                </select>
-                <select id="exportScale" class="export-select" title="Export resolution">
-                    <option value="1" selected>100% size</option>
-                    <option value="0.75">75% size</option>
-                    <option value="0.5">50% size</option>
-                </select>
-                <span id="exportStatus" style="margin-left: 10px; color: #ffaa00; font-size: 12px;"></span>
-            </div>
-            
-            <div class="animation-controls">
-                <div class="control-group">
-                    <label for="framesInput">Frames:</label>
-                    <input type="number" id="framesInput" value="120" min="1" max="3600" onchange="updateAnimationSettings('frames')">
-                    <label class="auto-frames" title="Automatically set the loop length so every layer loops seamlessly"><input type="checkbox" id="autoFramesInput" checked onchange="toggleAutoFrames(this.checked)"> Auto</label>
+
+            <section class="card panel-section">
+                <div class="panel-title-row">
+                    <span class="section-title">Playback</span>
+                    <span id="status" class="status-pill"></span>
                 </div>
-                <div class="control-group">
-                    <label for="fpsInput">FPS:</label>
-                    <input type="number" id="fpsInput" value="60" min="1" max="120" onchange="updateAnimationSettings()">
+                <div class="controls">
+                    <button class="btn btn-primary" onclick="runWithoutLag()" title="Start / restart the animation">Run</button>
+                    <button class="btn btn-secondary" onclick="stopAnimation()" title="Stop the animation">Stop</button>
+                    <button class="btn btn-secondary pip-btn" onclick="openPipWindow()" id="pipBtn" title="Open the preview in a separate window">Open PiP</button>
                 </div>
-                
-                <div class="control-group">
-                    <label for="speedInput">Speed:</label>
-                    <input type="number" id="speedInput" value="1" min="0.1" max="5" step="0.1" onchange="updateAnimationSettings()">
-                </div>
-            </div>
-            
-            <div class="progress-bars">
                 <div class="frame-controls">
-                    <button class="frame-btn" id="prevFrameBtn" onclick="previousFrame()">‹</button>
+                    <button class="frame-btn" id="prevFrameBtn" onclick="previousFrame()" title="Previous frame">‹</button>
                     <input type="range" id="frameSlider" min="0" max="120" value="0" oninput="scrubToFrame(this.value)">
-                    <button class="frame-btn" id="nextFrameBtn" onclick="nextFrame()">›</button>
-                    <button class="frame-btn pause-btn" id="pauseFrameBtn" onclick="pauseAnimation()" disabled>⏸</button>
+                    <button class="frame-btn" id="nextFrameBtn" onclick="nextFrame()" title="Next frame">›</button>
+                    <button class="frame-btn pause-btn" id="pauseFrameBtn" onclick="pauseAnimation()" title="Pause / resume" disabled>⏸</button>
+                </div>
+                <div class="frame-counter-row">
+                    <span class="field-hint">Frame</span>
                     <span id="frameDisplay" class="frame-counter">000/120</span>
                 </div>
-                <div>
-                    <div class="progress-label">Export Progress</div>
-                    <div class="progress-container">
-                        <div class="progress-bar export-progress" id="exportProgressBar" style="width: 0%"></div>
-                    </div>
+            </section>
+
+            <section class="card panel-section">
+                <span class="section-title">Loop</span>
+                <div class="animation-controls">
+                    <label class="field">
+                        <span>Frames</span>
+                        <input type="number" id="framesInput" value="120" min="1" max="3600" onchange="updateAnimationSettings('frames')">
+                    </label>
+                    <label class="field">
+                        <span>FPS</span>
+                        <input type="number" id="fpsInput" value="60" min="1" max="120" onchange="updateAnimationSettings()">
+                    </label>
+                    <label class="field">
+                        <span>Speed</span>
+                        <input type="number" id="speedInput" value="1" min="0.1" max="5" step="0.1" onchange="updateAnimationSettings()">
+                    </label>
                 </div>
-                <div class="size-controls">
-                    <div style="margin-bottom: 8px;">
-                        <button class="size-btn active" onclick="setCanvasRatio('1:1', this)">Square (1:1)</button>
-                        <button class="size-btn" onclick="setCanvasRatio('4:3', this)">Desktop (4:3)</button>
-                        <button class="size-btn" onclick="setCanvasRatio('3:4', this)">Phone (3:4)</button>
-                    </div>
-                    <div class="size-slider-container">
-                        <input type="range" class="size-slider" id="sizeSlider" min="300" max="1000" value="300" oninput="updateCanvasSize(this.value)">
-                        <input type="number" class="size-input" id="sizeInput" min="300" max="1000" value="300" onchange="updateCanvasSizeFromInput(this.value)">
-                        <span class="size-label">px</span>
-                    </div>
+                <label class="checkbox-row auto-frames" title="Automatically set the loop length so every layer loops seamlessly">
+                    <input type="checkbox" id="autoFramesInput" checked onchange="toggleAutoFrames(this.checked)">
+                    <span>Auto loop length (every layer loops seamlessly)</span>
+                </label>
+            </section>
+
+            <section class="card panel-section size-controls">
+                <span class="section-title">Canvas</span>
+                <div class="segmented">
+                    <button class="size-btn active" onclick="setCanvasRatio('1:1', this)">Square 1:1</button>
+                    <button class="size-btn" onclick="setCanvasRatio('4:3', this)">Desktop 4:3</button>
+                    <button class="size-btn" onclick="setCanvasRatio('3:4', this)">Phone 3:4</button>
                 </div>
-            </div>
+                <div class="size-slider-container">
+                    <input type="range" class="size-slider" id="sizeSlider" min="300" max="1000" value="300" oninput="updateCanvasSize(this.value)">
+                    <input type="number" class="size-input" id="sizeInput" min="300" max="1000" value="300" onchange="updateCanvasSizeFromInput(this.value)">
+                    <span class="size-label">px</span>
+                </div>
+            </section>
+
+            <section class="card panel-section">
+                <span class="section-title">Export</span>
+                <div class="export-controls">
+                    <button class="btn btn-primary export-btn" id="exportMP4Btn" onclick="exportAnimation('mp4')" disabled>MP4</button>
+                    <button class="btn btn-primary export-btn" id="exportGifBtn" onclick="exportAnimation('gif')" disabled>GIF</button>
+                </div>
+                <div class="export-options">
+                    <label class="field">
+                        <span>Quality</span>
+                        <select id="exportQuality" class="export-select" title="Export quality (affects file size)">
+                            <option value="high">High quality</option>
+                            <option value="medium" selected>Balanced</option>
+                            <option value="small">Smallest file</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>Size</span>
+                        <select id="exportScale" class="export-select" title="Export resolution">
+                            <option value="1" selected>100%</option>
+                            <option value="0.75">75%</option>
+                            <option value="0.5">50%</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar export-progress" id="exportProgressBar" style="width: 0%"></div>
+                </div>
+                <div id="exportStatus" class="export-status"></div>
+            </section>
+
         </div>
     </div>
 

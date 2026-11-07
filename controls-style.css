@@ -1,75 +1,41 @@
-/* General Controls */
-.controls {
-    margin-bottom: 15px;
+/* Layers toolbar (above the layer list) */
+.layers-toolbar {
     display: flex;
+    align-items: center;
     gap: 10px;
-    align-items: center;
-}
-
-.export-controls {
-    margin-bottom: 15px;
-    display: flex;
-    gap: 10px;
-    align-items: center;
-}
-
-.animation-controls {
-    margin-bottom: 15px;
-    display: flex;
-    gap: 20px;
-    align-items: center;
-    background: #2d2d2d;
-    border: 1px solid #555;
-    border-radius: 4px;
-    padding: 10px 15px;
-}
-
-.control-group {
-    align-items: center;
-    gap: 8px;
-}
-
-.control-group label {
-    font-size: 12px;
-    color: #ccc;
-}
-
-.control-group input {
-    background: #1a1a1a;
-    border: 1px solid #555;
-    border-radius: 3px;
-    color: #fff;
-    padding: 4px 8px;
-    width: 60px;
-    font-size: 12px;
-    font-family: inherit;
-}
-
-.control-group input:focus {
-    outline: none;
-    border-color: #0066cc;
-}
-
-/* Background Color Control */
-.background-color-control {
-    display: flex;
-    align-items: center;
+    flex-wrap: wrap;
     margin-bottom: 10px;
 }
 
-.background-color-control label {
-    font-size: 12px;
-    color: #888;
-    white-space: nowrap;
+.toolbar-group {
+    display: flex;
+    gap: 6px;
+}
+
+.toolbar-spacer {
+    flex: 1;
+}
+
+.background-color-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-dim);
+    cursor: pointer;
 }
 
 #backgroundColorPicker {
-    width: 40px;
-    height: 32px;
-    border: 1px solid #333;
-    border-radius: 4px;
-    background: none;
+    width: 30px;
+    height: 26px;
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-sm);
+    background: var(--input-bg);
     cursor: pointer;
+    padding: 2px;
+}
+
+#backgroundColorPicker::-webkit-color-swatch-wrapper {
     padding: 0;
 }
 
@@ -78,23 +44,82 @@
     border-radius: 3px;
 }
 
-#backgroundColorPicker::-webkit-color-swatch-wrapper {
-    padding: 2px;
-    border-radius: 3px;
+.layers-empty {
+    padding: 22px;
+    text-align: center;
+    color: var(--text-faint);
+    font-size: 12px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
 }
 
-/* Canvas Container */
-#canvasContainer {
-    position: relative;
-    display: inline-block;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-/* Layer Controls at Top */
-.layer-controls-top {
+/* Right panel sections */
+.panel-title-row {
     display: flex;
     align-items: center;
-    gap: 15px;
-    margin-bottom: 15px;
+    justify-content: space-between;
+}
+
+.controls {
+    display: flex;
+    gap: 6px;
+}
+
+.controls .btn {
+    flex: 1;
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    min-height: 16px;
+}
+
+.status-pill:not(:empty)::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.animation-controls {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.export-controls {
+    display: flex;
+    gap: 6px;
+}
+
+.export-controls .btn {
+    flex: 1;
+}
+
+.export-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.export-status {
+    font-size: 11px;
+    color: #ffb84d;
+    min-height: 14px;
+    word-break: break-word;
+}
+
+/* Segmented control for canvas ratio */
+.segmented {
+    display: flex;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 6px;
+    padding: 2px;
+    gap: 2px;
 }

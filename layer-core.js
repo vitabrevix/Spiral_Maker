@@ -12,7 +12,8 @@ function createLayer(code = '', type = 'code') {
         visible: true,
         // Default properties
         hue: 360, saturation: 100, brightness: 100, opacity: 100,
-        maxFrames: 120, fps: 60, speed: 1
+        maxFrames: 120, fps: 60, speed: 1,
+        startFrame: 0, endFrame: -1, fadeFrames: 0   // on the main timeline; -1 = until the end
     };
     
     initializeLayerTypeData(layer);
@@ -91,7 +92,11 @@ function duplicateLayer(layerId) {
         newLayer.maxFrames = layer.maxFrames;
         newLayer.fps = layer.fps;
         newLayer.speed = layer.speed;
+        newLayer.startFrame = layer.startFrame;
+        newLayer.endFrame = layer.endFrame;
+        newLayer.fadeFrames = layer.fadeFrames;
         newLayer.visible = layer.visible;
+        newLayer.name = layer.name ? layer.name + ' copy' : layer.name;
         
         // Copy type-specific properties
         if (layer.type === 'image') {

@@ -1,6 +1,27 @@
 let canvasLayers = [];
 
 // PUBLIC
+
+// Remove every layer (asks first - this cannot be undone)
+function clearAllLayers() {
+    if (!layers.length) return;
+    const n = layers.length;
+    if (!confirm(`Remove all ${n} layer${n === 1 ? '' : 's'}? This can't be undone.`)) return;
+    layers = [];
+    selectedLayerId = null;
+    refreshLayersDOM();
+    stopAnimation();
+    updateLayersEmptyState();
+}
+
+// Friendly message when the layer list is empty
+function updateLayersEmptyState() {
+    const empty = document.getElementById('layersEmpty');
+    if (empty) empty.style.display = layers.length ? 'none' : 'block';
+    const clearBtn = document.getElementById('clearLayersBtn');
+    if (clearBtn) clearBtn.disabled = !layers.length;
+}
+
 function addLayer() {
     const newLayer = createLayer();
     LayerDOM.render(newLayer);
@@ -75,6 +96,14 @@ function updateLayerAnimation(layerId, property, value) {
         const v = parseFloat(value);
         if (!(v > 0)) return;
         layer.speed = v;
+    } else if (property === 'startFrame' || property === 'fadeFrames') {
+        const v = parseInt(value);
+        if (!(v >= 0)) return;
+        layer[property] = v;
+    } else if (property === 'endFrame') {
+        const v = parseInt(value);
+        if (isNaN(v)) return;
+        layer.endFrame = v < 0 ? -1 : v;
     }
     // Timing is derived from the master clock every frame, so just re-sync
     if (autoFrames) applyAutoFrames();
@@ -134,6 +163,8 @@ function toggleLayerVisibility(layerId, isVisible) {
     const layer = layers.find(l => l.id === layerId);
     if (layer) {
         layer.visible = isVisible;
+        LayerDOM.refresh(layerId);
+        updateLayerSelection();
         restartAnimationIfRunning();
     }
 }
@@ -147,7 +178,8 @@ function toggleLayerCollapse(layerId) {
     const toggle = layerDiv.querySelector('.layer-toggle');
     const content = layerDiv.querySelector('.layer-content');
     
-    toggle.textContent = layer.collapsed ? '▼' : '▲';
+    toggle.classList.toggle('is-collapsed', layer.collapsed);
+    toggle.title = layer.collapsed ? 'Expand' : 'Collapse';
     content.className = `layer-content ${layer.collapsed ? 'collapsed' : 'expanded'}`;
 }
 
@@ -338,6 +370,6 @@ function handleDragEnd(e) {
         if (layer) newOrder.push(layer);
     });
     layers = newOrder;
-    
+    refreshLayersDOM();     // update position numbers and up/down buttons
     restartAnimationIfRunning();
 }

@@ -1,77 +1,215 @@
-/* Main Layout and Body Styles */
+/* =====================================================================
+   Base: colours, typography, layout, shared card / button / input styles.
+   The layer cards (layers-style.css) use the same look.
+   ===================================================================== */
+:root {
+    --bg: #161616;
+    --surface: #242424;
+    --surface-2: #202020;
+    --surface-3: #2b2b2b;
+    --border: #383838;
+    --border-strong: #4a4a4a;
+    --input-bg: #1a1a1a;
+    --input-border: #3c3c3c;
+    --text: #e6e6e6;
+    --text-dim: #aaa;
+    --text-faint: #777;
+    --accent: #00cc66;
+    --accent-hover: #00b35a;
+    --danger: #ff6b6b;
+    --radius: 8px;
+    --radius-sm: 5px;
+    --ui-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --code-font: 'Monaco', 'Menlo', 'Consolas', 'Ubuntu Mono', monospace;
+}
+
+* {
+    box-sizing: border-box;
+}
+
 body {
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-family: var(--ui-font);
+    font-size: 13px;
     margin: 0;
     padding: 0;
-    background: #1a1a1a;
-    color: #ffffff;
+    background: var(--bg);
+    color: var(--text);
     min-height: 100vh;
     display: flex;
-    gap: 0px;
 }
 
-h1 {
-    margin: 0 0 20px 0;
-    color: #0066cc;
-    font-size: 24px;
+input, select, button, textarea {
+    font-family: inherit;
 }
 
-.info {
-    background: #2d2d2d;
-    border: 1px solid #555;
-    border-radius: 4px;
-    padding: 15px;
-    margin-bottom: 20px;
-    font-size: 14px;
-    line-height: 1.5;
-}
-
-.info h3 {
-    margin: 0 0 10px 0;
-    color: #00cc66;
-}
-
-/* Editor Panel */
+/* ---------- Layout ---------- */
 .editor-panel {
     flex: 1;
-    margin-right: 370px; /* Make space for fixed preview panel */
-    padding: 10px;
-    transition: margin-right 0.3s ease; /* Smooth transition when collapsing */
+    min-width: 0;
+    margin-right: 360px;           /* room for the fixed preview panel */
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    transition: margin-right 0.3s ease;
 }
 
 .editor-panel.expanded {
-    margin-right: 80px; /* Only leave space for collapse button */
+    margin-right: 64px;
 }
 
-textarea {
-    flex: 1;
-    background: #2d2d2d;
-    color: #ffffff;
-    border: 1px solid #555;
-    padding: 15px;
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 14px;
-    line-height: 1.4;
-    border-radius: 4px;
-    resize: vertical;
-    min-height: 500px;
-    tab-size: 2;
+/* ---------- Cards ---------- */
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
 }
 
-textarea:focus {
-    outline: none;
-    border-color: #0066cc;
+.card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
 }
 
-/* Error Display */
-.error-display {
-    background: #4a1a1a;
-    border: 1px solid #aa3333;
-    border-radius: 4px;
-    padding: 10px;
-    margin-top: 10px;
+.section-title {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+/* ---------- Buttons ---------- */
+button {
+    background: var(--surface-3);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
     font-size: 12px;
-    color: #ff9999;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+button:hover:not(:disabled) {
+    background: #353535;
+    border-color: var(--border-strong);
+}
+
+button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #04140b;
+    font-weight: 600;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+.btn-primary:disabled {
+    background: #2f3a33;
+    border-color: #2f3a33;
+    color: #8a9a90;
+}
+
+.btn-secondary {
+    background: var(--surface-3);
+}
+
+.btn-ghost-danger {
+    background: none;
+    border-color: transparent;
+    color: var(--text-dim);
+}
+
+.btn-ghost-danger:hover:not(:disabled) {
+    background: rgba(230, 70, 70, 0.15);
+    border-color: rgba(230, 70, 70, 0.35);
+    color: var(--danger);
+}
+
+.btn-plus {
+    color: var(--accent);
+    font-weight: 700;
+    margin-right: 2px;
+}
+
+/* ---------- Inputs ---------- */
+input[type="number"], input[type="text"], select {
+    background: var(--input-bg);
+    color: var(--text);
+    border: 1px solid var(--input-border);
+    border-radius: 4px;
+    padding: 5px 7px;
+    font-size: 12px;
+}
+
+input[type="number"]:focus, input[type="text"]:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+input[type="checkbox"] {
+    accent-color: var(--accent);
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 10px;
+    color: var(--text-dim);
+    min-width: 0;
+}
+
+.field input, .field select {
+    width: 100%;
+}
+
+.field-hint {
+    font-size: 11px;
+    color: var(--text-faint);
+}
+
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-dim);
+    cursor: pointer;
+}
+
+/* ---------- Canvas ---------- */
+#canvasContainer {
+    position: relative;
+    align-self: flex-start;
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 0 0 1px var(--border), 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* ---------- Error display ---------- */
+.error-display {
+    background: rgba(170, 40, 40, 0.15);
+    border: 1px solid rgba(220, 80, 80, 0.5);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    font-size: 12px;
+    font-family: var(--code-font);
+    color: #ff9e9e;
     white-space: pre-wrap;
     display: none;
 }

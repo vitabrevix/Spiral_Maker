@@ -6,25 +6,46 @@ function escapeAttr(str) {
     return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
+const LAYER_ICONS = {
+    eye: '<svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+    eyeOff: '<svg viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>',
+    up: '<svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
+    down: '<svg viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>',
+    copy: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>',
+    trash: '<svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>',
+    chevron: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
+    grip: '<svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>',
+};
+
 function generateLayerHTML(layer) {
     return `
         <div class="layer-header">${generateLayerHeader(layer)}</div>
         <div class="layer-content ${layer.collapsed ? 'collapsed' : 'expanded'}">
+            <div class="layer-props">
+                ${generateColorControls(layer)}
+                ${generateAnimationControls(layer)}
+            </div>
             ${generateLayerContent(layer)}
         </div>
     `;
 }
 
+// Display name: what the layer is (preset name / text / image), numbered by position
+function layerTitle(layer) {
+    const index = layers.indexOf(layer) + 1;
+    const label = layer.name || layerLabel(layer) || ({ code: 'Code', image: 'Image', text: 'Text' })[layer.type];
+    return { index, label };
+}
+
 function generateLayerHeader(layer) {
+    const { index, label } = layerTitle(layer);
     return `
-        <span class="drag-handle">⋮⋮</span>
-        <button class="layer-toggle">${layer.collapsed ? '▼' : '▲'}</button>
-        <span class="layer-type-badge">${layer.type.toUpperCase()}</span>
-        <span class="layer-name">${escapeAttr(layerLabel(layer))}</span>
-        ${generateColorControls(layer)}
+        <span class="drag-handle" title="Drag to reorder">${LAYER_ICONS.grip}</span>
+        <button class="layer-toggle ${layer.collapsed ? 'is-collapsed' : ''}" title="${layer.collapsed ? 'Expand' : 'Collapse'}">${LAYER_ICONS.chevron}</button>
+        <span class="layer-type-badge type-${layer.type}">${layer.type}</span>
+        <span class="layer-index">${index}</span>
+        <span class="layer-name" title="${escapeAttr(label)}">${escapeAttr(label)}</span>
         ${generateLayerControls(layer)}
-        ${generateAnimationControls(layer)}
-        <button class="layer-btn" onclick="duplicateLayer(${layer.id})">Duplicate</button>
     `;
 }
 
@@ -56,7 +77,7 @@ const LayerTemplates = {
                                 ${layer.images.length > 1 ? `<span class="remove-tab" onclick="event.stopPropagation(); removeImageFromLayer(${layer.id}, ${index})">&times;</span>` : ''}
                             </button>
                         `).join('')}
-                        <button class="add-item-btn" onclick="addImageToLayer(${layer.id})">+ Add Image</button>
+                        <button class="image-tab add-item-btn" onclick="addImageToLayer(${layer.id})">+ Add Image</button>
                     </div>
                 </div>
                 <div class="image-upload-section">
@@ -167,7 +188,7 @@ const LayerTemplates = {
                                oninput="updateTextProperty(${layer.id}, 'animCycles', this.value)">
                     </div>
                     <div class="control-row">
-                        <label title="Frame the text appears on">Show from frame:</label>
+                        <label title="Frame of this layer's loop where this text appears">This text from frame:</label>
                         <input type="number" value="${selectedText.startFrame ?? 0}" min="0"
                                oninput="updateTextProperty(${layer.id}, 'startFrame', this.value)">
                         <label title="Frame the text disappears on (-1 = until the end of the loop)">to:</label>
@@ -209,31 +230,21 @@ function generateLayerContent(layer) {
 }
 
 function generateColorControls(layer) {
+    const slider = (key, cls, label, title, min, max) => `
+        <div class="color-control" title="${title}">
+            <label>${label}</label>
+            <input type="range" class="color-slider ${cls}-slider" min="${min}" max="${max}" value="${layer[key]}"
+                   oninput="updateLayerColor(${layer.id}, '${key}', this.value)">
+            <span class="color-value">${layer[key]}</span>
+        </div>`;
     return `
-        <div class="layer-color-controls">
-            <div class="color-control">
-                <label>H:</label>
-                <input type="range" class="color-slider hue-slider" min="0" max="360" value="${layer.hue}" 
-                       oninput="updateLayerColor(${layer.id}, 'hue', this.value)">
-                <span class="color-value">${layer.hue}</span>
-            </div>
-            <div class="color-control">
-                <label>S:</label>
-                <input type="range" class="color-slider sat-slider" min="1" max="100" value="${layer.saturation}" 
-                       oninput="updateLayerColor(${layer.id}, 'saturation', this.value)">
-                <span class="color-value">${layer.saturation}</span>
-            </div>
-            <div class="color-control">
-                <label>B:</label>
-                <input type="range" class="color-slider bright-slider" min="1" max="100" value="${layer.brightness}" 
-                       oninput="updateLayerColor(${layer.id}, 'brightness', this.value)">
-                <span class="color-value">${layer.brightness}</span>
-            </div>
-            <div class="color-control">
-                <label>O:</label>
-                <input type="range" class="color-slider opacity-slider" min="1" max="100" value="${layer.opacity}" 
-                       oninput="updateLayerColor(${layer.id}, 'opacity', this.value)">
-                <span class="color-value">${layer.opacity}</span>
+        <div class="prop-group">
+            <div class="prop-title">Adjust</div>
+            <div class="layer-color-controls">
+                ${slider('hue', 'hue', 'Hue', 'Hue shift (degrees)', 0, 360)}
+                ${slider('saturation', 'sat', 'Sat', 'Saturation (%)', 1, 100)}
+                ${slider('brightness', 'bright', 'Bright', 'Brightness (%)', 1, 100)}
+                ${slider('opacity', 'opacity', 'Opacity', 'Opacity (%)', 1, 100)}
             </div>
         </div>
     `;
@@ -243,46 +254,47 @@ function generateLayerControls(layer) {
     const layerIndex = layers.indexOf(layer);
     return `
         <div class="layer-controls">
-            <label class="visibility-checkbox">
-                <input type="checkbox" ${layer.visible ? 'checked' : ''} onchange="toggleLayerVisibility(${layer.id}, this.checked)">
-                <span class="checkbox-visual"></span>
-            </label>
-            <button class="layer-btn" onclick="moveLayerUp(${layer.id})" ${layerIndex === 0 ? 'disabled' : ''}>↑</button>
-            <button class="layer-btn" onclick="moveLayerDown(${layer.id})" ${layerIndex === layers.length - 1 ? 'disabled' : ''}>↓</button>
-            <button class="layer-btn" onclick="deleteLayer(${layer.id})">×</button>
+            <button class="icon-btn ${layer.visible ? '' : 'is-off'}" title="${layer.visible ? 'Hide layer' : 'Show layer'}"
+                    onclick="toggleLayerVisibility(${layer.id}, ${!layer.visible})">${layer.visible ? LAYER_ICONS.eye : LAYER_ICONS.eyeOff}</button>
+            <button class="icon-btn" title="Move up (further back)" onclick="moveLayerUp(${layer.id})" ${layerIndex === 0 ? 'disabled' : ''}>${LAYER_ICONS.up}</button>
+            <button class="icon-btn" title="Move down (further front)" onclick="moveLayerDown(${layer.id})" ${layerIndex === layers.length - 1 ? 'disabled' : ''}>${LAYER_ICONS.down}</button>
+            <button class="icon-btn" title="Duplicate layer" onclick="duplicateLayer(${layer.id})">${LAYER_ICONS.copy}</button>
+            <button class="icon-btn danger" title="Delete layer" onclick="deleteLayer(${layer.id})">${LAYER_ICONS.trash}</button>
         </div>
     `;
 }
 
 function generateAnimationControls(layer) {
+    if (layer.startFrame === undefined) layer.startFrame = 0;
+    if (layer.endFrame === undefined) layer.endFrame = -1;
+    if (layer.fadeFrames === undefined) layer.fadeFrames = 0;
+    const field = (prop, label, title, attrs) => `
+        <label class="animation-control" title="${title}">
+            <span>${label}</span>
+            <input type="number" class="animation-input" ${attrs} value="${layer[prop]}"
+                   oninput="updateLayerAnimation(${layer.id}, '${prop}', this.value)">
+        </label>`;
     let controls = '';
-    
-    // Frames and FPS for animated layers (code and text)
     if (layer.type === 'code' || layer.type === 'text') {
-        controls += `
-            <div class="animation-control">
-                <label>Frames:</label>
-                <input type="number" class="animation-input" min="1" max="9999" value="${layer.maxFrames}" 
-                       oninput="updateLayerAnimation(${layer.id}, 'maxFrames', this.value)">
-            </div>
-            <div class="animation-control">
-                <label>FPS:</label>
-                <input type="number" class="animation-input" min="1" max="240" value="${layer.fps}" 
-                       oninput="updateLayerAnimation(${layer.id}, 'fps', this.value)">
-            </div>`;
+        controls += field('maxFrames', 'Frames', 'Length of this layer\'s loop, in frames', 'min="1" max="9999"');
+        controls += field('fps', 'FPS', 'Frames per second for this layer', 'min="1" max="240"');
     }
-    
-    // Always show Speed for all layer types
-    controls += `
-        <div class="animation-control">
-            <label>Speed:</label>
-            <input type="number" class="animation-input" min="0.1" max="10" step="0.1" value="${layer.speed}" 
-                   oninput="updateLayerAnimation(${layer.id}, 'speed', this.value)">
-        </div>`;
-    
-    return `<div class="layer-animation-controls">${controls}</div>`;
+    controls += field('speed', 'Speed', 'Playback speed multiplier', 'min="0.1" max="10" step="0.1"');
+    const showControls =
+        field('startFrame', 'Show from', 'Frame of the main timeline where this layer appears', 'min="0"') +
+        field('endFrame', 'to', 'Frame where this layer disappears (-1 = until the end of the loop)', 'min="-1"') +
+        field('fadeFrames', 'Fade', 'Frames spent fading in and out (0 = appear instantly)', 'min="0"');
+    return `
+        <div class="prop-group">
+            <div class="prop-title">Timing</div>
+            <div class="layer-animation-controls">${controls}</div>
+        </div>
+        <div class="prop-group">
+            <div class="prop-title">Visible</div>
+            <div class="layer-animation-controls">${showControls}</div>
+        </div>
+    `;
 }
-
 
 // Short description shown in the layer header, handy when the layer is collapsed
 function layerLabel(layer) {

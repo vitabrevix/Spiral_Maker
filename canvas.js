@@ -294,9 +294,24 @@ function layerFilter(layer) {
     return parts.length ? parts.join(' ') : 'none';
 }
 
+// How visible a layer is (0..1) at a frame of the main timeline, from its
+// "show from / to" frames and fade length
+function layerVisibilityAt(layer, globalFrame) {
+    const start = Math.max(0, layer.startFrame || 0);
+    const hasEnd = layer.endFrame !== undefined && layer.endFrame !== null && layer.endFrame >= 0;
+    const end = hasEnd ? layer.endFrame : framesPerLoop - 1;
+    if (globalFrame < start || globalFrame > end) return 0;
+    const fade = Math.max(0, layer.fadeFrames || 0);
+    let a = 1;
+    if (fade > 0 && start > 0) a = Math.min(a, (globalFrame - start) / fade);   // fade in
+    if (fade > 0 && hasEnd) a = Math.min(a, (end - globalFrame) / fade);        // fade out
+    return Math.max(0, Math.min(1, a));
+}
+
 function applyLayerStyle(renderer) {
+    const vis = renderer.visibility === undefined ? 1 : renderer.visibility;
     renderer.canvas.style.filter = layerFilter(renderer.layer);
-    renderer.canvas.style.opacity = renderer.layer.opacity / 100;
+    renderer.canvas.style.opacity = renderer.layer.opacity / 100 * vis;
 }
 
 function refreshLayerStyles() {
@@ -312,7 +327,9 @@ function compositeFrame(ctx, w = canvasWidth, h = canvasHeight) {
     ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, w, h);
     canvasLayers.forEach(r => {
-        ctx.globalAlpha = r.layer.opacity / 100;
+        const vis = r.visibility === undefined ? 1 : r.visibility;
+        if (vis <= 0) return;
+        ctx.globalAlpha = r.layer.opacity / 100 * vis;
         ctx.filter = layerFilter(r.layer);
         ctx.drawImage(r.canvas, 0, 0, w, h);
     });
@@ -442,7 +459,14 @@ function restartAnimationIfRunning() {
 // Master clock
 // ---------------------------------------------------------------------
 function renderLayersAt(globalFrame, force = false) {
-    canvasLayers.forEach(r => r.render(globalFrame, force));
+    canvasLayers.forEach(r => {
+        const vis = layerVisibilityAt(r.layer, globalFrame);
+        if (vis !== r.visibility) {
+            r.visibility = vis;
+            applyLayerStyle(r);
+        }
+        if (vis > 0) r.render(globalFrame, force);   // skip drawing hidden layers
+    });
 }
 
 function showFrame(frame, force = false) {

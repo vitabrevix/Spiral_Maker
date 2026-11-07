@@ -21,8 +21,13 @@ class LayerEventManager {
             e.stopPropagation();
             toggleLayerCollapse(layer.id);
         });
+
+        header.addEventListener('dblclick', (e) => {
+            if (e.target.closest('.layer-controls') || e.target.closest('.layer-toggle')) return;
+            toggleLayerCollapse(layer.id);
+        });
     }
-    
+
     static attachCodeEvents(layerDiv, layer) {
         const textarea = layerDiv.querySelector('.layer-textarea');
         
