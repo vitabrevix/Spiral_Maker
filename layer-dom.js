@@ -78,3 +78,11 @@ function updateLayerSelection() {
         }
     });
 }
+
+// Re-render every layer panel (keeps order in sync with the layers array)
+function refreshLayersDOM() {
+    const container = document.getElementById('layersContainer');
+    container.innerHTML = '';
+    layers.forEach(layer => LayerDOM.render(layer));
+    updateLayerSelection();
+}

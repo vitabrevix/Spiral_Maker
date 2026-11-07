@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spiral Editor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
-	<script src="https://cdn.jsdelivr.net/npm/p5.capture@1.6.0/dist/p5.capture.umd.min.js"></script>
     <link rel="stylesheet" href="main-style.css">
 	<link rel="stylesheet" href="controls-style.css">
 	<link rel="stylesheet" href="buttons-style.css">
@@ -23,48 +22,46 @@
             <div class="preset-category">
                 <div class="category-title">Spirals</div>
                 <button class="main-preset-btn" onclick="loadPreset('ying_yang_spiral')">Ying Yang</button>
-                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this, 'spirals')">
+                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
                     <option value="">More spirals...</option>
                     <option value="dot_spiral">Dot Spiral</option>
                     <option value="tunnel">Tunnel</option>
+                    <option value="tunnel_2">Square Tunnel</option>
                     <option value="fibonacci_spiral">Fibonacci Spiral</option>
                     <option value="galaxy_spiral">Galaxy Spiral</option>
                     <option value="vortex">Vortex</option>
+                    <option value="circling_spiral">Circling Spiral</option>
                 </select>
             </div>
-            
             <div class="preset-category">
                 <div class="category-title">Circles</div>
                 <button class="main-preset-btn" onclick="loadPreset('pulsing')">Pulsing</button>
-                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this, 'circles')">
+                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
                     <option value="">More circles...</option>
                     <option value="kaleidoscope">Kaleidoscope</option>
                     <option value="orbit_dance">Orbit Dance</option>
                     <option value="ripple_effect">Ripple Effect</option>
-                    <option value="kaleidoscope">Kaleidoscope</option>
                     <option value="flower_circles">Flower Circles</option>
+                    <option value="center_pulse">Center Pulse</option>
                 </select>
             </div>
-            
             <div class="preset-category">
                 <div class="category-title">Objects</div>
                 <button class="main-preset-btn" onclick="loadPreset('stopwatch')">Stopwatch</button>
-                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this, 'objects')">
+                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
                     <option value="">More objects...</option>
                     <option value="pendulum">Pendulum</option>
-                    <option value="mandala">Mandala</option>
-                    <option value="particules">Particles</option>
                     <option value="coin">Coin</option>
                     <option value="pendant">Crystal Pendant</option>
                     <option value="metronome">Metronome</option>
-                    <option value="circling_spiral">Circling Spiral</option>
+                    <option value="mandala">Mandala</option>
+                    <option value="particules">Particles</option>
                 </select>
             </div>
-            
             <div class="preset-category">
                 <div class="category-title">Chill</div>
                 <button class="main-preset-btn" onclick="loadPreset('waves')">Wave Pattern</button>
-                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this, 'chill')">
+                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
                     <option value="">More chill...</option>
                     <option value="night_sky">Night Sky</option>
                     <option value="aurora">Aurora</option>
@@ -73,17 +70,15 @@
                     <option value="wagon_wave">Wagon Wave</option>
                 </select>
             </div>
-            
             <div class="preset-category">
                 <div class="category-title">Others</div>
                 <button class="main-preset-btn" onclick="loadPreset('petals')">Petals</button>
-                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this, 'others')">
-                    <option value="">More effects...</option>
+                <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
+                    <option value="">More others...</option>
                     <option value="text_example">Text Example</option>
-                    <option value="center_pulse">Center Pulse</option>
                     <option value="bg_gradient">BG Gradient</option>
                     <option value="vignette">Vignette</option>
-					<option value="static">Screen Static</option>
+                    <option value="static">Screen Static</option>
                 </select>
             </div>
         </div>
@@ -121,16 +116,26 @@
             </div>
             
             <div class="export-controls">
-				<button class="export-btn" id="exportMP4Btn" onclick="exportAnimation('mp4')" disabled>MP4</button>
-				<button class="export-btn" id="exportGifBtn" onclick="exportAnimation('gif')" disabled>GIF</button>
-				<button class="export-btn" id="exportWebPBtn" onclick="exportAnimation('webp')" disabled>WebP</button>
+                <button class="export-btn" id="exportMP4Btn" onclick="exportAnimation('mp4')" disabled>MP4</button>
+                <button class="export-btn" id="exportGifBtn" onclick="exportAnimation('gif')" disabled>GIF</button>
+                <select id="exportQuality" class="export-select" title="Export quality (affects file size)">
+                    <option value="high">High quality</option>
+                    <option value="medium" selected>Balanced</option>
+                    <option value="small">Smallest file</option>
+                </select>
+                <select id="exportScale" class="export-select" title="Export resolution">
+                    <option value="1" selected>100% size</option>
+                    <option value="0.75">75% size</option>
+                    <option value="0.5">50% size</option>
+                </select>
                 <span id="exportStatus" style="margin-left: 10px; color: #ffaa00; font-size: 12px;"></span>
-			</div>
+            </div>
             
             <div class="animation-controls">
                 <div class="control-group">
                     <label for="framesInput">Frames:</label>
-                    <input type="number" id="framesInput" value="120" min="10" max="1000" onchange="updateAnimationSettings()">
+                    <input type="number" id="framesInput" value="120" min="1" max="3600" onchange="updateAnimationSettings('frames')">
+                    <label class="auto-frames" title="Automatically set the loop length so every layer loops seamlessly"><input type="checkbox" id="autoFramesInput" checked onchange="toggleAutoFrames(this.checked)"> Auto</label>
                 </div>
                 <div class="control-group">
                     <label for="fpsInput">FPS:</label>
@@ -159,9 +164,9 @@
                 </div>
                 <div class="size-controls">
                     <div style="margin-bottom: 8px;">
-                        <button class="size-btn active" onclick="setCanvasRatio('1:1')">Square (1:1)</button>
-                        <button class="size-btn" onclick="setCanvasRatio('4:3')">Desktop (4:3)</button>
-                        <button class="size-btn" onclick="setCanvasRatio('3:4')">Phone (3:4)</button>
+                        <button class="size-btn active" onclick="setCanvasRatio('1:1', this)">Square (1:1)</button>
+                        <button class="size-btn" onclick="setCanvasRatio('4:3', this)">Desktop (4:3)</button>
+                        <button class="size-btn" onclick="setCanvasRatio('3:4', this)">Phone (3:4)</button>
                     </div>
                     <div class="size-slider-container">
                         <input type="range" class="size-slider" id="sizeSlider" min="300" max="1000" value="300" oninput="updateCanvasSize(this.value)">
@@ -179,7 +184,6 @@
     <script src="animation-manager.js"></script>
     <script src="layer-core.js"></script>
     <script src="layer-template.js"></script>
-    <script src="layer-updater.js"></script>
     <script src="layer-events.js"></script>
     <script src="layer-dom.js"></script>	
 	<script src="layers.js"></script>

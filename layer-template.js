@@ -76,8 +76,8 @@ const LayerTemplates = {
                                oninput="updateImageProperty(${layer.id}, 'imageHeight', this.value)">
                     </div>
                     <div class="control-row">
-                        <label>Rotation:</label>
-                        <input type="number" value="${selectedImage.imageRotation}" step="0.1" 
+                        <label>Rotation (°):</label>
+                        <input type="number" value="${selectedImage.imageRotation}" step="1" 
                                oninput="updateImageProperty(${layer.id}, 'imageRotation', this.value)">
                     </div>
                 </div>
@@ -121,16 +121,16 @@ const LayerTemplates = {
                         </select>
                     </div>
                     <div class="control-row">
-                        <label>X:</label>
+                        <label>X (%):</label>
                         <input type="number" value="${selectedText.textX}" 
                                oninput="updateTextProperty(${layer.id}, 'textX', this.value)">
-                        <label>Y:</label>
+                        <label>Y (%):</label>
                         <input type="number" value="${selectedText.textY}" 
                                oninput="updateTextProperty(${layer.id}, 'textY', this.value)">
                     </div>
                     <div class="control-row">
-                        <label>Rotation:</label>
-                        <input type="number" value="${selectedText.textRotation}" step="0.1" 
+                        <label>Rotation (°):</label>
+                        <input type="number" value="${selectedText.textRotation}" step="1" 
                                oninput="updateTextProperty(${layer.id}, 'textRotation', this.value)">
                         <label>Align:</label>
                         <select onchange="updateTextProperty(${layer.id}, 'textAlign', this.value)">

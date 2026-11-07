@@ -34,12 +34,7 @@ function updateLayerCodeWithHighlight(layerId, code) {
         }
         
         // Existing animation restart logic
-        if (isRunning) {
-            clearTimeout(window.layerUpdateTimeout);
-            window.layerUpdateTimeout = setTimeout(() => {
-                restartAnimationIfRunning();
-            }, 1000);
-        }
+        scheduleLayerRestart(800);
     }
 }
 
@@ -47,79 +42,61 @@ function updateLayerCode(layerId, code) {
     const layer = layers.find(l => l.id === layerId);
     if (layer) {
         layer.code = code;
-        if (isRunning) {
-            clearTimeout(window.layerUpdateTimeout);
-            window.layerUpdateTimeout = setTimeout(() => {
-                restartAnimationIfRunning();
-            }, 1000);
-        }
+        scheduleLayerRestart(800);
     }
 }
 
 function updateLayerColor(layerId, property, value) {
     const layer = layers.find(l => l.id === layerId);
-    if (layer) {
-        layer[property] = parseInt(value);
-        
-        // Update the display value
-        const layerDiv = document.querySelector(`[data-layer-id="${layerId}"]`);
-        const valueSpan = layerDiv.querySelector(`.color-control:has(.${property === 'hue' ? 'hue' : property === 'saturation' ? 'sat' : property === 'brightness' ? 'bright' : 'opacity'}-slider) .color-value`);
-        if (valueSpan) {
-            valueSpan.textContent = value;
-        }
-        
-        // Restart animation if running to apply changes
-        if (isRunning) {
-            clearTimeout(window.layerColorUpdateTimeout);
-            window.layerColorUpdateTimeout = setTimeout(() => {
-                restartAnimationIfRunning();
-            }, 300);
-        }
-    }
+    if (!layer) return;
+    layer[property] = parseInt(value);
+
+    const layerDiv = document.querySelector(`[data-layer-id="${layerId}"]`);
+    const cls = { hue: 'hue', saturation: 'sat', brightness: 'bright', opacity: 'opacity' }[property];
+    const valueSpan = layerDiv && layerDiv.querySelector(`.${cls}-slider + .color-value`);
+    if (valueSpan) valueSpan.textContent = value;
+
+    // Colour sliders are applied as a live filter - no restart needed
+    refreshLayerStyles();
 }
 
 function updateLayerAnimation(layerId, property, value) {
     const layer = layers.find(l => l.id === layerId);
-    if (layer) {
-        if (property === 'maxFrames') {
-            layer.maxFrames = Math.max(1, parseInt(value));
-        } else if (property === 'fps') {
-            layer.fps = Math.max(1, Math.min(parseInt(value), animationFPS));
-        } else if (property === 'speed') {
-            layer.speed = Math.max(0.1, parseFloat(value));
-        }
-        
-        // Update the input field to reflect the actual value (in case it was limited)
-        const layerDiv = document.querySelector(`[data-layer-id="${layerId}"]`);
-        const input = layerDiv.querySelector(`.animation-control:has(input[oninput*="${property}"]) input`);
-        if (input) {
-            input.value = layer[property];
-        }
-        
-        // Restart animation if running to apply changes
-        if (isRunning) {
-            clearTimeout(window.layerAnimationUpdateTimeout);
-            window.layerAnimationUpdateTimeout = setTimeout(() => {
-                restartAnimationIfRunning();
-            }, 300);
-        }
+    if (!layer) return;
+    if (property === 'maxFrames') {
+        const v = parseInt(value);
+        if (!(v >= 1)) return;
+        layer.maxFrames = v;
+    } else if (property === 'fps') {
+        const v = parseInt(value);
+        if (!(v >= 1)) return;
+        layer.fps = Math.min(v, animationFPS);
+    } else if (property === 'speed') {
+        const v = parseFloat(value);
+        if (!(v > 0)) return;
+        layer.speed = v;
     }
+    // Timing is derived from the master clock every frame, so just re-sync
+    if (autoFrames) applyAutoFrames();
+    if (isRunning) {
+        showFrame(virtualFrameCount % framesPerLoop, true);
+        resyncClock();
+    }
+}
+
+function scheduleLayerRestart(delay = 300) {
+    clearTimeout(window.__layerRestartTimer);
+    window.__layerRestartTimer = setTimeout(restartAnimationIfRunning, delay);
 }
 
 function updateImageProperty(layerId, property, value) {
     const layer = layers.find(l => l.id === layerId);
     if (layer && layer.type === 'image' && layer.images.length > 0) {
         const selectedImage = layer.images[layer.selectedImageIndex];
-        if (selectedImage) {
-            selectedImage[property] = parseFloat(value);
-            
-            // Restart animation if running to apply changes
-            if (isRunning) {
-                clearTimeout(window.layerImageUpdateTimeout);
-                window.layerImageUpdateTimeout = setTimeout(() => {
-                    restartAnimationIfRunning();
-                }, 300);
-            }
+        const v = parseFloat(value);
+        if (selectedImage && !isNaN(v)) {
+            selectedImage[property] = v;
+            scheduleLayerRestart();
         }
     }
 }
@@ -128,21 +105,15 @@ function updateTextProperty(layerId, property, value) {
     const layer = layers.find(l => l.id === layerId);
     if (layer && layer.type === 'text' && layer.texts.length > 0) {
         const selectedText = layer.texts[layer.selectedTextIndex];
-        if (selectedText) {
-            if (property === 'fontSize' || property === 'textX' || property === 'textY' || property === 'textRotation') {
-                selectedText[property] = parseFloat(value);
-            } else {
-                selectedText[property] = value;
-            }
-            
-            // Restart animation if running to apply changes
-            if (isRunning) {
-                clearTimeout(window.layerTextUpdateTimeout);
-                window.layerTextUpdateTimeout = setTimeout(() => {
-                    restartAnimationIfRunning();
-                }, 300);
-            }
+        if (!selectedText) return;
+        if (['fontSize', 'textX', 'textY', 'textRotation'].includes(property)) {
+            const v = parseFloat(value);
+            if (isNaN(v)) return;
+            selectedText[property] = v;
+        } else {
+            selectedText[property] = value;
         }
+        scheduleLayerRestart();
     }
 }
 
@@ -150,12 +121,7 @@ function toggleLayerVisibility(layerId, isVisible) {
     const layer = layers.find(l => l.id === layerId);
     if (layer) {
         layer.visible = isVisible;
-        
-        // Restart animation if running to apply visibility changes
-        if (isRunning) {
-            restartAnimationIfRunning();
-            setTimeout(runAnimation, 100);
-        }
+        restartAnimationIfRunning();
     }
 }
 
@@ -267,11 +233,7 @@ function handleImageUpload(layerId, file) {
                     // Update UI - refresh the specific layer
                     refreshLayerDOM(layerId);
                     
-                    // Restart animation if running
-                    if (isRunning) {
-                        restartAnimationIfRunning();
-                        setTimeout(runAnimation, 100);
-                    }
+                    restartAnimationIfRunning();
                 };
                 tempImg.src = e.target.result;
             }
@@ -282,46 +244,8 @@ function handleImageUpload(layerId, file) {
 
 // UTILITY
 function refreshLayerDOM(layerId) {
-    const layer = layers.find(l => l.id === layerId);
-    if (!layer) return;
-    
-    const existingElement = document.querySelector(`[data-layer-id="${layerId}"]`);
-    const container = document.getElementById('layersContainer');
-    const layerIndex = layers.findIndex(l => l.id === layerId);
-    
-    if (existingElement) existingElement.remove();
-    
-    const layerDiv = document.createElement('div');
-    layerDiv.className = 'layer-item';
-    layerDiv.setAttribute('data-layer-id', layer.id);
-    layerDiv.draggable = true;
-    layerDiv.innerHTML = generateLayerHTML(layer);
-    
-    // Insert at correct position
-    const allLayerElements = Array.from(container.children);
-    if (layerIndex < allLayerElements.length) {
-        container.insertBefore(layerDiv, allLayerElements[layerIndex]);
-    } else {
-        container.appendChild(layerDiv);
-    }
-    
-    LayerEventManager.attachLayerEventListeners(layerDiv, layer);
-    
-    if (layer.type === 'code') {
-        setTimeout(() => initializeSyntaxHighlighting(layer.id), 0);
-    }
-    
+    LayerDOM.refresh(layerId);
     updateLayerSelection();
-}
-
-
-function restartAnimationIfRunning() {
-    if (typeof isRunning !== 'undefined' && isRunning) {
-        if (typeof stopAnimation === 'function' && typeof runAnimation === 'function') {
-            stopAnimation();
-            setTimeout(runAnimation, 100);
-        }
-    }
 }
 
 // SYNTAX HIGHLIGHT
@@ -410,8 +334,5 @@ function handleDragEnd(e) {
     });
     layers = newOrder;
     
-    if (isRunning) {
-        restartAnimationIfRunning();
-        setTimeout(runAnimation, 100);
-    }
+    restartAnimationIfRunning();
 }

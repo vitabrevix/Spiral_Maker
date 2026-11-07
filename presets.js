@@ -1,1851 +1,1408 @@
-// Function to handle dropdown preset selection
-function loadPresetFromDropdown(selectElement, category) {
-	const presetName = selectElement.value;
-	if (presetName) {
-		loadPreset(presetName);
-		// Reset dropdown to default option
-		selectElement.selectedIndex = 0;
-	}
+// =====================================================================
+// Presets
+//
+// Every preset is written against the layer scope provided by canvas.js:
+//   frameCount  - this layer's frame, 0 .. maxFrames-1 (wraps every loop)
+//   progress    - frameCount / maxFrames, 0 .. 1
+//   width/height, drawingContext and the whole p5 API
+// Colour mode is HSB with ranges (360, 100, 100, 100) - alpha is 0..100.
+//
+// Anything that moves is a function of `progress` with whole-number
+// frequencies, so the last frame flows straight into the first one and
+// exported GIF / MP4 loops are seamless. random() is seeded per layer
+// (and per frame inside draw), so renders are reproducible.
+// =====================================================================
+
+function loadPresetFromDropdown(selectElement) {
+    const presetName = selectElement.value;
+    if (presetName) {
+        loadPreset(presetName);
+        selectElement.selectedIndex = 0;
+    }
 }
 
-// Main preset codes
-// Modified presets.js - Only the parts that need to change
+function preset(code, opts = {}) {
+    return Object.assign({
+        code: code.trim() + '\n',
+        hue: 360, saturation: 100, brightness: 100, opacity: 100,
+        maxFrames: 360, fps: 60, speed: 1
+    }, opts);
+}
 
-// Updated presets object with layer properties
 const presets = {
-    dot_spiral: {
-        code: `function draw() {
-		translate(width/2, height/2);
-	  
-	  let time = (frameCount / 20) * TWO_PI;
-	  
-	  for (let i = 0; i < 400; i++) {
-		let angle = i * 0.1 + time;
-		let radius = i * 1;
-		
-		let x = cos(angle) * radius/2;
-		let y = sin(angle) * radius/2;
-		
-		let hue = (i * 2 + frameCount * 3) % 360;
-		fill(hue, saturation, brightness, 0.3);
-		noStroke();
-		
-		ellipse(x, y, 10, 10);
-	  }		
-}`,
-        hue: 360,
-        saturation: 100,
-        brightness: 100,
-        opacity: 100,
-        maxFrames: 120,
-        fps: 60,
-        speed: 1
-    },
 
-    pulsing: {
-        code: `let zoom = 1;
-let loopLength = 180;
+// --------------------------------------------------------------------- Spirals
+ying_yang_spiral: preset(`
+// Two-tone hypnotic spiral that turns seamlessly.
+let arms = 2;           // arms of each colour
+let bandWidth = 18;     // thickness of every band (px at 300px canvas)
+let turnsPerLoop = 1;   // full rotations per loop (whole number = seamless)
+let lightColor = [0, 0, 100];
+let darkColor = [0, 0, 0];
+let drawDarkBands = true;
 
 function draw() {
-	  translate(width/2, height/2);
-    scale(zoom)
-	  
-	  let time = (frameCount / loopLength) * TWO_PI;
-	  
-	  for (let i = 0; i < 50; i++) {
-		let size = 300 - i * 6 + sin(time + i * 0.2) * 20;
-		let hue = (i * 10 + (frameCount * 2)) % 360;
-		
-		stroke(hue, saturation, brightness, opacity);
-		strokeWeight(2);
-		noFill();
-		
-		ellipse(0, 0, size*2, size*2);
-	  }
-}`,
-        hue: 360,
-        saturation: 100,
-        brightness: 100,
-        opacity: 100,
-        maxFrames: 360,
-        fps: 60,
-        speed: 1
-    },
-
-    mandala: {
-        code: `function draw() {
-	  translate(width/2, height/2);
-	  
-	  let time = frameCount * 0.01;
-	  
-	  for (let layer = 0; layer < 5; layer++) {
-		let petals = 6 + layer * 2;
-		
-		for (let i = 0; i < petals; i++) {
-		  push();
-		  rotate(TWO_PI * i / petals + time * (layer + 1));
-		  
-		  let hue = (layer * 60 + frameCount) % 360;
-		  fill(hue, 60, 90, 0.7);
-		  stroke(hue, saturation, brightness, opacity);
-		  strokeWeight(1);
-		  
-		  let size = 30 + layer * 15;
-		  ellipse(40 + layer * 10, 0, size, size * 0.6);
-		  pop();
-		}
-	  }
-}`,
-        hue: 360,
-        saturation: 100,
-        brightness: 100,
-        opacity: 100,
-        maxFrames: 300,
-        fps: 60,
-        speed: 0.8
-    },
-	
-	waves: {
-		code: `function draw() {
-	  let time = frameCount * 0.01;
-	  strokeWeight(10);
-	  noFill();
-
-	  for (let y = 0; y < height; y += 8) {
-		stroke(180 + 60 * sin(time + y * 0.01), saturation, brightness, opacity);
-		
-		beginShape();
-		
-		for (let x = 0; x <= width; x += 5) {
-		  let wave = sin(x * 0.02 + time + y * 0.003) * 20;
-		  vertex(x, y + wave);
-		}
-		endShape();
-	  }
-}`,
-		hue: 360,
-		saturation: 100,
-		brightness: 100,
-		opacity: 100,
-		maxFrames: 360,
-		fps: 60,
-		speed: 0.5
-	},
-
-    tunnel_2: {
-		code: `function draw() {
-	  translate(width/2, height/2);
-	  
-	  let time = frameCount * 0.03;
-	  
-	  for (let i = 0; i < 100; i++) {
-		let size = i * 8;
-		let hue = (i * 10 + frameCount * 2) % 360;
-		
-		push();
-		rotate(time + i * 0.1);
-		
-		stroke(hue, saturation, brightness, opacity);
-		strokeWeight(2);
-		noFill();
-		
-		rect(-size/2, -size/2, size, size);
-		pop();
-	  }
-}`,
-        hue: 360,
-        saturation: 100,
-        brightness: 100,
-        opacity: 100,
-        maxFrames: 200,
-        fps: 60,
-        speed: 1.3
-    },
-
-    text_example: {
-        code: `let textStartFrame = 120;  // Appears after 2 seconds
-let textEndFrame = 300;    // Disappears after 5 seconds
-
-function draw() {
-    fill(255, 255, 255, 200);
-    textAlign(CENTER, CENTER);
-    textSize(30);
-    textFont('Arial Black');
-    text("BIG TEXT", width/2, 100);
-    
-    let wave = sin(frameCount * 0.05) * 20;
-    fill(100, 200, 255, 180);
-    textSize(24);
-    textFont('Arial');
-    text("Floating on Animation", width/2, 150 + wave);
-    
-    // Dynamic counter
-    fill(255, 150, 100);
-    textAlign(LEFT, TOP);
-    textSize(16);
-    text("Frame: " + frameCount, 20, 20);
-    
-    // Animated rotating text
-    push();
-    translate(width - 100, height - 100);
-    rotate(frameCount * 0.02);
-    fill(255, 100, 150, 180);
-    textAlign(CENTER, CENTER);
-    textSize(12);
-    text("SPINNING", 0, 0);
-    pop();
-    
-    // Immediate appear/disappear text
-    if (frameCount >= textStartFrame && frameCount <= textEndFrame) {
-        fill(0, 0, 100); // HSB: hue=0, sat=0, brightness=100 (white)
-        textAlign(CENTER, CENTER);
-        textSize(20);
-        text("Appear, Disappear", width/2, height/2);
-    }
-    
-    // Fade in/out text
-    if (frameCount >= textStartFrame && frameCount <= textEndFrame) {
-        let alpha = 100; // HSB alpha ranges 0-100
-        let fadeFrames = 30;
-        
-        // Fade in
-        if (frameCount < textStartFrame + fadeFrames) {
-            alpha = map(frameCount, textStartFrame, textStartFrame + fadeFrames, 0, 100);
-        }
-        
-        // Fade out  
-        if (frameCount > textEndFrame - fadeFrames) {
-            alpha = map(frameCount, textEndFrame - fadeFrames, textEndFrame, 100, 0);
-        }
-        
-        fill(300, 80, 90, alpha); // HSB: purple hue, with alpha
-        textSize(18);
-        text("Fade in, Fade out", width/2, 5*height/6);
-    }
-}`,
-        hue: 360,
-        saturation: 100,
-        brightness: 100,
-        opacity: 100,
-        maxFrames: 360,
-        fps: 60,
-        speed: 1
-    },
-
-    pendulum: {
-        code:`let length = 250;
-let amplitude = 0;
-let size = 100;
-	
-function setup() {
-	amplitude = PI / 5;
-}
-	
-function draw() {
-		// Pivot point
-		let pivotX = width / 2;
-		let pivotY = -10;
-		
-		// Full cycle
-		let time = (frameCount / 120) * TWO_PI;
-		let angle = amplitude * sin(time);
-		
-		// Calculate pendulum position
-		let bobX = pivotX + length * sin(angle);
-		let bobY = pivotY + length * cos(angle);
-		
-		// Draw the pendulum
-		stroke(0, 0, 2*brightness/3);
-		strokeWeight(2);
-		line(pivotX, pivotY, bobX, bobY); // Rod
-		
-		// Draw bob
-		fill(220, saturation, brightness/2);
-		circle(bobX, bobY, size);
-}`,
-        hue: 360,
-        saturation: 100,
-        brightness: 100,
-        opacity: 100,
-        maxFrames: 360,
-        fps: 60,
-        speed: 1
-    },
-	
-	stopwatch: {
-        code:`let length = 250;
-let amplitude = 0;
-let size = 100;
-        
-function setup() {
-	amplitude = PI / 5;
-}
-        
-function draw() {
-            
-		// Pivot point
-		let pivotX = width / 2;
-		let pivotY = -10;
-		
-		// Full cycle
-		let time = (frameCount / 120) * TWO_PI;
-		let angle = amplitude * sin(time);
-		
-		// Calculate pendulum position
-		let bobX = pivotX + length * sin(angle);
-		let bobY = pivotY + length * cos(angle);
-		
-		// Draw the golden chain
-		drawGoldenChain(pivotX, pivotY, bobX, bobY);
-		
-		// Draw the golden watch
-		drawGoldenWatch(bobX, bobY, size);
-	}
-	
-	function drawGoldenChain(x1, y1, x2, y2) {
-		let chainLinks = 12;
-		let dx = (x2 - x1) / chainLinks;
-		let dy = (y2 - y1) / chainLinks;
-		
-		for (let i = 0; i < chainLinks; i++) {
-			let x = x1 + dx * i;
-			let y = y1 + dy * i;
-			let nextX = x1 + dx * (i + 1);
-			let nextY = y1 + dy * (i + 1);
-			
-			// Calculate link rotation based on chain direction
-			let linkAngle = atan2(nextY - y, nextX - x);
-			let perpAngle = linkAngle + PI/2;
-			
-			push();
-			translate(x, y);
-			rotate(linkAngle);
-			
-			// Outer link (darker gold)
-			stroke(45, 80, 65); // Darker gold
-			strokeWeight(2.5);
-			fill(50, 85, 85); // Main gold color
-			ellipse(0, 0, 16, 8);
-			
-			// Inner hole (to show it's hollow)
-			fill(30, 60, 18); // Background color
-			noStroke();
-			ellipse(0, 0, 10, 4);
-			
-			// Inner rim highlight
-			stroke(55, 70, 95); // Bright gold highlight
-			strokeWeight(1);
-			noFill();
-			ellipse(0, 0, 10, 4);
-			
-			// Top highlight on the link
-			fill(55, 60, 95, 60); // Bright gold highlight with transparency
-			noStroke();
-			ellipse(-2, -1, 6, 2);
-			
-			pop();
-			
-			// Connect links with small overlapping sections
-			if (i < chainLinks - 1) {
-				stroke(50, 85, 85); // Main gold
-				strokeWeight(1.5);
-				let midX = (x + nextX) / 2;
-				let midY = (y + nextY) / 2;
-				
-				push();
-				translate(midX, midY);
-				rotate(linkAngle + PI/2);
-				
-				// Small connecting link
-				fill(50, 85, 85); // Main gold
-				ellipse(0, 0, 8, 4);
-				fill(30, 60, 18); // Background
-				noStroke();
-				ellipse(0, 0, 4, 2);
-				
-				pop();
-			}
-		}
-	}
-	
-	function drawGoldenWatch(x, y, watchSize) {
-		// Outer rim (darker gold)
-		fill(45, 80, 65); // Darker gold
-		stroke(50, 85, 85); // Main gold
-		strokeWeight(3);
-		ellipse(x, y, watchSize, watchSize);
-		
-		// Inner watch face (lighter gold)
-		fill(50, 85, 85); // Main gold
-		stroke(55, 70, 95); // Bright gold
-		strokeWeight(2);
-		ellipse(x, y, watchSize - 15, watchSize - 15);
-		
-		// Watch face details
-		fill(55, 30, 95); // Bright white gold
-		noStroke();
-		ellipse(x, y, watchSize - 25, watchSize - 25);
-		
-		// Hour markers
-		stroke(25, 90, 25); // Dark brown/bronze
-		strokeWeight(2);
-		for (let i = 0; i < 12; i++) {
-			let angle = (i * PI / 6) - PI/2;
-			let x1 = x + cos(angle) * (watchSize/2 - 20);
-			let y1 = y + sin(angle) * (watchSize/2 - 20);
-			let x2 = x + cos(angle) * (watchSize/2 - 25);
-			let y2 = y + sin(angle) * (watchSize/2 - 25);
-			line(x1, y1, x2, y2);
-		}
-		
-		// Watch hands
-		let currentTime = frameCount * 0.02;
-		
-		// Hour hand
-		stroke(25, 90, 25); // Dark brown/bronze
-		strokeWeight(4);
-		let hourAngle = (currentTime * 0.5) - PI/2;
-		let hourX = x + cos(hourAngle) * 15;
-		let hourY = y + sin(hourAngle) * 15;
-		line(x, y, hourX, hourY);
-		
-		// Minute hand
-		strokeWeight(3);
-		let minuteAngle = currentTime - PI/2;
-		let minuteX = x + cos(minuteAngle) * 25;
-		let minuteY = y + sin(minuteAngle) * 25;
-		line(x, y, minuteX, minuteY);
-		
-		// Center dot
-		fill(139, 69, 19);
-		noStroke();
-		ellipse(x, y, 8, 8);
-		
-		// Crown (winding mechanism)
-		fill(50, 85, 85); // Main gold
-		stroke(55, 70, 95); // Bright gold
-		strokeWeight(1);
-		rect(x + watchSize/2 - 5, y - 4, 8, 8, 2);
-		
-		// Decorative engravings
-		stroke(25, 90, 25); // Dark brown/bronze
-		strokeWeight(1);
-		noFill();
-		ellipse(x, y, watchSize - 35, watchSize - 35);
-		
-		// Roman numerals at 12, 3, 6, 9
-		fill(25, 90, 25); // Dark brown/bronze
-		noStroke();
-		textAlign(CENTER, CENTER);
-		textSize(12);
-		textStyle(BOLD);
-		
-		text('XII', x, y - watchSize/2 + 25);
-		text('III', x + watchSize/2 - 25, y);
-		text('VI', x, y + watchSize/2 - 25);
-		text('IX', x - watchSize/2 + 25, y);
-		
-		// Reflection highlight
-		fill(0, 0, 100, opacity*0.3); // White highlight with transparency
-		noStroke();
-		ellipse(x - watchSize/6, y - watchSize/5, watchSize/3, watchSize/4);
-}`,
-        hue: 360,
-        saturation: 100,
-        brightness: 100,
-        opacity: 100,
-        maxFrames: 360,
-        fps: 60,
-        speed: 1
-    },
-
-	petals: {
-		code:`let time = 0;
-let petals = [];
-let numPetals = 8;
-let flowerRadius = 120;
-        
-function setup() {
-	for (let i = 0; i < numPetals; i++) {
-		let angle = (i * TWO_PI) / numPetals;
-		petals.push({
-			baseAngle: angle,
-			offsetPhase: random(TWO_PI)
-		});
-	}
-}
-
-function draw() {
-	translate(width/2, height/2);
-	
-	time += 0.02;
-	
-	// Draw multiple layers of the flower for depth
-	for (let layer = 0; layer < 3; layer++) {
-		let layerScale = 1 - layer * 0.2;
-		let layerAlpha = 80 - layer * 20;
-		
-		push();
-		scale(layerScale);
-		rotate(time * 0.3 * (layer + 1));
-		
-		drawFlowerLayer(layer, layerAlpha);
-		
-		pop();
-	}
-	
-	// Draw center
-	drawFlowerCenter();
-}
-
-function drawFlowerLayer(layerIndex, alpha) {
-	for (let i = 0; i < petals.length; i++) {
-		let petal = petals[i];
-		let angle = petal.baseAngle;
-		
-		// Color cycling through the spectrum
-		let hue = (time * 50 + i * 45 + layerIndex * 60) % 360;
-		let sat = 80 + sin(time * 2 + i) * 20;
-		let brightness = 70 + sin(time * 3 + i * 0.5) * 30;
-		
-		// Petal animation
-		let petalSize = flowerRadius + sin(time * 2 + petal.offsetPhase) * 20;
-		let petalAngle = angle + sin(time + petal.offsetPhase) * 0.3;
-		
-		push();
-		rotate(petalAngle);
-		
-		// Draw petal with gradient effect
-		drawPetal(0, 0, petalSize, hue, sat, brightness, alpha);
-		
-		pop();
-	}
-}
-
-function drawPetal(x, y, size, hue, sat, brightness, alpha) {
-	// Multiple segments for gradient effect
-	let segments = 15;
-	
-	for (let j = 0; j < segments; j++) {
-		let segmentProgress = j / segments;
-		let segmentHue = (hue + segmentProgress * 60) % 360;
-		let segmentSat = sat - segmentProgress * 20;
-		let segmentBright = brightness - segmentProgress * 30;
-		let segmentAlpha = alpha * (1 - segmentProgress * 0.5);
-		
-		fill(segmentHue, segmentSat, segmentBright, segmentAlpha);
-		noStroke();
-		
-		// Petal shape using bezier curves
-		let petalWidth = (size * 0.4) * (1 - segmentProgress * 0.8);
-		let petalLength = size * (1 - segmentProgress);
-		
-		beginShape();
-		vertex(x, y);
-		bezierVertex(
-			x - petalWidth/3, y - petalLength/3,
-			x - petalWidth/2, y - petalLength * 0.7,
-			x, y - petalLength
-		);
-		bezierVertex(
-			x + petalWidth/2, y - petalLength * 0.7,
-			x + petalWidth/3, y - petalLength/3,
-			x, y
-		);
-		endShape(CLOSE);
-	}
-}
-
-function drawFlowerCenter() {
-	let centerLayers = 8;
-	
-	for (let i = 0; i < centerLayers; i++) {
-		let layerSize = 40 - i * 4;
-		let centerHue = (time * 100 + i * 20) % 360;
-		let centerSat = 90 - i * 10;
-		let centerBright = 80 + sin(time * 4 + i) * 20;
-		let pulsate = sin(time * 6 + i * 0.5) * 3;
-		
-		fill(centerHue, centerSat, centerBright, 70);
-		noStroke();
-		ellipse(0, 0, layerSize + pulsate);
-		
-		// Inner ring details
-		if (i % 2 == 0) {
-			stroke(centerHue, centerSat - 20, 100, 30);
-			strokeWeight(1);
-			noFill();
-			ellipse(0, 0, layerSize + pulsate);
-		}
-	}
-	
-	// Center seeds/pistils
-	let numSeeds = 12;
-	for (let i = 0; i < numSeeds; i++) {
-		let seedAngle = (i * TWO_PI / numSeeds) + time * 2;
-		let seedRadius = 8 + sin(time * 3 + i) * 4;
-		let seedX = cos(seedAngle) * seedRadius;
-		let seedY = sin(seedAngle) * seedRadius;
-		
-		let seedHue = (time * 80 + i * 30) % 360;
-		fill(seedHue, 100, 90, 80);
-		noStroke();
-		ellipse(seedX, seedY, 4);
-		
-		// Tiny highlight
-		fill(seedHue, 20, 100, 60);
-		ellipse(seedX - 1, seedY - 1, 2);
-	}
-}`,
-		hue: 360,
-        saturation: 100,
-        brightness: 100,
-        opacity: 100,
-        maxFrames: 360,
-        fps: 60,
-        speed: 1
-    },
-
-	center_pulse: {
-		code:`let centerLayers = 8;
-let size = 45;
-let colorOffset = 0;
-let zoom = 2;
-let loopLength = 120;
-
-function draw() {
-	translate(width/2, height/2);
-  scale(zoom)
-
-	let loopFrame = frameCount % loopLength;
-	let time = (loopFrame / 120) * TWO_PI;
-
-	for (let i = 0; i < centerLayers; i++) {
-		let layerSize = size - i * 4;
-		let centerHue = (loopFrame * 3 + i * 20 + colorOffset) % 360;
-		let centerSat = saturation - i * 10;
-		let centerBright = brightness + sin(time * 2 + i) * 20;
-		let pulsate = sin(time * 3 + i * 0.5) * 3;
-		
-		fill(centerHue, centerSat, centerBright, opacity*0.7);
-		noStroke();
-		ellipse(0, 0, layerSize + pulsate);
-		
-		// Inner ring details
-		if (i % 2 == 0) {
-			stroke(centerHue, centerSat - 20, 100, opacity*0.3);
-			strokeWeight(1);
-			noFill();
-			ellipse(0, 0, layerSize + pulsate);
-		}
-	}
-}`,
-		hue: 360,
-        saturation: 90,
-        brightness: 80,
-        opacity: 100,
-        maxFrames: 360,
-        fps: 60,
-        speed: 1
-    },
-	
-	night_sky: {
-		code: `let starCount = 250;
-let twinkleRate = 0.01;
-let minTwinkleRate = 100;
-let maxTwinkleRate = 100;
-let minBlinkDuration = 200;
-let maxBlinkDuration = 600;
-let minBlinkTimer = 200;
-let maxBlinkTimer = 2200;
-let heightPercent = 60;
-
-let stars = [];
-let time = 0;
-
-function setup() {
-    generateStars();
-}
-        
-function draw() {
-    // Sky
-    for (let i = 0; i <= height; i++) {
-        let inter = map(i, 0, height, 0, 1);
-        let c = lerpColor(color(240, 80, 5), color(220, 60, 2), inter);
-        stroke(c);
-        line(0, i, width, i);
-    }
-    // Stars
-    noStroke();
-    
-    for (let star of stars) {
-        updateStarTwinkle(star);
-        
-        // Simple white/slightly warm stars
-        fill(30, saturation * 0.4, 360, star.brightness);
-        circle(star.x, star.y, star.size);
-    }
-    
-    time += 0.01 * twinkleRate;
-}
-
-function generateStars() {
-    stars = [];
-    for (let i = 0; i < starCount; i++) {
-        let baseBrightness = random(76, 204); // 30% to 80% of 255
-        let shouldStartBlinking = random() < 0.2; // 30% chance to start blinking immediately
-        
-        stars.push({
-            x: random(width),
-            y: random(height * heightPercent * 0.01),
-            brightness: baseBrightness,
-            baseBrightness: baseBrightness,
-            size: random(1, 2.5),
-            twinkleSpeed: random(minTwinkleRate, maxTwinkleRate),
-            twinkleOffset: random(TWO_PI),
-            blinkTimer: shouldStartBlinking ? 0 : random(minBlinkTimer, maxBlinkTimer),
-            blinkDuration: shouldStartBlinking ? random(minBlinkDuration, maxBlinkDuration) : 0,
-            isBlinking: shouldStartBlinking
-        });
-    }
-}
-
-function updateStarTwinkle(star) {
-    star.blinkTimer--;
-    
-    if (star.blinkTimer <= 0 && !star.isBlinking) {
-        // Start a blink and change twinkle rate
-        star.isBlinking = true;
-        star.blinkDuration = random(minBlinkDuration, maxBlinkDuration);
-        star.blinkTimer = random(minBlinkTimer, maxBlinkTimer);
-        
-        // Change twinkle rate every time a star starts blinking
-        twinkleRate = random(minTwinkleRate, maxTwinkleRate);
-    }
-    
-    if (star.isBlinking) {
-        star.blinkDuration--;
-        // Simple fade out and back in
-        let blinkProgress = star.blinkDuration / 20.0;
-        star.brightness = star.baseBrightness * (0.3 + 0.7 * sin(blinkProgress * PI));
-        
-        if (star.blinkDuration <= 0) {
-            star.isBlinking = false;
-            star.brightness = star.baseBrightness;
-        }
-    } else {
-        // Subtle continuous twinkle
-        let twinkle = sin(time * star.twinkleSpeed + star.twinkleOffset) * 15;
-        star.brightness = constrain(star.baseBrightness + twinkle, 20, 230);
-    }
-}`,
-		hue: 360,
-        saturation: 90,
-        brightness: 80,
-        opacity: 100,
-        maxFrames: 360,
-        fps: 60,
-        speed: 1
-    },
-	
-	aurora: {
-		code:``,
-		hue: 360,
-        saturation: 90,
-        brightness: 80,
-        opacity: 100,
-        maxFrames: 360,
-        fps: 60,
-        speed: 1
-    },
-
-	static: {
-		code:`let staticPixels = [];
-const numPixels = 2500;
-const greyBg = 120;
-
-function setup() {
-    // Pre-generate static pixels
-    for (let i = 0; i < numPixels; i++) {
-        staticPixels.push(createPixel());
-    }
-}
-
-function draw() {
-    // Grey background with noise (convert RGB to HSB equivalent)
-    background(0, 0, map(greyBg + random(-5, 5), 0, 255, 0, 100));
-    
-    // Update and draw static pixels
-    for (let pixel of staticPixels) {
-        updatePixel(pixel);
-        drawPixel(pixel);
-    }
-    
-    // Add scan lines and screen effects
-    drawScanLines();
-    
-    // Occasional screen flicker
-    if (random() < 0.02) {
-        fill(0, 0, 100, random(5, 15)); // White with low alpha
-        noStroke();
-        rect(0, 0, width, height);
-    }
-}
-
-function createPixel() {
-    const life = random(5, 30);
-    return {
-        x: random(width),
-        y: random(height),
-        hue: getRandomHue(),
-        life: life,
-        maxLife: life
-    };
-}
-
-function updatePixel(pixel) {
-    pixel.life--;
-    
-    // Respawn pixel when it dies
-    if (pixel.life <= 0) {
-        pixel.x = random(width);
-        pixel.y = random(height);
-        pixel.hue = getRandomHue();
-        pixel.life = random(5, 30);
-        pixel.maxLife = pixel.life;
-    }
-    
-    // Add flickering effect
-    if (random() < 0.1) {
-        pixel.life = random(1, 5);
-    }
-}
-
-function drawPixel(pixel) {
-    const alpha = map(pixel.life, 0, pixel.maxLife, 0, 80);
-    
-    fill(pixel.hue, 100, 100, alpha); // Full saturation and brightness
-    noStroke();
-    rect(pixel.x, pixel.y, 1.3, 1.3);
-}
-
-function getRandomHue() {
-    const hues = [0, 120, 240]; // Red, Green, Blue in HSB
-    return hues[floor(random(hues.length))];
-}
-
-function drawScanLines() {
-    stroke(0, 0, 0, 8); // Semi-transparent black
-    strokeWeight(1);
-    
-    // Draw every 3rd line for performance
-    for (let y = 0; y < height; y += 3) {
-        if (random() < 0.7) {
-            line(0, y, width, y);
-        }
-    }
-}`,
-		hue: 360,
-        saturation: 90,
-        brightness: 80,
-        opacity: 100,
-        maxFrames: 360,
-        fps: 60,
-        speed: 1
-    },
-	
-	ying_yang_spiral: {
-		code:`let resolution = 900;
-let spiralTurns = 9; // Number of complete spirals
-let zoom = 1;
-let growthRate = 5;
-let centerGap = 0.98;
-
-function draw() {
-	translate(width / 2, height / 2);
-	time = (frameCount / 60) * TWO_PI
-	let maxRadius = min(width*zoom , height*zoom) * 0.73;
-	
-	// Draw two interweaving spiral bands with smooth curves
-	drawSmoothSpiralBand(0, 255, maxRadius, spiralTurns); // White band
-	drawSmoothSpiralBand(PI, 0, maxRadius, spiralTurns);  // Black band (offset by PI)
-}
-
-function drawSmoothSpiralBand(offset, color, maxRadius, spiralTurns) {	
-	noFill();
-	stroke(color);
-	strokeCap(ROUND);
-	strokeJoin(ROUND);
-	
-	// Start the curve
-	beginShape();
-	noFill();
-	
-	for (let i = 0; i < resolution; i++) {
-		let progress = i / resolution;
-		
-		// Calculate spiral angle with offset for interweaving
-		let angle = progress * PI * 2 * spiralTurns + time + offset;
-		
-		// Radius decreases as we spiral inward
-		let radius = maxRadius * (1 - progress * centerGap);
-		
-		// Calculate positions
-		let x = cos(angle) * radius;
-		let y = sin(angle) * radius;
-		
-		let spiralSpacing = (2 * PI * radius) / (spiralTurns * 2);
-                
-     // Line thickness - grows outward but respects spiral spacing
-     let desiredThickness = map(progress, -1, 1, 50, growthRate);
-     let thickness = min(desiredThickness, spiralSpacing);
-		
-		// We need to draw each small segment with its own thickness
-		if (i > 0) {
-			let prevProgress = (i - 1) / resolution;
-			let prevAngle = prevProgress * PI * 2 * spiralTurns + time + offset;
-			let prevRadius = maxRadius * (1 - prevProgress * centerGap);
-			let prevX = cos(prevAngle) * prevRadius;
-			let prevY = sin(prevAngle) * prevRadius;
-			
-			strokeWeight(thickness);
-			line(prevX, prevY, x, y);
-		}
-	}
-}`,
-		hue: 360,
-        saturation: 90,
-        brightness: 80,
-        opacity: 100,
-        maxFrames: 360,
-        fps: 60,
-        speed: 1
-    },
-	
-	tunnel: {
-		code:`let time = 0;
-let tunnelDepth = 0;
-
-function draw() {
-	translate(width / 2, height / 2);
-	
-	// Animate forward movement and rotation
-	time += 0.02;
-	tunnelDepth += 0.5;
-	
-	// Draw multiple rings at different depths to create tunnel effect
-	let numRings = 60;
-	let maxRadius = min(width, height) * 0.4;
-	
-	for (let ring = 0; ring < numRings; ring++) {
-		let z = ring * 10 + (tunnelDepth % 10); // Z-depth with forward movement
-		
-		// Perspective scaling - objects further away appear smaller
-		let perspective = 200 / (z + 200); // Perspective factor
-		let ringRadius = maxRadius * perspective;
-		
-		// Skip rings that are too small or too far
-		if (ringRadius < 1) continue;
-		
-		// Calculate rotation for this ring based on depth
-		let ringRotation = time + ring * 0.1;
-		
-		// Draw the yin-yang bands for this ring
-		drawTunnelRing(ringRadius, ringRotation, perspective, z);
-	}
-}
-
-function drawTunnelRing(radius, rotation, perspective, depth) {
-	let segments = 60;
-	let bandWidth = 20 * perspective; // Band width scales with perspective
-	
-	// Skip if band is too thin
-	if (bandWidth < 0.5) return;
-	
-	// Calculate opacity based on depth for fade effect
-	let opacity = map(depth, 0, 300, 255, 0);
-	opacity = constrain(opacity, 0, 255);
-	
-	for (let i = 0; i < segments; i++) {
-		let angle = (i / segments) * TWO_PI + rotation;
-		let nextAngle = ((i + 1) / segments) * TWO_PI + rotation;
-		
-		// Determine if this segment should be black or white
-		// Create yin-yang pattern by alternating every half circle
-		let segmentAngle = (angle + rotation) % TWO_PI;
-		let isWhite = segmentAngle < PI;
-		
-		// Set color with opacity
-		if (isWhite) {
-			stroke(255, opacity);
-		} else {
-			stroke(0, opacity);
-			// For black lines, draw white background first for visibility
-			strokeWeight(bandWidth + 1);
-			stroke(255, opacity * 0.3);
-			let x1 = cos(angle) * radius;
-			let y1 = sin(angle) * radius;
-			let x2 = cos(nextAngle) * radius;
-			let y2 = sin(nextAngle) * radius;
-			line(x1, y1, x2, y2);
-			stroke(0, opacity);
-		}
-		
-		strokeWeight(bandWidth);
-		strokeCap(ROUND);
-		
-		// Calculate positions
-		let x1 = cos(angle) * radius;
-		let y1 = sin(angle) * radius;
-		let x2 = cos(nextAngle) * radius;
-		let y2 = sin(nextAngle) * radius;
-		
-		// Draw the segment
-		line(x1, y1, x2, y2);
-	}
-}`,
-		hue: 360,
-        saturation: 90,
-        brightness: 80,
-        opacity: 100,
-        maxFrames: 360,
-        fps: 60,
-        speed: 1
-    },
-	
-	coin: {
-		code: `let length = 200;
-let swingIntensity = 1.0; 
-let amplitude = 0;
-let size = 120;
-let pivotY = 0;
-let currentCoinAngle = 0;
-
-function setup() {
-    amplitude = PI / 4.5 * swingIntensity;
-}
-
-function draw() {
-    drawBackground();
-    let pivotX = width / 2;
-    
-    // Perfect loop for pendulum: One full swing cycle every 120 frames
-    let time = (frameCount / 120) * TWO_PI;
-    // The phase shift of PI makes the pendulum swing to the left first.
-    let angle = amplitude * sin(time + PI); 
-    
-    let bobX = pivotX + length * sin(angle);
-    let bobY = pivotY + length * cos(angle);
-
-    // Make the coin's rotation match the pendulum's swing angle.
-    let targetCoinAngle = angle;
-    currentCoinAngle = lerp(currentCoinAngle, targetCoinAngle, 0.1);
-    
-    // Draw the silk string, attached to the top of the coin.
-    drawSilkString(pivotX, pivotY, bobX, bobY, angle);
-    
-    // Draw the Chinese gold coin, with rotation tied to the pendulum's angle
-    drawChineseCoin(bobX, bobY, size, currentCoinAngle);
-    
-    // The string's internal details also follow this rotation
-    drawStringAroundCoin(bobX, bobY, size, currentCoinAngle);
-    
-    // Draw pivot point
-    drawPivotPoint(pivotX, pivotY);
-}
-
-function drawBackground() {
-    for (let y = 0; y < height; y++) {
-        let inter = map(y, 0, height, 0, 1);
-        let c = lerpColor(color(25, 40, 12), color(15, 60, 5), inter);
-        stroke(c);
-        line(0, y, width, y);
-    }
-}
-
-function drawSilkString(x1, y1, x2, y2, pendulumAngle) {
-    let stringEndX = x2 + (size / 2) * sin(pendulumAngle);
-    let stringEndY = y2 - (size / 2) * cos(pendulumAngle);
-    
-    stroke(0, 85, 65);
-    strokeWeight(4);
-    line(x1, y1, stringEndX, stringEndY);
-
-    let angle = atan2(stringEndY - y1, stringEndX - x1);
-    let perpOffset = 1.2;
-    let offsetX = cos(angle + HALF_PI) * perpOffset;
-    let offsetY = sin(angle + HALF_PI) * perpOffset;
-
-    stroke(15, 70, 80);
-    strokeWeight(1.5);
-    line(x1 + offsetX, y1 + offsetY, stringEndX + offsetX, stringEndY + offsetY);
-
-    stroke(5, 60, 75);
-    strokeWeight(1.5);
-    line(x1 - offsetX, y1 - offsetY, stringEndX - offsetX, stringEndY - offsetY);
-
-    stroke(0, 90, 55);
-    strokeWeight(1);
-    line(x1, y1, stringEndX, stringEndY);
-
-    stroke(0, 70, 60, 60);
-    strokeWeight(0.5);
-    let segments = floor(dist(x1, y1, stringEndX, stringEndY) / 8);
-    for (let i = 0; i < segments; i++) {
-        let t = i / segments;
-        let x = lerp(x1, stringEndX, t);
-        let y = lerp(y1, stringEndY, t);
-        let twist = sin(t * PI * 6) * 1.5;
-        let twistX = cos(angle + HALF_PI) * twist;
-        let twistY = sin(angle + HALF_PI) * twist;
-        point(x + twistX, y + twistY);
-    }
-}
-
-function drawStringAroundCoin(centerX, centerY, coinSize, rotationAngle) {
-    push();
-    translate(centerX, centerY);
-    rotate(rotationAngle);
-
-    let holeSize = coinSize / 4;
-    let coinRadius = coinSize / 2;
-    let knotX = 0;
-    let knotY = -coinRadius;
-    
-    stroke(0, 85, 65);
-    strokeWeight(3);
-    line(knotX, knotY, 0, -holeSize / 2);
-
-    let angleToHole = atan2(-holeSize/2 - knotY, 0 - knotX);
-    let perpOffset = 1.2;
-    let offsetX = cos(angleToHole + HALF_PI) * perpOffset;
-    let offsetY = sin(angleToHole + HALF_PI) * perpOffset;
-    stroke(15, 70, 80);
-    strokeWeight(1);
-    line(knotX + offsetX, knotY + offsetY, offsetX, -holeSize / 2 + offsetY);
-    stroke(5, 60, 75);
-    strokeWeight(1);
-    line(knotX - offsetX, knotY - offsetY, -offsetX, -holeSize / 2 - offsetY);
-
-    fill(0, 90, 50);
-    stroke(0, 95, 35);
-    strokeWeight(1.5);
-    ellipse(knotX, knotY, 10, 8);
-
-    fill(15, 70, 70);
-    noStroke();
-    ellipse(knotX - 2, knotY + 2, 3, 2);
-    ellipse(knotX + 2, knotY - 2, 3, 2);
-
-    stroke(0, 80, 60);
-    strokeWeight(1);
-    line(knotX, knotY, knotX + 5, knotY);
-    line(knotX, knotY, knotX, knotY + 5);
-
-    pop();
-}
-
-function drawChineseCoin(x, y, coinSize, rotationAngle) {
-    push();
-    translate(x, y);
-    rotate(rotationAngle);
-
-    fill(35, 90, 15, 40);
-    noStroke();
-    ellipse(2, 2, coinSize + 8, coinSize + 8);
-
-    fill(42, 85, 65);
-    stroke(38, 90, 55);
-    strokeWeight(3);
-    ellipse(0, 0, coinSize, coinSize);
-
-    fill(45, 80, 78);
-    stroke(48, 75, 85);
-    strokeWeight(2);
-    ellipse(0, 0, coinSize - 12, coinSize - 12);
-
-    let holeSize = coinSize / 4;
-    fill(15, 60, 8);
-    noStroke();
-    rectMode(CENTER);
-    rect(1, 1, holeSize + 2, holeSize + 2);
-
-    fill(25, 40, 12);
-    rect(0, 0, holeSize, holeSize);
-
-    stroke(30, 70, 25);
-    strokeWeight(1);
-    noFill();
-    rect(0, 0, holeSize - 1, holeSize - 1);
-
-    stroke(48, 60, 90);
-    strokeWeight(1);
-    line(-holeSize / 2, -holeSize / 2, holeSize / 2, -holeSize / 2);
-    line(-holeSize / 2, -holeSize / 2, -holeSize / 2, holeSize / 2);
-
-    stroke(35, 80, 40);
-    line(-holeSize / 2, holeSize / 2, holeSize / 2, holeSize / 2);
-    line(holeSize / 2, -holeSize / 2, holeSize / 2, holeSize / 2);
-
-    drawChineseCharacters(coinSize);
-    drawDecorativeBorder(coinSize);
-    drawCoinTexture(coinSize);
-
-    fill(50, 40, 95, 50);
-    noStroke();
-    ellipse(-coinSize / 4, -coinSize / 4, coinSize / 3, coinSize / 4);
-
-    pop();
-}
-
-function drawChineseCharacters(coinSize) {
-    fill(35, 95, 25);
-    noStroke();
-    textAlign(CENTER, CENTER);
-    textSize(coinSize / 8);
-    textStyle(BOLD);
-
-    let charOffset = coinSize / 3.5;
-
-    fill(30, 95, 30);
-    rect(-charOffset, -10, 6, 12, 1);
-    rect(-charOffset + 3, -13, 12, 3, 1);
-
-    ellipse(charOffset, 10, 8, 8);
-    rect(charOffset - 4, 4, 8, 3, 1);
-
-    rect(-10, charOffset, 3, 8, 1);
-    rect(-13, charOffset + 4, 9, 2, 1);
-
-    rect(10, -charOffset, 3, 12, 1);
-    rect(10 + 2, -charOffset - 2, 7, 2, 1);
-}
-
-function drawDecorativeBorder(coinSize) {
-    fill(48, 70, 90);
-    noStroke();
-    let dots = 16;
-    let dotRadius = coinSize / 2 - 15;
-    for (let i = 0; i < dots; i++) {
-        let angle = (i / dots) * TWO_PI;
-        let dotX = cos(angle) * dotRadius;
-        let dotY = sin(angle) * dotRadius;
-        ellipse(dotX, dotY, 3, 3);
-    }
-    
-    stroke(48, 70, 90);
-    strokeWeight(1);
-    noFill();
-    ellipse(0, 0, coinSize - 8, coinSize - 8);
-    
-    let ringSize = coinSize / 2.5;
-    ellipse(0, 0, ringSize, ringSize);
-}
-
-function drawCoinTexture(coinSize) {
-    stroke(40, 60, 85, 30);
-    strokeWeight(0.5);
-    let innerR = coinSize / 2.8;
-    let outerR = coinSize / 2.2;
-    for (let i = 0; i < 32; i++) {
-        let angle = (i / 32) * TWO_PI;
-        let x1 = cos(angle) * innerR;
-        let y1 = sin(angle) * innerR;
-        let x2 = cos(angle) * outerR;
-        let y2 = sin(angle) * outerR;
-        line(x1, y1, x2, y2);
-    }
-    
-    stroke(35, 80, 60, 20);
-    strokeWeight(0.5);
-    noFill();
-    for (let r = coinSize / 4; r < coinSize / 2; r += 8) {
-        ellipse(0, 0, r * 2, r * 2);
-    }
-}
-
-function drawPivotPoint(x, y) {
-    fill(30, 70, 40);
-    stroke(35, 80, 50);
-    strokeWeight(2);
-    ellipse(x, y, 16, 16);
-    
-    fill(25, 80, 25);
-    noStroke();
-    ellipse(x, y, 6, 6);
-    
-    stroke(20, 90, 20);
-    strokeWeight(1);
-    line(x - 2, y, x + 2, y);
-    line(x, y - 2, x, y + 2);
-}`,
-		
-		hue: 360,
-        saturation: 100,
-        brightness: 100,
-        opacity: 100,
-        maxFrames: 360,
-        fps: 60,
-        speed: 1
-    },
-	
-	pendant: {
-		code: `let length = 250;
-let chainLinks = 8;
-let pivotY = -80;
-
-let size = 60;
-let crystalWidth = size;
-let crystalHeight = size * 2;
-
-let swingSize = 6;
-let rotationMomentum = 1;
-
-function setup() {
-	amplitude = PI / swingSize;
-}
-
-function draw() {
-	
-	// Pivot point
-	let pivotX = width / 2;
-	
-	// Full cycle
-	let time = (frameCount / 120) * TWO_PI;
-	let angle = amplitude * sin(time);
-	
-	// Calculate angular velocity for crystal rotation
-	let crystalRotation = -angle * rotationMomentum ;
-	
-	// Calculate pendulum position
-	let bobX = pivotX + length * sin(angle);
-	let bobY = pivotY + length * cos(angle);
-	
-	// Draw the chain/cord
-	stroke(40, 30, 80);
-	strokeWeight(3);
-	line(pivotX, pivotY, bobX, bobY);
-	
-	// Draw small chain links
-	for (let i = 1; i < chainLinks; i++) {
-		let linkX = lerp(pivotX, bobX, i / chainLinks);
-		let linkY = lerp(pivotY, bobY, i / chainLinks);
-		fill(40, 30, 85);
-		noStroke();
-		ellipse(linkX, linkY, 4, 6);
-	}
-	
-	// Draw crystal pendant (double-terminated/bipyramidal)
-	push();
-	translate(bobX, bobY);
-	rotate(crystalRotation); // Apply rotation based on momentum
-	
-	// Main crystal body - diamond shape (two pyramids butt to butt)
-	fill(200, 60, 90, 80); // Translucent blue crystal
-	stroke(200, 80, 95);
-	strokeWeight(2);
-	
-	// Draw the bipyramidal crystal (diamond shape)
-	beginShape();
-	vertex(0, -crystalHeight/2);        // Top point
-	vertex(crystalWidth/2, 0);          // Right middle
-	vertex(0, crystalHeight/2);         // Bottom point
-	vertex(-crystalWidth/2, 0);         // Left middle
-	endShape(CLOSE);
-	
-	// Inner crystal core
-	fill(180, 40, 100, 60);
-	noStroke();
-	beginShape();
-	vertex(0, -crystalHeight/3);        // Top point (smaller)
-	vertex(crystalWidth/3, 0);          // Right middle
-	vertex(0, crystalHeight/3);         // Bottom point
-	vertex(-crystalWidth/3, 0);         // Left middle
-	endShape(CLOSE);
-	
-	// Crystal facet lines to show the bipyramidal structure
-	stroke(200, 30, 100, 80);
-	strokeWeight(1);
-	
-	// Top pyramid facet lines
-	line(0, -crystalHeight/2, crystalWidth/2, 0);  // Top to right
-	line(0, -crystalHeight/2, -crystalWidth/2, 0); // Top to left
-	line(0, -crystalHeight/2, 0, 0);               // Top to center
-	
-	// Bottom pyramid facet lines
-	line(0, crystalHeight/2, crystalWidth/2, 0);   // Bottom to right
-	line(0, crystalHeight/2, -crystalWidth/2, 0);  // Bottom to left
-	line(0, crystalHeight/2, 0, 0);                // Bottom to center
-	
-	// Central division line
-	line(-crystalWidth/2, 0, crystalWidth/2, 0);
-	
-	// Sparkle effect (adjusted for rotation)
-	let sparkleTime = frameCount * 0.1;
-	for (let i = 0; i < 3; i++) {
-		let sparkleAngle = (i * TWO_PI / 3) + sparkleTime;
-		let sparkleX = cos(sparkleAngle) * (crystalWidth / 4);
-		let sparkleY = sin(sparkleAngle) * (crystalHeight / 6);
-		
-		fill(60, 80, 100, 70);
-		noStroke();
-		ellipse(sparkleX, sparkleY, 2, 2);
-		
-		// Sparkle rays
-		stroke(60, 60, 100, 40);
-		strokeWeight(0.5);
-		line(sparkleX - 3, sparkleY, sparkleX + 3, sparkleY);
-		line(sparkleX, sparkleY - 3, sparkleX, sparkleY + 3);
-	}
-	
-	pop();
-	
-	// Draw mounting point
-	fill(40, 30, 85);
-	noStroke();
-	ellipse(pivotX, pivotY, 12, 8);
-}`,
-		
-		hue: 360,
-        saturation: 100,
-        brightness: 100,
-        opacity: 100,
-        maxFrames: 360,
-        fps: 60,
-        speed: 1
-    },
-	
-	water: {
-		code:`const TAU = 6.28318530718;
-const MAX_ITER = 5;
-let showTiling = false;
-
-function draw() {
-	loadPixels();
-	
-	let time = millis() * 0.001 * 0.5 + 23.0; // Convert to seconds and apply time scaling
-	
-	for (let x = 0; x < width; x++) {
-		for (let y = 0; y < height; y++) {
-			// Convert to UV coordinates (0-1)
-			let u = x / width;
-			let v = y / height;
-			
-			// Apply the shader logic
-			let p;
-			if (showTiling) {
-				p = createVector(
-					((u * TAU * 2.0) % TAU) - 250.0,
-					((v * TAU * 2.0) % TAU) - 250.0
-				);
-			} else {
-				p = createVector(
-					((u * TAU) % TAU) - 250.0,
-					((v * TAU) % TAU) - 250.0
-				);
-			}
-			
-			let i = createVector(p.x, p.y);
-			let c = 1.0;
-			let inten = 0.005;
-			
-			// Main iteration loop
-			for (let n = 0; n < MAX_ITER; n++) {
-				let t = time * (1.0 - (3.5 / (n + 1)));
-				i.x = p.x + cos(t - i.x) + sin(t + i.y);
-				i.y = p.y + sin(t - i.y) + cos(t + i.x);
-				
-				let px = p.x / (sin(i.x + t) / inten);
-				let py = p.y / (cos(i.y + t) / inten);
-				let length = sqrt(px * px + py * py);
-				c += 1.0 / length;
-			}
-			
-			c /= MAX_ITER;
-			c = 1.17 - pow(c, 1.4);
-			
-			// Create color
-			let colorValue = pow(abs(c), 8.0);
-			let r = constrain(colorValue + 0.0, 0.0, 1.0);
-			let g = constrain(colorValue + 0.35, 0.0, 1.0);
-			let b = constrain(colorValue + 0.5, 0.0, 1.0);
-			
-			// Tiling effect
-			if (showTiling) {
-				let pixelX = 2.0 / width;
-				let pixelY = 2.0 / height;
-				let uTile = u * 2.0;
-				let vTile = v * 2.0;
-				let f = floor((millis() * 0.001 * 0.5) % 2.0); // Flash value
-				
-				let firstX = (uTile > pixelX ? 1 : 0) * f;
-				let firstY = (vTile > pixelY ? 1 : 0) * f;
-				
-				let uStep = (uTile % 1.0) < pixelX ? 1 : 0;
-				let vStep = (vTile % 1.0) < pixelY ? 1 : 0;
-				
-				let lineIntensity = (uStep + vStep) * firstX * firstY;
-				
-				// Mix with yellow line
-				r = r * (1 - lineIntensity) + 1.0 * lineIntensity;
-				g = g * (1 - lineIntensity) + 1.0 * lineIntensity;
-				b = b * (1 - lineIntensity) + 0.0 * lineIntensity;
-			}
-			
-			// Set pixel
-			let index = (x + y * width) * 4;
-			pixels[index] = r * 255;     // Red
-			pixels[index + 1] = g * 255; // Green
-			pixels[index + 2] = b * 255; // Blue
-			pixels[index + 3] = 255;     // Alpha
-		}
-	}
-	
-	updatePixels();
-}
-
-// Helper function for modulo that works with negative numbers like GLSL
-function mod(a, b) {
-	return ((a % b) + b) % b;
-}`,
-		hue: 360,
-        saturation: 90,
-        brightness: 80,
-        opacity: 100,
-        maxFrames: 360,
-        fps: 60,
-        speed: 1
-    },
-	
-	vignette: {
-		code:`let vignetteSize = 0.7;
-let vignetteHarshness = 1;
-
-function setup() {
-  noLoop(); // Prevent the draw() function from running repeatedly
-  drawVignette(); // Call the vignette function just once
-}
-
-function drawVignette() {
+  let s = min(width, height) / 300;
+  let band = bandWidth * s;
+  let c = band * arms / PI;              // r = c * angle
+  let maxR = dist(0, 0, width, height) / 2 + band * 2;
+  let maxU = maxR / c;
+  let t = progress * TWO_PI * turnsPerLoop;
+
+  translate(width / 2, height / 2);
   noStroke();
 
-  // Calculate the center of the canvas
-  const centerX = width / 2;
-  const centerY = height / 2;
+  if (drawDarkBands) {
+    fill(darkColor);
+    circle(0, 0, maxR * 2);
+  }
 
-  // Iterate through every pixel to apply the vignette effect
-  for (let x = 0; x < width; x++) {
-    for (let y = 0; y < height; y++) {
-      let distance = dist(x, y, centerX, centerY);
+  fill(lightColor);
+  for (let k = 0; k < arms; k++) {
+    let offset = k * TWO_PI / arms + t;
+    beginShape();
+    for (let u = 0; u <= maxU; u += 0.06) {
+      vertex(cos(u + offset) * c * u, sin(u + offset) * c * u);
+    }
+    for (let u = maxU; u >= 0; u -= 0.06) {
+      let r = c * u + band;
+      vertex(cos(u + offset) * r, sin(u + offset) * r);
+    }
+    endShape(CLOSE);
+  }
+}`, { maxFrames: 120 }),
 
-      let normalizedDistance = distance / (width / 2);
+dot_spiral: preset(`
+let dots = 400;
+let spacing = 0.5;
+let dotSize = 10;
+let spinsPerLoop = 1;
 
-      // Create a smooth transition
-      let vignetteValue = constrain( (normalizedDistance - vignetteSize) * vignetteHarshness/100, 0, 1);
+function draw() {
+  let s = min(width, height) / 300;
+  let t = progress * TWO_PI * spinsPerLoop;
+  translate(width / 2, height / 2);
+  noStroke();
 
-      let alpha = vignetteValue * 255; // Map to alpha range (0-255)
+  for (let i = 0; i < dots; i++) {
+    let angle = i * 0.1 + t;
+    let radius = i * spacing * s;
+    let h = (i * 2 + progress * 360) % 360;
+    fill(h, 100, 100, 40);
+    ellipse(cos(angle) * radius, sin(angle) * radius, dotSize * s);
+  }
+}`, { maxFrames: 240 }),
 
-      fill(0, alpha); // Set the fill color to black with calculated alpha
-      rect(x, y, 1, 1);
+tunnel: preset(`
+// Black & white tunnel rushing towards the viewer, twisting as it goes.
+let rings = 24;          // keep this an even number
+let ringsPerLoop = 2;    // rings that pass the camera each loop
+let twist = 1.5;         // extra turn from the near end to the far end
+let spinsPerLoop = 1;
+let lightColor = [0, 0, 100];
+let darkColor = [0, 0, 0];
+
+function draw() {
+  let R = dist(0, 0, width, height) / 2;
+  let t = progress * TWO_PI * spinsPerLoop;
+  translate(width / 2, height / 2);
+  noStroke();
+
+  let list = [];
+  for (let i = 0; i < rings; i++) {
+    let phase = (((i - progress * ringsPerLoop) / rings) % 1 + 1) % 1;
+    list.push({ i: i, phase: phase });
+  }
+  list.sort((a, b) => a.phase - b.phase);   // nearest (biggest) first
+
+  for (let ring of list) {
+    let r = R * 0.06 / (ring.phase + 0.045);
+    let a = t + ring.phase * twist * TWO_PI;
+    let fade = constrain(map(ring.phase, 0.55, 1, 1, 0), 0, 1);
+    let swap = ring.i % 2;
+    let c1 = swap ? darkColor : lightColor;
+    let c2 = swap ? lightColor : darkColor;
+    fill(c1[0], c1[1], c1[2] * fade);
+    arc(0, 0, r * 2, r * 2, a, a + PI, PIE);
+    fill(c2[0], c2[1], c2[2] * fade);
+    arc(0, 0, r * 2, r * 2, a + PI, a + TWO_PI, PIE);
+  }
+  fill(darkColor);
+  circle(0, 0, R * 0.06 / 1.045 * 2);
+}`, { maxFrames: 240 }),
+
+tunnel_2: preset(`
+let squares = 100;
+let spinsPerLoop = 1;
+
+function draw() {
+  let s = min(width, height) / 300;
+  let t = progress * TWO_PI * spinsPerLoop;
+  translate(width / 2, height / 2);
+  noFill();
+  strokeWeight(2);
+
+  for (let i = 0; i < squares; i++) {
+    let size = i * 8 * s;
+    push();
+    rotate(t + i * 0.1);
+    stroke((i * 10 + progress * 360) % 360, 100, 100);
+    rect(-size / 2, -size / 2, size, size);
+    pop();
+  }
+}`, { maxFrames: 240 }),
+
+fibonacci_spiral: preset(`
+// Sunflower / phyllotaxis pattern built on the golden angle.
+let seeds = 700;
+let spread = 5.5;
+let dotSize = 7;
+let spinsPerLoop = 1;
+let pulses = 3;          // pulse waves per loop
+const GOLDEN_ANGLE = 2.39996323;
+
+function draw() {
+  let s = min(width, height) / 300;
+  let t = progress * TWO_PI;
+  translate(width / 2, height / 2);
+  rotate(t * spinsPerLoop);
+  noStroke();
+
+  for (let i = 1; i < seeds; i++) {
+    let a = i * GOLDEN_ANGLE;
+    let r = spread * sqrt(i) * s;
+    let wave = sin(t * pulses - i * 0.03);
+    let size = dotSize * s * (0.55 + 0.45 * wave) * (0.4 + i / seeds);
+    fill((i * 0.6 + progress * 360) % 360, 80, 100, 90);
+    circle(cos(a) * r, sin(a) * r, size);
+  }
+}`, { maxFrames: 360 }),
+
+galaxy_spiral: preset(`
+let starCount = 1400;
+let arms = 3;
+let armTwist = 4.5;      // how tightly the arms wind
+let spread = 0.35;       // how fuzzy the arms are
+let spinsPerLoop = 1;
+let stars = [];
+
+function setup() {
+  for (let i = 0; i < starCount; i++) {
+    let d = pow(random(), 0.6);
+    let arm = i % arms;
+    stars.push({
+      d: d,
+      a: arm * TWO_PI / arms + d * armTwist + randomGaussian() * spread * (1.1 - d),
+      size: random(0.6, 2.4),
+      hue: d < 0.25 ? random(20, 50) : random(190, 260),
+      twinkle: floor(random(1, 5)),
+      phase: random(TWO_PI)
+    });
+  }
+}
+
+function draw() {
+  let s = min(width, height) / 2 * 0.95;
+  let t = progress * TWO_PI;
+  translate(width / 2, height / 2);
+
+  // Core glow
+  noStroke();
+  for (let g = 10; g > 0; g--) {
+    fill(40, 40, 100, 4);
+    circle(0, 0, s * 0.06 * g);
+  }
+
+  rotate(t * spinsPerLoop);
+  for (let st of stars) {
+    let alpha = 55 + 45 * sin(t * st.twinkle + st.phase);
+    fill(st.hue, st.d < 0.25 ? 40 : 55, 100, alpha);
+    circle(cos(st.a) * st.d * s, sin(st.a) * st.d * s * 0.92, st.size * s / 150);
+  }
+}`, { maxFrames: 720 }),
+
+vortex: preset(`
+let rings = 22;
+let gap = 7;
+let twist = 0.35;
+
+function draw() {
+  let s = min(width, height) / 300;
+  let t = progress * TWO_PI;
+  translate(width / 2, height / 2);
+  noStroke();
+
+  for (let j = 1; j <= rings; j++) {
+    let r = j * gap * s;
+    let count = 6 + j * 3;
+    let speed = ceil((rings + 1 - j) / 4);  // inner rings spin faster (whole numbers)
+    let rot = t * speed + j * twist;
+    fill((j * 14 + progress * 360) % 360, 85, 100, 85);
+    for (let k = 0; k < count; k++) {
+      let a = rot + k * TWO_PI / count;
+      circle(cos(a) * r, sin(a) * r, (1.5 + j * 0.25) * s);
     }
   }
-}`,
-		hue: 360,
-        saturation: 100,
-        brightness: 100,
-        opacity: 100,
-        maxFrames: 360,
-        fps: 60,
-        speed: 1
-    },
-	
-	bg_gradient: {
-		code:`// Array of colors for the gradient
-let gradientColors = ['#FF6B6B','#FFE66D','#4ECDC4','#4F81C2','#6B4C93',];
+}`, { maxFrames: 360 }),
 
-// Array of numbers (0-1) representing the percentage of screen height
-let gradientPercentages = [0.3,0.2,0.1,0.2,0.3,];
+circling_spiral: preset(`
+// A spinning spiral whose centre orbits the middle of the canvas.
+let turns = 6;
+let orbitRadius = 55;
+let spinsPerLoop = 3;
+let lineWeight = 4;
 
-// Rotation angle for the gradient in degrees.
-let gradientRotation = 0;
+function draw() {
+  let s = min(width, height) / 300;
+  let t = progress * TWO_PI;
+  translate(width / 2, height / 2);
 
-// Controls the fade from one color into the next.
-let fadeAmount = 0;
+  // Orbit path
+  noFill();
+  stroke(0, 0, 100, 12);
+  strokeWeight(1);
+  circle(0, 0, orbitRadius * 2 * s);
+
+  translate(cos(t) * orbitRadius * s, sin(t) * orbitRadius * s);
+  rotate(t * spinsPerLoop);
+
+  let steps = turns * 60;
+  let maxR = 85 * s;
+  strokeWeight(lineWeight * s);
+  for (let i = 0; i < steps; i++) {
+    let a1 = i / 60 * TWO_PI, a2 = (i + 1) / 60 * TWO_PI;
+    let r1 = maxR * i / steps, r2 = maxR * (i + 1) / steps;
+    stroke((i / steps * 300 + progress * 360) % 360, 80, 100);
+    line(cos(a1) * r1, sin(a1) * r1, cos(a2) * r2, sin(a2) * r2);
+  }
+}`, { maxFrames: 360 }),
+
+// --------------------------------------------------------------------- Circles
+pulsing: preset(`
+let zoom = 1;
+let rings = 50;
+let pulsesPerLoop = 2;
+
+function draw() {
+  let s = min(width, height) / 300 * zoom;
+  let t = progress * TWO_PI * pulsesPerLoop;
+  translate(width / 2, height / 2);
+  noFill();
+  strokeWeight(2);
+
+  for (let i = 0; i < rings; i++) {
+    let size = (300 - i * 6 + sin(t + i * 0.2) * 20) * s;
+    stroke((i * 10 + progress * 720) % 360, 100, 100);
+    ellipse(0, 0, size * 2, size * 2);
+  }
+}`, { maxFrames: 360 }),
+
+kaleidoscope: preset(`
+let symmetry = 16;
+let xSize = 5;
+let ySize = 5;
+let wheel1 = 30;
+let wheel2x = 40;
+let wheel2y = 70;
+let echoes = 6;          // faded copies trailing behind the shapes
+
+function draw() {
+  let s = min(width, height) / 300;
+  translate(width / 2, height / 2);
+  noFill();
+  strokeWeight(2);
+
+  for (let e = echoes - 1; e >= 0; e--) {
+    let t = (progress - e * 0.006) * TWO_PI;
+    let x = sin(t) * width / xSize;
+    let y = cos(t * 2) * width / ySize;
+    let alpha = 100 * (1 - e / echoes);
+
+    for (let i = 0; i < symmetry; i++) {
+      push();
+      rotate(i * TWO_PI / symmetry);
+      stroke((i * 360 / symmetry + progress * 360) % 360, 70, 100, alpha);
+      ellipse(x, y, wheel1 * s, wheel1 * s);
+      scale(1, -1);
+      ellipse(x, y, wheel2x * s, wheel2y * s);
+      pop();
+    }
+  }
+}`, { maxFrames: 360 }),
+
+orbit_dance: preset(`
+let planets = 6;
+let trail = 14;          // trail segments behind each planet
+let planetData = [];
 
 function setup() {
-	noLoop(); // The gradient is static, so we don't need the draw loop
-	drawGradient(gradientColors, gradientPercentages, gradientRotation, fadeAmount);
+  for (let i = 0; i < planets; i++) {
+    planetData.push({
+      orbit: 0.16 + i * 0.13,
+      speed: planets - i,             // whole revolutions per loop
+      phase: random(TWO_PI),
+      size: random(5, 11),
+      hue: (i * 360 / planets + 20) % 360
+    });
+  }
 }
 
-function drawGradient(colors, percentages, rotation, fade) {
-	let diagonal = sqrt(width * width + height * height);
-	let gradientCanvas = createGraphics(diagonal, diagonal);
-	gradientCanvas.noStroke();
-	
-	// Normalize percentages to ensure they add up to 1 (or 100%)
-	let totalPercentage = percentages.reduce((sum, p) => sum + p, 0);
-	let normalizedPercentages = percentages.map(p => p / totalPercentage);
+function draw() {
+  let s = min(width, height) / 2;
+  let t = progress * TWO_PI;
+  translate(width / 2, height / 2);
 
-	// Draw the colored bands and fades on the temporary canvas
-	let currentY = 0;
-	let totalHeight = gradientCanvas.height;
+  // Orbits
+  noFill();
+  strokeWeight(1);
+  stroke(0, 0, 100, 10);
+  for (let pl of planetData) circle(0, 0, pl.orbit * s * 2);
 
-	for (let i = 0; i < colors.length; i++) {
-		let colorStart = color(colors[i]);
-		let colorEnd = (i < colors.length - 1) ? color(colors[i + 1]) : colorStart;
+  // Sun
+  noStroke();
+  for (let g = 6; g > 0; g--) {
+    fill(40, 90, 100, 12);
+    circle(0, 0, s * 0.05 * g);
+  }
+  fill(45, 70, 100);
+  circle(0, 0, s * 0.12);
 
-		// Calculate the height of the main color band
-		let bandHeight = normalizedPercentages[i] * totalHeight;
-		let fadeHeight = fade * bandHeight; // Fade is a percentage of the band height
-		
-		// Draw the main, solid color part of the band
-		gradientCanvas.fill(colorStart);
-		gradientCanvas.rect(0, currentY, gradientCanvas.width, bandHeight - fadeHeight);
+  for (let pl of planetData) {
+    let r = pl.orbit * s;
+    for (let k = trail; k >= 0; k--) {
+      let a = t * pl.speed + pl.phase - k * 0.045 * pl.speed;
+      fill(pl.hue, 80, 100, 100 * (1 - k / trail) * (k ? 0.4 : 1));
+      circle(cos(a) * r, sin(a) * r, pl.size * s / 150 * (1 - k / (trail * 1.5)));
+    }
+  }
+}`, { maxFrames: 360 }),
 
-		// Draw the fade section
-		if (fade > 0 && i < colors.length - 1) {
-			for (let y = 0; y < fadeHeight; y++) {
-				let inter = map(y, 0, fadeHeight, 0, 1);
-				let fadeColor = lerpColor(colorStart, colorEnd, inter);
-				gradientCanvas.stroke(fadeColor);
-				gradientCanvas.line(0, currentY + bandHeight - fadeHeight + y, gradientCanvas.width, currentY + bandHeight - fadeHeight + y);
-			}
-		}
+ripple_effect: preset(`
+let ripples = 9;
+let lineWeight = 4;
+let baseHue = 190;
 
-		// Move the current Y position for the next color band
-		currentY += bandHeight;
-	}
+function draw() {
+  let maxR = dist(0, 0, width, height) / 2;
+  let s = min(width, height) / 300;
+  translate(width / 2, height / 2);
+  noFill();
 
-	// Apply rotation and display the gradient
-	push();
-	translate(width / 2, height / 2);
-	rotate(radians(rotation));
-	image(gradientCanvas, -diagonal / 2, -diagonal / 2);
-	pop();
-}`,
-		hue: 360,
-        saturation: 100,
-        brightness: 100,
-        opacity: 100,
-        maxFrames: 360,
-        fps: 60,
-        speed: 1
-    },
-	
-	wagon_wave: {
-		code:`let gridSize = 30;
-let offsetMultiplier = 5;
-let zoom = 1.11;
-let dotsize = 0.7;
-let loopLength = 180;
+  for (let k = 0; k < ripples; k++) {
+    let ph = ((k / ripples + progress) % 1);
+    let r = ph * maxR;
+    let alpha = min(1, ph * 8) * (1 - ph) * 100;
+    strokeWeight(lineWeight * s * (1.2 - ph));
+    stroke((baseHue + ph * 70) % 360, 70, 100, alpha);
+    circle(0, 0, r * 2);
+    // inner echo
+    stroke((baseHue + ph * 70) % 360, 40, 100, alpha * 0.35);
+    strokeWeight(1);
+    circle(0, 0, r * 1.8);
+  }
+
+  // Drop in the middle
+  noStroke();
+  let d = 1 - abs(sin(progress * PI * ripples));
+  fill(baseHue, 50, 100, 60 * d);
+  circle(0, 0, 14 * s * d);
+}`, { maxFrames: 360 }),
+
+flower_circles: preset(`
+// Flower-of-life rings that breathe and counter-rotate.
+let petalRings = 3;
+let baseRadius = 34;
+
+function draw() {
+  let s = min(width, height) / 300;
+  let t = progress * TWO_PI;
+  translate(width / 2, height / 2);
+  noFill();
+  strokeWeight(1.6);
+
+  for (let ring = petalRings; ring >= 1; ring--) {
+    let count = ring * 6;
+    let breathe = 1 + 0.18 * sin(t * 2 + ring);
+    let r = baseRadius * s * breathe;
+    let dir = ring % 2 ? 1 : -1;
+    push();
+    rotate(t * dir);
+    for (let i = 0; i < count; i++) {
+      let a = i * TWO_PI / count;
+      let d = ring * r * 0.9;
+      stroke((ring * 70 + i * 360 / count + progress * 360) % 360, 70, 100, 85);
+      circle(cos(a) * d, sin(a) * d, r * 2);
+    }
+    pop();
+  }
+  stroke(0, 0, 100, 90);
+  circle(0, 0, baseRadius * s * 2 * (1 + 0.18 * sin(t * 2)));
+}`, { maxFrames: 360 }),
+
+// --------------------------------------------------------------------- Objects
+stopwatch: preset(`
+// Hypnotist's pocket watch swinging on a golden chain.
+let swingsPerLoop = 3;     // full back-and-forth swings per loop
+let swingAngle = 32;       // degrees
+let chainLinks = 14;
+
+function draw() {
+  let s = min(width, height) / 300;
+  let watchSize = 100 * s;
+  let len = height * 0.6;
+  let pivotX = width / 2, pivotY = -10 * s;
+  let angle = radians(swingAngle) * sin(progress * TWO_PI * swingsPerLoop);
+
+  push();
+  translate(pivotX, pivotY);
+  rotate(-angle);              // whole pendulum hangs along the chain
+  drawChain(len - watchSize / 2, s);
+  translate(0, len);
+  drawWatch(watchSize, s);
+  pop();
+}
+
+function drawChain(chainLen, s) {
+  let step = chainLen / chainLinks;
+  noFill();
+  for (let i = 0; i < chainLinks; i++) {
+    let y = i * step + step / 2;
+    strokeWeight(2.5 * s);
+    stroke(42, 85, 60);
+    if (i % 2 === 0) ellipse(0, y, 7 * s, step * 1.25);
+    else ellipse(0, y, 3 * s, step * 1.25);
+    strokeWeight(1 * s);
+    stroke(50, 50, 100);
+    if (i % 2 === 0) ellipse(-0.6 * s, y, 5 * s, step * 1.1);
+  }
+}
+
+function drawWatch(size, s) {
+  // Crown / bow
+  noFill();
+  stroke(45, 80, 80);
+  strokeWeight(3 * s);
+  circle(0, -size / 2 - 7 * s, 12 * s);
+  fill(45, 80, 75);
+  noStroke();
+  rect(-5 * s, -size / 2 - 6 * s, 10 * s, 8 * s, 2 * s);
+
+  // Case
+  fill(42, 85, 62);
+  stroke(48, 80, 90);
+  strokeWeight(3 * s);
+  circle(0, 0, size);
+  fill(48, 80, 85);
+  stroke(52, 60, 98);
+  strokeWeight(2 * s);
+  circle(0, 0, size - 14 * s);
+
+  // Face
+  noStroke();
+  fill(45, 12, 98);
+  circle(0, 0, size - 24 * s);
+
+  // Hour markers
+  stroke(25, 80, 30);
+  strokeWeight(2 * s);
+  for (let i = 0; i < 12; i++) {
+    let a = i * TWO_PI / 12;
+    let r1 = size / 2 - 16 * s, r2 = size / 2 - 21 * s;
+    line(cos(a) * r1, sin(a) * r1, cos(a) * r2, sin(a) * r2);
+  }
+
+  fill(25, 80, 30);
+  noStroke();
+  textAlign(CENTER, CENTER);
+  textSize(10 * s);
+  textStyle(BOLD);
+  let nr = size / 2 - 30 * s;
+  text('XII', 0, -nr);
+  text('III', nr, 0);
+  text('VI', 0, nr);
+  text('IX', -nr, 0);
+
+  // Hands: fixed at 10:10, seconds hand sweeps once per loop
+  stroke(25, 80, 25);
+  strokeCap(ROUND);
+  strokeWeight(3.5 * s);
+  line(0, 0, cos(radians(305)) * 16 * s, sin(radians(305)) * 16 * s);
+  strokeWeight(2.5 * s);
+  line(0, 0, cos(radians(-30)) * 26 * s, sin(radians(-30)) * 26 * s);
+  stroke(0, 85, 75);
+  strokeWeight(1.2 * s);
+  let secA = progress * TWO_PI - HALF_PI;
+  line(0, 0, cos(secA) * 30 * s, sin(secA) * 30 * s);
+  noStroke();
+  fill(25, 80, 25);
+  circle(0, 0, 6 * s);
+
+  // Glass reflection
+  fill(0, 0, 100, 22);
+  ellipse(-size / 6, -size / 5, size / 3, size / 4);
+}`, { maxFrames: 360 }),
+
+pendulum: preset(`
+let swingsPerLoop = 3;
+let swingAngle = 36;    // degrees
+let bobSize = 70;
+let ghosts = 0;         // motion-blur copies (e.g. 4) - looks nice, but makes GIFs bigger
+
+function draw() {
+  let s = min(width, height) / 300;
+  let pivotX = width / 2, pivotY = 12 * s;
+  let len = height * 0.68;
+
+  for (let g = ghosts; g >= 0; g--) {
+    let p = progress - g * 0.006;
+    let a = radians(swingAngle) * sin(p * TWO_PI * swingsPerLoop);
+    let bx = pivotX + len * sin(a);
+    let by = pivotY + len * cos(a);
+    let alpha = g ? 18 : 100;
+
+    stroke(0, 0, 75, alpha);
+    strokeWeight(2.5 * s);
+    line(pivotX, pivotY, bx, by);
+
+    noStroke();
+    fill(215, 70, 85, alpha);
+    circle(bx, by, bobSize * s);
+    if (!g) {
+      fill(215, 30, 100, 60);
+      circle(bx - bobSize * s * 0.18, by - bobSize * s * 0.18, bobSize * s * 0.3);
+    }
+  }
+
+  fill(0, 0, 85);
+  circle(pivotX, pivotY, 10 * s);
+}`, { maxFrames: 360 }),
+
+mandala: preset(`
+let rings = 5;
+
+function draw() {
+  let s = min(width, height) / 300;
+  let t = progress * TWO_PI;
+  translate(width / 2, height / 2);
+
+  for (let ring = 0; ring < rings; ring++) {
+    let petals = 6 + ring * 2;
+    let dir = ring % 2 ? -1 : 1;
+    let h = (ring * 60 + progress * 360) % 360;
+    for (let i = 0; i < petals; i++) {
+      push();
+      rotate(TWO_PI * i / petals + t * dir);
+      fill(h, 60, 90, 70);
+      stroke(h, 100, 100);
+      strokeWeight(1);
+      let size = (30 + ring * 15) * s;
+      ellipse((40 + ring * 10) * s, 0, size, size * 0.6);
+      pop();
+    }
+  }
+}`, { maxFrames: 480 }),
+
+particules: preset(`
+// Particles spiralling out from the centre, endlessly.
+let count = 260;
+let curl = 2.2;          // how much each particle swirls on its way out
+let parts = [];
 
 function setup() {
+  for (let i = 0; i < count; i++) {
+    parts.push({
+      a: random(TWO_PI),
+      speed: random(0.55, 1),
+      offset: random(),
+      size: random(2, 6),
+      hue: random(170, 320)
+    });
+  }
+}
+
+function draw() {
+  let maxR = dist(0, 0, width, height) / 2;
+  let s = min(width, height) / 300;
+  translate(width / 2, height / 2);
+  noStroke();
+
+  for (let q of parts) {
+    let ph = (progress + q.offset) % 1;
+    let r = pow(ph, 1.4) * maxR * q.speed * 1.2;
+    let a = q.a + ph * curl;
+    let alpha = sin(ph * PI) * 100;
+    fill(q.hue, 70, 100, alpha);
+    circle(cos(a) * r, sin(a) * r, q.size * s * (0.4 + ph));
+  }
+}`, { maxFrames: 360 }),
+
+coin: preset(`
+// Chinese coin swinging on a red silk string.
+let swingsPerLoop = 3;
+let swingAngle = 40;     // degrees
+let coinSize = 120;
+
+function draw() {
+  let s = min(width, height) / 300;
+  let size = coinSize * s;
+  let pivotX = width / 2, pivotY = 0;
+  let len = height * 0.62;
+  let angle = radians(swingAngle) * sin(progress * TWO_PI * swingsPerLoop + PI);
+
+  push();
+  translate(pivotX, pivotY);
+  rotate(-angle);
+  drawString(len - size / 2, s);
+  translate(0, len);
+  drawCoin(size, s);
+  pop();
+
+  // Pivot
+  noStroke();
+  fill(30, 70, 45);
+  circle(pivotX, pivotY, 16 * s);
+  fill(25, 80, 25);
+  circle(pivotX, pivotY, 6 * s);
+}
+
+function drawString(l, s) {
+  stroke(0, 85, 65);
+  strokeWeight(4 * s);
+  line(0, 0, 0, l);
+  stroke(10, 70, 85);
+  strokeWeight(1.2 * s);
+  for (let y = 4 * s; y < l; y += 8 * s) line(-1.5 * s, y, 1.5 * s, y + 4 * s);
+  // knot
+  noStroke();
+  fill(0, 90, 55);
+  ellipse(0, l, 11 * s, 9 * s);
+}
+
+function drawCoin(size, s) {
+  let hole = size / 4;
+  noStroke();
+  fill(35, 90, 15, 40);
+  circle(3 * s, 3 * s, size + 6 * s);
+
+  fill(42, 85, 65);
+  stroke(38, 90, 55);
+  strokeWeight(3 * s);
+  circle(0, 0, size);
+  fill(45, 80, 78);
+  stroke(48, 75, 88);
+  strokeWeight(2 * s);
+  circle(0, 0, size - 12 * s);
+
+  // Rim dots and rings
+  noStroke();
+  fill(48, 70, 92);
+  for (let i = 0; i < 16; i++) {
+    let a = i * TWO_PI / 16;
+    circle(cos(a) * (size / 2 - 15 * s), sin(a) * (size / 2 - 15 * s), 3 * s);
+  }
+  noFill();
+  stroke(48, 70, 92);
+  strokeWeight(1 * s);
+  circle(0, 0, size / 2.5);
+
+  // Four characters (stylised)
+  noStroke();
+  fill(30, 95, 32);
+  let o = size / 3.4;
+  rectMode(CENTER);
+  rect(0, -o, 4 * s, 13 * s, 1);  rect(0, -o - 2 * s, 11 * s, 3 * s, 1);
+  rect(0, o, 12 * s, 3 * s, 1);   rect(0, o + 4 * s, 3 * s, 8 * s, 1);
+  rect(-o, 0, 3 * s, 12 * s, 1);  rect(-o, 0, 10 * s, 3 * s, 1);
+  rect(o, 0, 9 * s, 9 * s, 2);
+
+  // Square hole: actually cut out, so the background shows through
+  erase();
+  rect(0, 0, hole, hole);
+  noErase();
+  noFill();
+  stroke(30, 70, 30);
+  strokeWeight(1.5 * s);
+  rect(0, 0, hole, hole);
+  rectMode(CORNER);
+
+  // Shine
+  noStroke();
+  fill(50, 40, 100, 40);
+  ellipse(-size / 4, -size / 4, size / 3, size / 4);
+}`, { maxFrames: 360 }),
+
+pendant: preset(`
+let swingsPerLoop = 3;
+let swingAngle = 30;      // degrees
+let rotationMomentum = 1; // extra crystal tilt
+let chainLinks = 10;
+let crystalSize = 60;
+
+function draw() {
+  let s = min(width, height) / 300;
+  let w = crystalSize * s, h = crystalSize * 2 * s;
+  let pivotX = width / 2, pivotY = -60 * s;
+  let len = height * 0.55 + 60 * s;
+  let angle = radians(swingAngle) * sin(progress * TWO_PI * swingsPerLoop);
+  let bobX = pivotX + len * sin(angle);
+  let bobY = pivotY + len * cos(angle);
+
+  stroke(40, 30, 80);
+  strokeWeight(2.5 * s);
+  line(pivotX, pivotY, bobX, bobY);
+  noStroke();
+  fill(40, 30, 90);
+  for (let i = 1; i < chainLinks; i++) {
+    ellipse(lerp(pivotX, bobX, i / chainLinks), lerp(pivotY, bobY, i / chainLinks), 4 * s, 6 * s);
+  }
+
+  push();
+  translate(bobX, bobY);
+  rotate(-angle * rotationMomentum);
+  translate(0, h / 2);
+
+  fill(200, 60, 90, 75);
+  stroke(200, 80, 95);
+  strokeWeight(2 * s);
+  quad(0, -h / 2, w / 2, 0, 0, h / 2, -w / 2, 0);
+
+  noStroke();
+  fill(180, 40, 100, 55);
+  quad(0, -h / 3, w / 3, 0, 0, h / 3, -w / 3, 0);
+
+  stroke(200, 30, 100, 80);
+  strokeWeight(1 * s);
+  line(0, -h / 2, 0, h / 2);
+  line(-w / 2, 0, w / 2, 0);
+
+  // Sparkles (3 orbits per loop)
+  for (let i = 0; i < 3; i++) {
+    let a = i * TWO_PI / 3 + progress * TWO_PI * 3;
+    let sx = cos(a) * w / 4, sy = sin(a) * h / 6;
+    let tw = pow(abs(sin(progress * TWO_PI * 6 + i)), 4);
+    stroke(60, 30, 100, 80 * tw);
+    strokeWeight(1 * s);
+    line(sx - 4 * s, sy, sx + 4 * s, sy);
+    line(sx, sy - 4 * s, sx, sy + 4 * s);
+  }
+  pop();
+
+  noStroke();
+  fill(40, 30, 85);
+  ellipse(pivotX, max(pivotY, 0), 12 * s, 8 * s);
+}`, { maxFrames: 360 }),
+
+metronome: preset(`
+// Wooden metronome ticking back and forth.
+let beatsPerLoop = 6;     // ticks per loop (even number keeps it seamless)
+let swingAngle = 28;      // degrees
+let weightPosition = 0.62;
+
+function draw() {
+  let s = min(width, height) / 300;
+  let cx = width / 2, base = height * 0.88;
+  let bodyH = 210 * s, bodyTop = 46 * s, bodyBottom = 140 * s;
+
+  // Body
+  noStroke();
+  fill(22, 70, 38);
+  quad(cx - bodyTop / 2, base - bodyH, cx + bodyTop / 2, base - bodyH,
+       cx + bodyBottom / 2, base, cx - bodyBottom / 2, base);
+  fill(25, 60, 55);
+  quad(cx - bodyTop / 2 + 8 * s, base - bodyH + 12 * s, cx + bodyTop / 2 - 8 * s, base - bodyH + 12 * s,
+       cx + bodyBottom / 2 - 22 * s, base - 30 * s, cx - bodyBottom / 2 + 22 * s, base - 30 * s);
+  fill(20, 60, 25);
+  rect(cx - bodyBottom / 2 - 8 * s, base, bodyBottom + 16 * s, 12 * s, 3 * s);
+
+  // Scale marks
+  stroke(40, 30, 90, 70);
+  strokeWeight(1 * s);
+  for (let i = -4; i <= 4; i++) {
+    let a = radians(i * 7);
+    let px = cx, py = base - 34 * s;
+    line(px + sin(a) * 120 * s, py - cos(a) * 120 * s, px + sin(a) * 128 * s, py - cos(a) * 128 * s);
+  }
+
+  // Arm: sine swing, a tick at each extreme
+  let phase = progress * PI * beatsPerLoop;
+  let a = radians(swingAngle) * sin(phase);
+  let px = cx, py = base - 34 * s;
+  let armLen = 160 * s;
+  stroke(0, 0, 80);
+  strokeWeight(3 * s);
+  line(px, py, px + sin(a) * armLen, py - cos(a) * armLen);
+
+  // Sliding weight
+  let wx = px + sin(a) * armLen * weightPosition;
+  let wy = py - cos(a) * armLen * weightPosition;
+  push();
+  translate(wx, wy);
+  rotate(a);
+  noStroke();
+  fill(45, 70, 85);
+  rect(-10 * s, -9 * s, 20 * s, 18 * s, 3 * s);
+  fill(45, 40, 100, 70);
+  rect(-8 * s, -7 * s, 6 * s, 14 * s, 2 * s);
+  pop();
+
+  // Pivot and tick light
+  noStroke();
+  fill(0, 0, 70);
+  circle(px, py, 10 * s);
+  let tick = pow(abs(sin(phase)), 30);
+  fill(5, 90, 100, 100 * tick);
+  circle(cx, base - bodyH - 10 * s, 12 * s);
+  fill(5, 90, 100, 25 * tick);
+  circle(cx, base - bodyH - 10 * s, 30 * s);
+}`, { maxFrames: 360 }),
+
+// --------------------------------------------------------------------- Chill
+waves: preset(`
+let lineGap = 8;
+let lineWeight = 5;
+
+function draw() {
+  let t = progress * TWO_PI;
+  strokeWeight(lineWeight);
+  noFill();
+
+  for (let y = 0; y < height + lineGap; y += lineGap) {
+    stroke((180 + 60 * sin(t + y * 0.01) + 360) % 360, 100, 100);
+    beginShape();
+    for (let x = 0; x <= width + 5; x += 5) {
+      vertex(x, y + sin(x * 0.02 + t + y * 0.003) * 20);
+    }
+    endShape();
+  }
+}`, { maxFrames: 360, speed: 0.5 }),
+
+night_sky: preset(`
+let starCount = 250;
+let skyHeight = 0.75;       // portion of the canvas that has stars
+let shootingStar = true;
+let stars = [];
+
+function setup() {
+  for (let i = 0; i < starCount; i++) {
+    stars.push({
+      x: random(width),
+      y: pow(random(), 1.4) * height * skyHeight,
+      size: random(0.8, 2.6),
+      base: random(35, 85),
+      speed: floor(random(1, 5)),     // twinkles per loop
+      phase: random(TWO_PI),
+      sharp: random() < 0.15,         // some stars blink hard
+      hue: random() < 0.2 ? random(20, 50) : random(200, 230)
+    });
+  }
+}
+
+function draw() {
+  let ctx = drawingContext;
+  let g = ctx.createLinearGradient(0, 0, 0, height);
+  g.addColorStop(0, '#02030d');
+  g.addColorStop(0.7, '#0b1233');
+  g.addColorStop(1, '#1d1838');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, width, height);
+
+  let t = progress * TWO_PI;
+  noStroke();
+  for (let st of stars) {
+    let tw = sin(t * st.speed + st.phase);
+    if (st.sharp) tw = pow(abs(tw), 6) * 2 - 1;
+    fill(st.hue, 25, 100, constrain(st.base + tw * 30, 5, 100));
+    circle(st.x, st.y, st.size);
+  }
+
+  if (shootingStar) {
+    let ph = (progress * 2) % 1;          // two per loop
+    if (ph < 0.18) {
+      let k = ph / 0.18;
+      let sx = lerp(width * 0.85, width * 0.25, k);
+      let sy = lerp(height * 0.08, height * 0.4, k);
+      let fade = sin(k * PI);
+      for (let i = 0; i < 20; i++) {
+        stroke(0, 0, 100, fade * 100 * (1 - i / 20));
+        strokeWeight(2 * (1 - i / 20) + 0.4);
+        point(sx + i * width * 0.012, sy - i * height * 0.0065);
+      }
+      noStroke();
+    }
+  }
+}`, { maxFrames: 600 }),
+
+aurora: preset(`
+let curtains = 3;
+let columnStep = 3;
+let starCount = 120;
+let stars = [];
+
+function setup() {
+  for (let i = 0; i < starCount; i++) {
+    stars.push([random(width), random(height * 0.8), random(0.6, 1.8), random(30, 90)]);
+  }
+}
+
+// Noise that loops: walk around a circle in noise space
+function loopNoise(x, layerIdx, r) {
+  let a = progress * TWO_PI;
+  return noise(x, layerIdx * 13.7 + cos(a) * r, sin(a) * r);
+}
+
+function draw() {
+  let ctx = drawingContext;
+  let g = ctx.createLinearGradient(0, 0, 0, height);
+  g.addColorStop(0, '#01020a');
+  g.addColorStop(1, '#06172a');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, width, height);
+
+  noStroke();
+  for (let st of stars) {
+    fill(0, 0, 100, st[3]);
+    circle(st[0], st[1], st[2]);
+  }
+
+  strokeCap(SQUARE);
+  for (let c = 0; c < curtains; c++) {
+    let hueBase = 130 + c * 25;
+    for (let x = 0; x < width; x += columnStep) {
+      let n = loopNoise(x * 0.004, c, 0.9);
+      let top = height * (0.12 + c * 0.1) + n * height * 0.35;
+      let len = height * (0.18 + loopNoise(x * 0.01 + 50, c, 0.6) * 0.32);
+      let glow = pow(loopNoise(x * 0.02 + 100, c, 1.2), 2) * 1.6;
+      let segs = 8;
+      strokeWeight(columnStep + 0.5);
+      for (let k = 0; k < segs; k++) {
+        let f = k / segs;
+        let alpha = (1 - f) * (f < 0.15 ? f / 0.15 : 1) * 65 * glow;
+        stroke(hueBase + f * 60, 70, 100, alpha);
+        line(x, top + f * len, x, top + (f + 1 / segs) * len);
+      }
+    }
+  }
+}`, { maxFrames: 600 }),
+
+crystal: preset(`
+// Crystal shards growing and shrinking around a glowing core.
+let shards = 14;
+let maxLength = 120;
+let shardData = [];
+
+function setup() {
+  for (let i = 0; i < shards; i++) {
+    shardData.push({
+      a: i * TWO_PI / shards + random(-0.2, 0.2),
+      len: random(0.55, 1),
+      w: random(0.12, 0.22),
+      phase: random(TWO_PI),
+      hue: random(175, 290)
+    });
+  }
+}
+
+function draw() {
+  let s = min(width, height) / 300;
+  let t = progress * TWO_PI;
+  translate(width / 2, height / 2);
+  rotate(sin(t) * 0.15);
+
+  noStroke();
+  for (let g = 8; g > 0; g--) {
+    fill(200, 50, 100, 6);
+    circle(0, 0, g * 14 * s);
+  }
+
+  for (let sh of shardData) {
+    let grow = 0.55 + 0.45 * sin(t + sh.phase);
+    let L = maxLength * s * sh.len * grow;
+    let W = L * sh.w;
+    push();
+    rotate(sh.a);
+    // body
+    fill(sh.hue, 55, 95, 55);
+    stroke(sh.hue, 30, 100, 90);
+    strokeWeight(1.2 * s);
+    beginShape();
+    vertex(0, -W * 0.4);
+    vertex(L * 0.75, -W / 2);
+    vertex(L, 0);
+    vertex(L * 0.75, W / 2);
+    vertex(0, W * 0.4);
+    endShape(CLOSE);
+    // facet
+    stroke(sh.hue, 10, 100, 70);
+    line(0, 0, L, 0);
+    line(L * 0.75, -W / 2, L * 0.75, W / 2);
+    // tip sparkle
+    let sp = pow(max(0, sin(t * 2 + sh.phase * 2)), 12);
+    stroke(0, 0, 100, 100 * sp);
+    let k = 6 * s * sp;
+    line(L - k, 0, L + k, 0);
+    line(L, -k, L, k);
+    pop();
+  }
+
+  noStroke();
+  fill(190, 20, 100, 90);
+  circle(0, 0, 18 * s);
+}`, { maxFrames: 480 }),
+
+water: preset(`
+// Water caustics (port of a classic shader), rendered at low resolution.
+let samples = 120;       // horizontal resolution of the effect (higher = sharper, slower)
+let iterations = 5;
+let intensity = 0.005;
+let speeds = [1, -1, 2, -1, 1];   // whole numbers = seamless loop
+let buffer, bctx, img;
+
+function draw() {
+  let w = samples, h = max(1, round(samples * height / width));
+  if (!buffer || buffer.width !== w || buffer.height !== h) {
+    buffer = document.createElement('canvas');
+    buffer.width = w; buffer.height = h;
+    bctx = buffer.getContext('2d');
+    img = bctx.createImageData(w, h);
+  }
+  let data = img.data;
+  let t = progress * Math.PI * 2;
+  let TAU2 = Math.PI * 2;
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let px = x / w * TAU2 - 250, py = y / h * TAU2 - 250;
+      let ix = px, iy = py, c = 1;
+      for (let n = 0; n < iterations; n++) {
+        let tt = t * speeds[n % speeds.length] + n * 1.7;
+        ix = px + Math.cos(tt - ix) + Math.sin(tt + iy);
+        iy = py + Math.sin(tt - iy) + Math.cos(tt + ix);
+        let ax = px / (Math.sin(ix + tt) / intensity);
+        let ay = py / (Math.cos(iy + tt) / intensity);
+        c += 1 / Math.sqrt(ax * ax + ay * ay);
+      }
+      c /= iterations;
+      c = 1.17 - Math.pow(c, 1.4);
+      let v = Math.pow(Math.abs(c), 8);
+      let i = (x + y * w) * 4;
+      data[i] = Math.min(1, v) * 255;
+      data[i + 1] = Math.min(1, v + 0.35) * 255;
+      data[i + 2] = Math.min(1, v + 0.5) * 255;
+      data[i + 3] = 255;
+    }
+  }
+  bctx.putImageData(img, 0, 0);
+  drawingContext.imageSmoothingEnabled = true;
+  drawingContext.drawImage(buffer, 0, 0, width, height);
+}`, { maxFrames: 480 }),
+
+wagon_wave: preset(`
+let gridSize = 30;
+let offsetMultiplier = 5;
+let zoom = 1.11;
+let dotSize = 0.7;
+
+function setup() {
+  colorMode(RGB);
   noStroke();
 }
 
 function draw() {
-  // Use the modulo operator to keep frameCount within the loopLength
-  let loopedFrame = frameCount % loopLength;
-
-  push();
+  let t = progress * TWO_PI;
   translate(width / 2, height / 2);
   scale(zoom);
   translate(-width / 2, -height / 2);
 
-  let cellSize = width / gridSize;
-
+  let cellW = width / gridSize, cellH = height / gridSize;
   for (let i = 0; i < gridSize; i++) {
     for (let j = 0; j < gridSize; j++) {
-      // Re-define x and y here so they are available in this scope
-      let x = i * cellSize + cellSize / 2;
-      let y = j * cellSize + cellSize / 2;
-
-      // The core change for perfect looping is here
-      let t = (loopedFrame / loopLength) * TWO_PI;
-      
+      let x = i * cellW + cellW / 2;
+      let y = j * cellH + cellH / 2;
       let offset = sin(t + i * 0.2 + j * 0.1) * offsetMultiplier;
-
-      // The color functions also need to be modified for perfect looping
-      let r = map(sin(t + i), -1, 1, 100, 200);
-      let g = map(cos(t * 2 + j), -1, 1, 150, 255);
-      let b = map(sin(t * 0.5 + i + j), -1, 1, 200, 255);
-
-      fill(r, g, b);
-
-      ellipse(x + offset, y + offset, cellSize * dotsize);
+      fill(map(sin(t + i), -1, 1, 100, 200),
+           map(cos(t * 2 + j), -1, 1, 150, 255),
+           map(sin(t + i + j), -1, 1, 200, 255));
+      ellipse(x + offset, y + offset, min(cellW, cellH) * dotSize);
     }
   }
+}`, { maxFrames: 180 }),
 
-  pop();
-}
-
-function mouseWheel(event) {
-  if (event.delta > 0) {
-    zoom -= 0.1;
-  } else {
-    zoom += 0.1;
-  }
-  zoom = constrain(zoom, 1, 5);
-}`,
-		hue: 360,
-        saturation: 100,
-        brightness: 100,
-        opacity: 100,
-        maxFrames: 360,
-        fps: 60,
-        speed: 1
-    },
-	
-	kaleidoscope: {
-		code:`let symmetry = 16;
-let loopLength = 360;
-let loopSpeed = 2;
-let xSize = 5;
-let ySize = 5;
-let wheel1x = 30;
-let wheel1y = 30;
-let wheel2x = 40;
-let wheel2y = 70;
-
-let angle;
-let loopProgress = 0;
+// --------------------------------------------------------------------- Others
+petals: preset(`
+let numPetals = 8;
+let flowerRadius = 120;
+let petals = [];
 
 function setup() {
-  p.angleMode(DEGREES);
-  angle = 360 / symmetry;
+  for (let i = 0; i < numPetals; i++) {
+    petals.push({ baseAngle: i * TWO_PI / numPetals, offsetPhase: random(TWO_PI) });
+  }
 }
 
 function draw() {
-  loopProgress = map(frameCount % loopLength, 0, loopLength, 0, 360);
+  let s = min(width, height) / 300;
+  let t = progress * TWO_PI;
   translate(width / 2, height / 2);
+  scale(s);
 
-  // Use sine and cosine to create a circular path that loops
-  let x = sin(loopProgress) * width / xSize;
-  let y = cos(loopProgress * loopSpeed) * width / ySize;
-
-  // Draw the symmetrical shapes
-  noFill();
-  strokeWeight(2);
-  stroke(255);
-
-  for (let i = 0; i < symmetry; i++) {
-    rotate(angle);
-
-    // Draw the ellipse
-    ellipse(x, y, wheel1x, wheel1y);
-
-    // Mirror the shape
+  for (let lay = 0; lay < 3; lay++) {
     push();
-    scale(1, -1);
-    ellipse(x, y, wheel2x, wheel2y);
+    scale(1 - lay * 0.2);
+    rotate(t * (lay + 1) * (lay % 2 ? -1 : 1));
+    drawFlowerLayer(lay, 80 - lay * 20, t);
     pop();
   }
-}`,
-		hue: 360,
-        saturation: 100,
-        brightness: 100,
-        opacity: 100,
-        maxFrames: 360,
-        fps: 60,
-        speed: 1
-    },
-	
+  drawFlowerCenter(t);
+}
 
-	
+function drawFlowerLayer(layerIndex, alpha, t) {
+  for (let i = 0; i < petals.length; i++) {
+    let pt = petals[i];
+    let h = (progress * 360 + i * 45 + layerIndex * 60) % 360;
+    let sat = 80 + sin(t * 2 + i) * 20;
+    let bri = 70 + sin(t * 3 + i * 0.5) * 30;
+    let size = flowerRadius + sin(t * 2 + pt.offsetPhase) * 20;
+    push();
+    rotate(pt.baseAngle + sin(t + pt.offsetPhase) * 0.3);
+    drawPetal(size, h, sat, bri, alpha);
+    pop();
+  }
+}
+
+function drawPetal(size, h, sat, bri, alpha) {
+  let segments = 15;
+  noStroke();
+  for (let j = 0; j < segments; j++) {
+    let k = j / segments;
+    fill((h + k * 60) % 360, sat - k * 20, bri - k * 30, alpha * (1 - k * 0.5));
+    let pw = size * 0.4 * (1 - k * 0.8);
+    let pl = size * (1 - k);
+    beginShape();
+    vertex(0, 0);
+    bezierVertex(-pw / 3, -pl / 3, -pw / 2, -pl * 0.7, 0, -pl);
+    bezierVertex(pw / 2, -pl * 0.7, pw / 3, -pl / 3, 0, 0);
+    endShape(CLOSE);
+  }
+}
+
+function drawFlowerCenter(t) {
+  for (let i = 0; i < 8; i++) {
+    let size = 40 - i * 4 + sin(t * 6 + i * 0.5) * 3;
+    let h = (progress * 720 + i * 20) % 360;
+    noStroke();
+    fill(h, 90 - i * 10, 80 + sin(t * 4 + i) * 20, 70);
+    circle(0, 0, size);
+  }
+  for (let i = 0; i < 12; i++) {
+    let a = i * TWO_PI / 12 + t * 2;
+    let r = 8 + sin(t * 3 + i) * 4;
+    fill((progress * 360 + i * 30) % 360, 100, 90, 80);
+    circle(cos(a) * r, sin(a) * r, 4);
+  }
+}`, { maxFrames: 360 }),
+
+text_example: preset(`
+let textStartFrame = 120;
+let textEndFrame = 300;
+let fadeFrames = 30;
+
+function draw() {
+  textAlign(CENTER, CENTER);
+  noStroke();
+
+  fill(0, 0, 100, 80);
+  textSize(30);
+  textFont('Arial Black');
+  text('BIG TEXT', width / 2, height * 0.3);
+
+  let wave = sin(progress * TWO_PI * 3) * 20;
+  fill(200, 60, 100, 70);
+  textSize(22);
+  textFont('Arial');
+  text('Floating on Animation', width / 2, height * 0.45 + wave);
+
+  fill(20, 60, 100);
+  textAlign(LEFT, TOP);
+  textSize(14);
+  text('Frame: ' + frameCount, 12, 12);
+
+  push();
+  translate(width - 60, height - 60);
+  rotate(progress * TWO_PI * 2);
+  fill(330, 60, 100, 70);
+  textAlign(CENTER, CENTER);
+  textSize(12);
+  text('SPINNING', 0, 0);
+  pop();
+
+  if (frameCount >= textStartFrame && frameCount <= textEndFrame) {
+    let alpha = 100;
+    if (frameCount < textStartFrame + fadeFrames) {
+      alpha = map(frameCount, textStartFrame, textStartFrame + fadeFrames, 0, 100);
+    }
+    if (frameCount > textEndFrame - fadeFrames) {
+      alpha = map(frameCount, textEndFrame - fadeFrames, textEndFrame, 100, 0);
+    }
+    fill(300, 80, 90, alpha);
+    textAlign(CENTER, CENTER);
+    textSize(18);
+    text('Fade in, Fade out', width / 2, height * 0.75);
+  }
+}`, { maxFrames: 360 }),
+
+center_pulse: preset(`
+let centerLayers = 8;
+let size = 45;
+let colorOffset = 0;
+let zoom = 2;
+let pulsesPerLoop = 3;
+
+function draw() {
+  let s = min(width, height) / 300 * zoom;
+  translate(width / 2, height / 2);
+  scale(s);
+  let t = progress * TWO_PI * pulsesPerLoop;
+
+  for (let i = 0; i < centerLayers; i++) {
+    let layerSize = size - i * 4;
+    let h = (progress * 360 * pulsesPerLoop + i * 20 + colorOffset) % 360;
+    let pulsate = sin(t * 3 + i * 0.5) * 3;
+    noStroke();
+    fill(h, 90 - i * 10, 80 + sin(t * 2 + i) * 20, 70);
+    circle(0, 0, layerSize + pulsate);
+    if (i % 2 === 0) {
+      stroke(h, 70 - i * 10, 100, 30);
+      strokeWeight(1);
+      noFill();
+      circle(0, 0, layerSize + pulsate);
+    }
+  }
+}`, { maxFrames: 360 }),
+
+bg_gradient: preset(`
+// Static background gradient (put this layer at the top of the list = bottom of the stack).
+let gradientColors = ['#FF6B6B', '#FFE66D', '#4ECDC4', '#4F81C2', '#6B4C93'];
+let gradientPercentages = [0.3, 0.2, 0.1, 0.2, 0.3];
+let gradientRotation = 0;   // degrees
+let smooth = true;          // false = hard colour bands
+
+function setup() {
+  let ctx = drawingContext;
+  let a = radians(gradientRotation);
+  let half = (abs(width * sin(a)) + abs(height * cos(a))) / 2;
+  let cx = width / 2, cy = height / 2;
+  let g = ctx.createLinearGradient(cx + sin(a) * half, cy - cos(a) * half,
+                                   cx - sin(a) * half, cy + cos(a) * half);
+  let total = gradientPercentages.reduce((s, v) => s + v, 0);
+  let pos = 0;
+  gradientColors.forEach((c, i) => {
+    let band = gradientPercentages[i] / total;
+    if (smooth) {
+      g.addColorStop(min(1, pos + band / 2), c);
+    } else {
+      g.addColorStop(pos, c);
+      g.addColorStop(min(1, pos + band), c);
+    }
+    pos += band;
+  });
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, width, height);
+}`),
+
+vignette: preset(`
+// Static dark vignette - place it on the last layer so it sits on top.
+let vignetteSize = 0.55;      // 0..1 where the darkening starts
+let vignetteStrength = 0.9;   // 0..1 darkness at the corners
+
+function setup() {
+  let ctx = drawingContext;
+  let r = dist(0, 0, width, height) / 2;
+  let g = ctx.createRadialGradient(width / 2, height / 2, r * vignetteSize, width / 2, height / 2, r);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, 'rgba(0,0,0,' + vignetteStrength + ')');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, width, height);
+}`),
+
+static: preset(`
+// Old TV static with scan lines and a rolling bar.
+let grain = 2;           // size of each noise pixel
+let colorNoise = 0.15;   // chance of a coloured speck
+let buffer, bctx, img;
+
+function draw() {
+  let w = ceil(width / grain), h = ceil(height / grain);
+  if (!buffer || buffer.width !== w || buffer.height !== h) {
+    buffer = document.createElement('canvas');
+    buffer.width = w; buffer.height = h;
+    bctx = buffer.getContext('2d');
+    img = bctx.createImageData(w, h);
+  }
+  let d = img.data;
+  let barY = progress * h;
+  for (let y = 0; y < h; y++) {
+    let bar = max(0, 1 - abs(y - barY) / (h * 0.08)) * 40;
+    for (let x = 0; x < w; x++) {
+      let i = (x + y * w) * 4;
+      let v = random(60, 200) + bar;
+      if (random() < colorNoise) {
+        let ch = floor(random(3));
+        d[i] = ch === 0 ? 255 : v * 0.4;
+        d[i + 1] = ch === 1 ? 255 : v * 0.4;
+        d[i + 2] = ch === 2 ? 255 : v * 0.4;
+      } else {
+        d[i] = d[i + 1] = d[i + 2] = v;
+      }
+      d[i + 3] = 255;
+    }
+  }
+  bctx.putImageData(img, 0, 0);
+  drawingContext.imageSmoothingEnabled = false;
+  drawingContext.drawImage(buffer, 0, 0, w * grain, h * grain);
+
+  stroke(0, 0, 0, 25);
+  strokeWeight(1);
+  for (let y = 0; y < height; y += 3) line(0, y, width, y);
+}`, { maxFrames: 120 }),
 
 };
 
-// Function to load a preset by name
+// Copy a preset's code and settings onto a layer object
+function applyPresetToLayer(layer, name) {
+    const p = presets[name];
+    if (!p) return false;
+    layer.type = 'code';
+    layer.code = p.code;
+    layer.hue = p.hue;
+    layer.saturation = p.saturation;
+    layer.brightness = p.brightness;
+    layer.opacity = p.opacity;
+    layer.maxFrames = p.maxFrames;
+    layer.fps = Math.min(p.fps, animationFPS);
+    layer.speed = p.speed;
+    return true;
+}
+
+// Load a preset into the selected layer (or a new layer) and play it
 function loadPreset(name) {
-    if (presets[name]) {
-        const selectedLayer = getSelectedLayer();
-        if (selectedLayer) {
-            // Update the selected layer's code and properties
-            selectedLayer.code = presets[name].code;
-            selectedLayer.hue = presets[name].hue;
-            selectedLayer.saturation = presets[name].saturation;
-            selectedLayer.brightness = presets[name].brightness;
-            selectedLayer.opacity = presets[name].opacity;
-            selectedLayer.maxFrames = presets[name].maxFrames;
-            selectedLayer.fps = presets[name].fps;
-            selectedLayer.speed = presets[name].speed;
-            
-            // Update the DOM for this layer
-            const layerDiv = document.querySelector(`[data-layer-id="${selectedLayer.id}"]`);
-            if (layerDiv) {
-                // Update textarea
-                const textarea = layerDiv.querySelector('.layer-textarea');
-                textarea.value = selectedLayer.code;
-                
-                // Update color sliders
-                layerDiv.querySelector('.hue-slider').value = selectedLayer.hue;
-                layerDiv.querySelector('.sat-slider').value = selectedLayer.saturation;
-                layerDiv.querySelector('.bright-slider').value = selectedLayer.brightness;
-                layerDiv.querySelector('.opacity-slider').value = selectedLayer.opacity;
-                
-                // Update color value displays
-                layerDiv.querySelector('.hue-slider').nextElementSibling.textContent = selectedLayer.hue;
-                layerDiv.querySelector('.sat-slider').nextElementSibling.textContent = selectedLayer.saturation;
-                layerDiv.querySelector('.bright-slider').nextElementSibling.textContent = selectedLayer.brightness;
-                layerDiv.querySelector('.opacity-slider').nextElementSibling.textContent = selectedLayer.opacity;
-                
-                // Update animation controls
-                layerDiv.querySelector('input[oninput*="maxFrames"]').value = selectedLayer.maxFrames;
-                layerDiv.querySelector('input[oninput*="fps"]').value = selectedLayer.fps;
-                layerDiv.querySelector('input[oninput*="speed"]').value = selectedLayer.speed;
-            }
-            
-            // Restart animation if running
-            if (isRunning) {
-                stopAnimation();
-                setTimeout(runAnimation, 100);
-            }
-        } else {
-            // If no layer is selected, create a new one with the preset
-            const newLayer = createLayer(presets[name].code);
-            newLayer.hue = presets[name].hue;
-            newLayer.saturation = presets[name].saturation;
-            newLayer.brightness = presets[name].brightness;
-            newLayer.opacity = presets[name].opacity;
-            newLayer.maxFrames = presets[name].maxFrames;
-            newLayer.fps = presets[name].fps;
-            newLayer.speed = presets[name].speed;
-            
-            // Refresh DOM to show all values correctly
-            refreshLayersDOM();
-            selectLayer(newLayer.id);
-            
-            if (isRunning) {
-                stopAnimation();
-                setTimeout(runAnimation, 100);
-            }
-        }
-    } else {
+    if (!presets[name]) {
         console.warn(`Preset '${name}' not found`);
+        return;
     }
+    let layer = getSelectedLayer();
+    if (!layer || layer.type !== 'code') {
+        layer = createLayer('');
+        applyPresetToLayer(layer, name);
+        refreshLayersDOM();
+        selectLayer(layer.id);
+    } else {
+        applyPresetToLayer(layer, name);
+        LayerDOM.refresh(layer.id);
+        updateLayerSelection();
+    }
+    runAnimation();
 }
 
-// Function to update all preset canvas sizes when canvas dimensions change
-function updatePresetCanvasSizes() {
-    Object.keys(presets).forEach(key => {
-        presets[key] = presets[key].replace(
-            /createCanvas\(\d+,\s*\d+\)/, 
-            `createCanvas(${canvasWidth}, ${canvasHeight})`
-        );
-    });
-    
-    // Update current code in editor if it contains createCanvas
-    const currentCode = document.getElementById('codeEditor').value;
-    if (currentCode.includes('createCanvas(')) {
-        const updatedCode = currentCode.replace(
-            /createCanvas\(\d+,\s*\d+\)/, 
-            `createCanvas(${canvasWidth}, ${canvasHeight})`
-        );
-        document.getElementById('codeEditor').value = updatedCode;
-    }
-}
-
-// This function is now redundant since we use the main presets object
 function getPresetCode(presetName) {
     return presets[presetName] ? presets[presetName].code : '';
 }

@@ -5,45 +5,24 @@ function toggleCollapse() {
     const previewPanel = document.querySelector('.preview-panel');
     const editorPanel = document.querySelector('.editor-panel');
     const collapseIcon = document.querySelector('.collapse-icon');
-    
+
     previewPanel.classList.toggle('collapsed');
-    
-    // Toggle editor panel expansion
-    if (previewPanel.classList.contains('collapsed')) {
-        editorPanel.classList.add('expanded');
-        collapseIcon.style.transform = 'rotate(180deg)';
-    } else {
-        editorPanel.classList.remove('expanded');
-        collapseIcon.style.transform = 'rotate(0deg)';
-    }
+    const collapsed = previewPanel.classList.contains('collapsed');
+    editorPanel.classList.toggle('expanded', collapsed);
+    collapseIcon.style.transform = collapsed ? 'rotate(180deg)' : 'rotate(0deg)';
 }
 
-// Animation control functions
 function runWithoutLag() {
-    clearP5();
-    setTimeout(() => {
-        runAnimation();
-    }, 100);
+    runAnimation();
 }
 
 function pauseAnimation() {
     if (!isRunning) return;
-    
     isPaused = !isPaused;
     const pauseBtn = document.getElementById('pauseFrameBtn');
     const status = document.getElementById('status');
-    
-    if (isPaused) {
-        if (animationLoopId) {
-            cancelAnimationFrame(animationLoopId);
-            animationLoopId = null;
-        }
-        
-        // Correctly pause each p5 sketch
-        canvasLayers.forEach(sketch => {
-            if (sketch) sketch.noLoop();
-        });
 
+    if (isPaused) {
         pauseBtn.textContent = '▶';
         status.textContent = 'Paused';
         status.style.color = '#ffaa00';
@@ -51,302 +30,149 @@ function pauseAnimation() {
         pauseBtn.textContent = '⏸';
         status.textContent = 'Running...';
         status.style.color = '#00cc66';
-        lastFrameTime = Date.now();
-
-        // Correctly resume each p5 sketch
-        canvasLayers.forEach(sketch => {
-            if (sketch) sketch.loop();
-        });
-        
-        updateLoopProgress();
+        resyncClock();
     }
 }
 
 function clearCode() {
-    document.getElementById('codeEditor').value = '';
+    const layer = getSelectedLayer();
+    if (layer && layer.type === 'code') {
+        layer.code = '';
+        LayerDOM.refresh(layer.id);
+    }
     stopAnimation();
 }
 
-// Animation loop and frame control functions
-function updateLoopProgress() {
-    if (!isRunning || isPaused) return;
-    
-    const currentTime = Date.now();
-    const frameInterval = 1000 / (animationFPS * animationSpeed);
-    
-    if (currentTime - lastFrameTime >= frameInterval) {
-        virtualFrameCount++;
-        lastFrameTime = currentTime;
-        
-        if (virtualFrameCount >= framesPerLoop) {
-            virtualFrameCount = 0;
-        }
-        
-        loopFrameCount = virtualFrameCount;
-        updateUI();
-    }
-    
-    animationLoopId = requestAnimationFrame(updateLoopProgress);
-}
-
 function updateUI() {
-    document.getElementById('frameSlider').value = loopFrameCount;
-    const currentFrameStr = String(loopFrameCount).padStart(3, '0');
-    const totalFrameStr = String(framesPerLoop).padStart(3, '0');
+    const slider = document.getElementById('frameSlider');
+    slider.max = Math.max(0, framesPerLoop - 1);
+    slider.value = loopFrameCount;
+    const width = Math.max(3, String(framesPerLoop).length);
+    const currentFrameStr = String(loopFrameCount).padStart(width, '0');
+    const totalFrameStr = String(framesPerLoop).padStart(width, '0');
     document.getElementById('frameDisplay').textContent = `${currentFrameStr}/${totalFrameStr}`;
 }
 
+function goToFrame(frame) {
+    if (!isRunning) return;
+    frame = ((frame % framesPerLoop) + framesPerLoop) % framesPerLoop;
+    showFrame(frame);
+    resyncClock();
+}
+
 function scrubToFrame(frameNum) {
-    frameNum = parseInt(frameNum);
-    if (frameNum >= 0 && frameNum < framesPerLoop) {
-        virtualFrameCount = frameNum;
-        loopFrameCount = frameNum;
-        updateUI();
-        
-        // When scrubbing, calculate proportional position for each layer
-        const globalProgress = frameNum / framesPerLoop;
-        canvasLayers.forEach(sketch => {
-            if (sketch && sketch.layerControls) {
-                const layer = sketch.layerControls.layer;
-                const layerFrame = Math.floor(globalProgress * layer.maxFrames);
-                sketch.layerControls.setFrameCount(layerFrame % layer.maxFrames);
-                sketch.redraw();
-            }
-        });
-    }
+    goToFrame(parseInt(frameNum) || 0);
 }
 
 function nextFrame() {
-    if (virtualFrameCount < framesPerLoop - 1) {
-        virtualFrameCount++;
-    } else {
-        virtualFrameCount = 0;
-        // Reset all layers when looping
-        canvasLayers.forEach(sketch => {
-            if (sketch && sketch.layerControls) {
-                sketch.layerControls.resetTiming();
-            }
-        });
-    }
-    loopFrameCount = virtualFrameCount;
-    updateUI();
-    
-    // Update layers proportionally for manual stepping
-    const globalProgress = virtualFrameCount / framesPerLoop;
-    canvasLayers.forEach(sketch => {
-        if (sketch && sketch.layerControls) {
-            const layer = sketch.layerControls.layer;
-            const layerFrame = Math.floor(globalProgress * layer.maxFrames);
-            sketch.layerControls.setFrameCount(layerFrame % layer.maxFrames);
-            sketch.redraw();
-        }
-    });
+    goToFrame(virtualFrameCount + 1);
 }
 
 function previousFrame() {
-    if (virtualFrameCount > 0) {
-        virtualFrameCount--;
-    } else {
-        virtualFrameCount = framesPerLoop - 1;
-    }
-    loopFrameCount = virtualFrameCount;
-    updateUI();
-    
-    // Update layers proportionally for manual stepping
-    const globalProgress = virtualFrameCount / framesPerLoop;
-    canvasLayers.forEach(sketch => {
-        if (sketch && sketch.layerControls) {
-            const layer = sketch.layerControls.layer;
-            const layerFrame = Math.floor(globalProgress * layer.maxFrames);
-            sketch.layerControls.setFrameCount(layerFrame % layer.maxFrames);
-            sketch.redraw();
-        }
-    });
+    goToFrame(virtualFrameCount - 1);
 }
 
-// Function to pause animation when slider interaction starts
 function pauseForSliderInteraction() {
     if (isRunning && !isPaused && !isSliderActive) {
         wasRunningBeforeSlider = true;
         isSliderActive = true;
-        // Pause the animation loop without changing the pause button state
-        if (animationLoopId) {
-            cancelAnimationFrame(animationLoopId);
-            animationLoopId = null;
-        }
-        
-        // Update status to show slider interaction
         const status = document.getElementById('status');
         status.textContent = 'Scrubbing...';
         status.style.color = '#ffaa00';
     }
 }
 
-// Function to resume animation when slider interaction ends
 function resumeAfterSliderInteraction() {
     if (wasRunningBeforeSlider && isSliderActive) {
         isSliderActive = false;
         wasRunningBeforeSlider = false;
-        
-        // Resume the animation loop
-        lastFrameTime = Date.now();
-        updateLoopProgress();
-        
-        // Update status back to running
+        resyncClock();
         const status = document.getElementById('status');
         status.textContent = 'Running...';
         status.style.color = '#00cc66';
     }
 }
 
-// Function to initialize slider interaction listeners
 function initializeSliderInteraction() {
     const frameSlider = document.getElementById('frameSlider');
-    if (frameSlider) {
-        // Mouse events
-        frameSlider.addEventListener('mousedown', pauseForSliderInteraction);
-        frameSlider.addEventListener('mouseup', resumeAfterSliderInteraction);
-        
-        // Touch events for mobile
-        frameSlider.addEventListener('touchstart', pauseForSliderInteraction);
-        frameSlider.addEventListener('touchend', resumeAfterSliderInteraction);
-        
-        // Handle case where user drags outside the slider and releases
-        document.addEventListener('mouseup', () => {
-            if (isSliderActive) {
-                resumeAfterSliderInteraction();
-            }
-        });
-        
-        document.addEventListener('touchend', () => {
-            if (isSliderActive) {
-                resumeAfterSliderInteraction();
-            }
-        });
-        
-        // Handle keyboard interaction (arrow keys, etc.)
-        frameSlider.addEventListener('keydown', pauseForSliderInteraction);
-        frameSlider.addEventListener('keyup', resumeAfterSliderInteraction);
+    if (!frameSlider) return;
+    frameSlider.addEventListener('mousedown', pauseForSliderInteraction);
+    frameSlider.addEventListener('touchstart', pauseForSliderInteraction);
+    frameSlider.addEventListener('keydown', pauseForSliderInteraction);
+    frameSlider.addEventListener('keyup', resumeAfterSliderInteraction);
+    document.addEventListener('mouseup', () => { if (isSliderActive) resumeAfterSliderInteraction(); });
+    document.addEventListener('touchend', () => { if (isSliderActive) resumeAfterSliderInteraction(); });
+}
+
+function updateAnimationSettings(changed) {
+    const oldAnimationFPS = animationFPS;
+
+    if (changed === 'frames') {
+        // Typing a frame count manually switches off auto loop length
+        autoFrames = false;
+        const autoInput = document.getElementById('autoFramesInput');
+        if (autoInput) autoInput.checked = false;
+    }
+
+    framesPerLoop = Math.max(1, parseInt(document.getElementById('framesInput').value) || 120);
+    animationFPS = Math.max(1, Math.min(120, parseInt(document.getElementById('fpsInput').value) || 60));
+    animationSpeed = Math.max(0.1, parseFloat(document.getElementById('speedInput').value) || 1);
+
+    if (oldAnimationFPS !== animationFPS) updateLayerFPSLimits();
+    if (autoFrames) applyAutoFrames();
+
+    if (virtualFrameCount >= framesPerLoop) virtualFrameCount = 0;
+    loopFrameCount = virtualFrameCount;
+    updateUI();
+    if (isRunning) {
+        showFrame(virtualFrameCount, true);
+        resyncClock();
     }
 }
 
-function updateAnimationSettings() {
-    const oldAnimationFPS = animationFPS;
-    
-    framesPerLoop = parseInt(document.getElementById('framesInput').value) || 120;
-    animationFPS = parseInt(document.getElementById('fpsInput').value) || 60;
-    animationSpeed = parseFloat(document.getElementById('speedInput').value) || 1;
-    
-    // Update slider max value
-    document.getElementById('frameSlider').max = framesPerLoop - 1;
-    
-    // Adjust current frame if frames per loop changed
-    if (virtualFrameCount >= framesPerLoop) {
-        virtualFrameCount = framesPerLoop - 1;
-        loopFrameCount = virtualFrameCount;
-    }
-    
-    // Update layer FPS limits if global FPS changed
-    if (oldAnimationFPS !== animationFPS && typeof updateLayerFPSLimits === 'function') {
-        updateLayerFPSLimits();
-    }
-    
-    lastFrameTime = Date.now();
-    updateUI();
-    
-    // Restart animation if running to apply new settings
-    if (isRunning) {
-        stopAnimation();
-        setTimeout(runAnimation, 100);
+function toggleAutoFrames(checked) {
+    autoFrames = checked;
+    if (autoFrames) {
+        applyAutoFrames();
+        if (isRunning) resyncClock();
     }
 }
 
 // Canvas size control functions
-function setCanvasRatio(ratio) {
-    canvasRatio = ratio;
-    
-    // Update button states
-    document.querySelectorAll('.size-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-    
-    // Recalculate dimensions
-    switch(canvasRatio) {
-        case '1:1':
-            canvasWidth = baseSize;
-            canvasHeight = baseSize;
-            break;
-        case '4:3':
-            canvasWidth = baseSize;
-            canvasHeight = Math.round(baseSize * 3 / 4);
-            break;
-        case '3:4':
-            canvasWidth = Math.round(baseSize * 3 / 4);
-            canvasHeight = baseSize;
-            break;
-    }
-    
-    // Update the main canvas container
+function applyCanvasSize() {
+    computeCanvasDimensions();
     const canvasContainer = document.getElementById('canvasContainer');
     canvasContainer.style.width = canvasWidth + 'px';
     canvasContainer.style.height = canvasHeight + 'px';
-    
-    // Restart animation if running to apply new canvas size
     if (isRunning) {
-        stopAnimation();
-        setTimeout(runAnimation, 100);
+        clearTimeout(window.__resizeTimer);
+        window.__resizeTimer = setTimeout(() => runAnimation(true), 150);
     }
-    
-    // Update PiP window size if open
     if (pipWindow && !pipWindow.closed) {
         pipWindow.resizeTo(canvasWidth + 40, canvasHeight + 80);
     }
 }
 
+function setCanvasRatio(ratio, btn) {
+    canvasRatio = ratio;
+    document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+    const target = btn || (typeof event !== 'undefined' && event && event.target);
+    if (target) target.classList.add('active');
+    applyCanvasSize();
+}
+
 function updateCanvasSize(size) {
-    baseSize = parseInt(size);
+    baseSize = Math.max(100, Math.min(1000, parseInt(size) || 300));
     document.getElementById('sizeSlider').value = baseSize;
     document.getElementById('sizeInput').value = baseSize;
-    
-    // Recalculate canvas dimensions based on current ratio
-    switch(canvasRatio) {
-        case '1:1':
-            canvasWidth = baseSize;
-            canvasHeight = baseSize;
-            break;
-        case '4:3':
-            canvasWidth = baseSize;
-            canvasHeight = Math.round(baseSize * 3 / 4);
-            break;
-        case '3:4':
-            canvasWidth = Math.round(baseSize * 3 / 4);
-            canvasHeight = baseSize;
-            break;
-    }
-    
-    // Update the main canvas container
-    const canvasContainer = document.getElementById('canvasContainer');
-    canvasContainer.style.width = canvasWidth + 'px';
-    canvasContainer.style.height = canvasHeight + 'px';
-    
-    // Restart animation if running to apply new canvas size
-    if (isRunning) {
-        stopAnimation();
-        setTimeout(runAnimation, 100);
-    }
-    
-    // Update PiP window size if open
-    if (pipWindow && !pipWindow.closed) {
-        pipWindow.resizeTo(canvasWidth + 40, canvasHeight + 80);
-    }
+    applyCanvasSize();
 }
 
 function updateCanvasSizeFromInput(size) {
     const sizeValue = parseInt(size);
-    if (sizeValue >= 300 && sizeValue <= 1000) {
-        document.getElementById('sizeSlider').value = sizeValue;
+    if (sizeValue >= 100 && sizeValue <= 1000) {
         updateCanvasSize(sizeValue);
     } else {
-        // Reset input to current valid value
         document.getElementById('sizeInput').value = baseSize;
     }
 }

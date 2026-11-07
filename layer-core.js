@@ -45,10 +45,7 @@ function moveLayerUp(layerId) {
     if (index > 0) {
         [layers[index], layers[index - 1]] = [layers[index - 1], layers[index]];
         refreshLayersDOM();
-        if (isRunning) {
-            restartAnimationIfRunning();
-            setTimeout(runAnimation, 100);
-        }
+        restartAnimationIfRunning();
     }
 }
 
@@ -57,10 +54,7 @@ function moveLayerDown(layerId) {
     if (index < layers.length - 1) {
         [layers[index], layers[index + 1]] = [layers[index + 1], layers[index]];
         refreshLayersDOM();
-        if (isRunning) {
-            restartAnimationIfRunning();
-            setTimeout(runAnimation, 100);
-        }
+        restartAnimationIfRunning();
     }
 }
 
@@ -81,10 +75,7 @@ function deleteLayer(layerId) {
         }
         
         refreshLayersDOM();
-        if (isRunning) {
-            restartAnimationIfRunning();
-            setTimeout(runAnimation, 100);
-        }
+        restartAnimationIfRunning();
     }
 }
 
@@ -114,9 +105,6 @@ function duplicateLayer(layerId) {
         // Refresh DOM to show copied values
         refreshLayersDOM();
         
-        if (isRunning) {
-            restartAnimationIfRunning();
-            setTimeout(runAnimation, 100);
-        }
+        restartAnimationIfRunning();
     }
 }
