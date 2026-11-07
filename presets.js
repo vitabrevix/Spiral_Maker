@@ -91,7 +91,7 @@ function preset(code, opts = {}) {
     return Object.assign({
         code: code.trim() + '\n',
         hue: 360, saturation: 100, brightness: 100, opacity: 100,
-        maxFrames: 360, fps: 60, speed: 1
+        maxFrames: 360, fps: 60, speed: 1, syncLoop: false
     }, opts);
 }
 
@@ -313,21 +313,44 @@ function draw() {
 }`, { maxFrames: 360 }),
 
 galaxy_spiral: preset(`
-let arms = 2;             // spiral arms {slide:1,6} {incr:1}
+let galaxySeed = 0;       // 0 = this layer's own random galaxy, any other number = a fixed one {incr:1} {limlow:0}
+let randomLook = true;    // random arms, winding, tilt and colours (off = use the values below)
+let spinsPerLoop = 1;     // turns of the galaxy per loop (whole number)
+let starCount = 7000;     // {incr:500} {limlow:0} {limhigh:50000}
+let backgroundStars = 260;  // {incr:20} {limlow:0}
+let arms = 2;             // spiral arms (when randomLook is off) {slide:1,6} {incr:1} {limlow:1}
 let armTurns = 1.3;       // how far each arm winds around {slide:0.3,3} {incr:0.1}
 let armWidth = 0.22;      // how fuzzy the arms are {slide:0.05,0.6} {incr:0.01}
 let tilt = 0.6;           // 1 = seen from above, smaller = tilted {slide:0.15,1} {incr:0.05}
-let spinsPerLoop = 1;     // turns of the galaxy per loop (whole number)
-let starCount = 7000;     // {incr:500} {limlow:0} {limhigh:50000}
+let viewAngle = -20;      // rotation of the tilted galaxy (degrees) {slide:-180,180} {incr:5}
 let coreColor = '#ffd9a0';  // {color}
 let armColor = '#8fb8ff';   // {color}
 let knotColor = '#ff7fb6';  // star-forming regions {color}
-let backgroundStars = 260;  // {incr:20}
 
 let galaxy, sky, twinklers = [];
 
 // The galaxy is painted once (face-on) into an image, then rotated and tilted each frame
+// Colour themes a random galaxy can pick from: core, arms, star-forming knots
+const PALETTES = [
+  ['#ffd9a0', '#8fb8ff', '#ff7fb6'],
+  ['#ffe2b0', '#ffb36b', '#ff6b6b'],
+  ['#fff0c8', '#b48cff', '#ff8fd8'],
+  ['#e0fff4', '#5ee0d0', '#7f9cff'],
+  ['#ffe9d6', '#ff9a8a', '#ffd36b'],
+  ['#f4f1ff', '#9ad7ff', '#c3ff8f'],
+];
+
 function setup() {
+  if (galaxySeed > 0) randomSeed(galaxySeed);
+  if (randomLook) {
+    arms = floor(random(2, 5));
+    armTurns = random(0.8, 2.1);
+    armWidth = random(0.14, 0.34);
+    tilt = random(0.35, 0.95);
+    viewAngle = random(-180, 180);
+    let pal = PALETTES[floor(random(PALETTES.length))];
+    coreColor = pal[0]; armColor = pal[1]; knotColor = pal[2];
+  }
   let R = min(width, height) * 0.48;
   let size = ceil(R * 2.2);
   galaxy = document.createElement('canvas');
@@ -419,7 +442,7 @@ function draw() {
   }
   ctx.save();
   ctx.translate(width / 2, height / 2);
-  ctx.rotate(-0.35);
+  ctx.rotate(radians(viewAngle));
   ctx.scale(1, tilt);
   ctx.rotate(t * spinsPerLoop);
   ctx.globalCompositeOperation = 'lighter';
@@ -591,6 +614,257 @@ function draw() {
   }
   ctx.restore();
 }`, { maxFrames: 360 }),
+
+droste_zoom: preset(`
+let levelsPerLoop = 2;    // frames zoomed through per loop (even number) {incr:2} {limlow:2}
+let shrink = 0.8;         // each frame's size compared with the one around it {slide:0.6,0.92} {incr:0.01} {limlow:0.3} {limhigh:0.97}
+let twist = 14;           // rotation from one frame to the next (degrees) {slide:-45,45} {incr:1}
+let corner = 0.18;        // roundness of the frames {slide:0,0.5} {incr:0.01} {limlow:0}
+let lightColor = '#f2f2f2';  // {color}
+let darkColor = '#141414';   // {color}
+let rainbowEdges = true;     // thin coloured outline on every frame
+let centerSize = 1;          // dark spot that hides the tiny frames in the middle (px at 300px canvas) {slide:0,40} {incr:1} {limlow:0}
+
+function hsla(h, a) { return 'hsla(' + (((h % 360) + 360) % 360).toFixed(1) + ',90%,62%,' + a + ')'; }
+
+function roundedSquare(ctx, half, r) {
+  r = Math.min(r, half);
+  ctx.beginPath();
+  ctx.moveTo(-half + r, -half);
+  ctx.arcTo(half, -half, half, half, r);
+  ctx.arcTo(half, half, -half, half, r);
+  ctx.arcTo(-half, half, -half, -half, r);
+  ctx.arcTo(-half, -half, half, -half, r);
+  ctx.closePath();
+}
+
+function draw() {
+  let ctx = drawingContext;
+  let phase = progress * levelsPerLoop;            // zoom: every frame moves one level outwards
+  let base = dist(0, 0, width, height) * 0.75;     // the outermost frame covers the canvas
+  let tw = radians(twist);
+  let first = Math.floor(phase) - 3;
+  let last = first + Math.ceil(Math.log(0.004) / Math.log(shrink)) + 6;
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+
+  for (let i = first; i <= last; i++) {
+    let level = i - phase;
+    let half = base * Math.pow(shrink, level);
+    if (half > base * 3) continue;
+    if (half < 0.6) break;
+    let rot = level * tw;
+    ctx.save();
+    ctx.rotate(rot);
+    roundedSquare(ctx, half, half * corner);
+    ctx.fillStyle = ((i % 2) + 2) % 2 ? darkColor : lightColor;
+    ctx.fill();
+    if (rainbowEdges) {
+      ctx.strokeStyle = hsla(level / levelsPerLoop * 360, 0.85);
+      ctx.lineWidth = Math.max(0.6, half * 0.012);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Always-dark centre: the smallest frames would otherwise flash light/dark
+  if (centerSize > 0) {
+    let cr = centerSize * min(width, height) / 300;
+    let g = ctx.createRadialGradient(0, 0, 0, 0, 0, cr);
+    g.addColorStop(0, darkColor);
+    g.addColorStop(0.65, darkColor);
+    g.addColorStop(1, darkColor + '00');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, 0, cr, 0, TWO_PI);
+    ctx.fill();
+  }
+  ctx.restore();
+}`, { maxFrames: 240 }),
+
+op_art_spiral: preset(`
+let rings = 22;           // rings from the edge to the centre {slide:6,40} {incr:1} {limlow:2} {limhigh:80}
+let segments = 24;        // checks around each ring (even number) {slide:8,48} {incr:2} {limlow:2} {limhigh:120}
+let twist = 0.22;         // how much each ring is turned (spiral strength) {slide:-0.6,0.6} {incr:0.01}
+let ringsPerLoop = 2;     // rings flowing into the centre per loop (even number) {incr:2}
+let spinsPerLoop = 1;     // turns of the whole pattern per loop (whole number) {incr:1}
+let depth = 1.6;          // how much the rings shrink towards the centre {slide:1,3} {incr:0.05} {limlow:0.5}
+let lightColor = '#f4f4f4';  // {color}
+let darkColor = '#0d0d0d';   // {color}
+
+function draw() {
+  let ctx = drawingContext;
+  let R = dist(0, 0, width, height) / 2 + 4;
+  let phase = progress * ringsPerLoop;
+  let spin = progress * TWO_PI * spinsPerLoop;
+  let seg = TWO_PI / segments;
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+  ctx.fillStyle = darkColor;
+  ctx.fillRect(-width, -height, width * 2, height * 2);
+  ctx.fillStyle = lightColor;
+
+  // Rings move inwards by 'phase' each loop, so they flow into the centre
+  let radius = x => R * Math.pow(Math.max(0, x) / rings, depth);
+  for (let k = -2; k < rings + 2; k++) {
+    let x0 = k - (phase % 1), x1 = x0 + 1;
+    if (x1 <= 0) continue;
+    let r0 = radius(x0), r1 = Math.min(radius(x1), R * 1.5);
+    if (r0 >= R * 1.5) continue;
+    let ringIndex = k + Math.floor(phase);           // which ring this is, for the checker parity
+    let rot = spin + twist * (x0 + x1) / 2 * 2;
+    for (let n = 0; n < segments; n++) {
+      if (((ringIndex + n) % 2 + 2) % 2) continue;
+      let a0 = rot + n * seg, a1 = a0 + seg;
+      ctx.beginPath();
+      ctx.arc(0, 0, r1, a0, a1);
+      ctx.arc(0, 0, Math.max(0, r0), a1, a0, true);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}`, { maxFrames: 240 }),
+
+spirograph: preset(`
+let outerTeeth = 96;       // teeth of the big ring (whole number) {incr:1} {limlow:3} {limhigh:400}
+let innerTeeth = 42;      // teeth of the small gear (whole number, smaller than the ring) {incr:1} {limlow:2} {limhigh:399}
+let penPosition = 0.85;    // where the pen sits on the small gear (0 = centre, 1 = edge) {slide:0,1.4} {incr:0.02}
+let trail = 0.45;         // share of the pattern shown behind the pen {slide:0.02,1} {incr:0.01} {limlow:0.01} {limhigh:1}
+let lineWidth = 1.8;      // {slide:0.4,5} {incr:0.1} {limlow:0.1}
+let showGears = true;
+let showGhost = true;     // faint full pattern underneath
+let rainbow = true;
+let penColor = '#7fd8ff'; // used when rainbow is off {color}
+
+function gcd(a, b) { while (b) [a, b] = [b, a % b]; return a; }
+
+function hsla(h, a) { return 'hsla(' + (((h % 360) + 360) % 360).toFixed(1) + ',85%,64%,' + a + ')'; }
+
+function draw() {
+  let ctx = drawingContext;
+  let R = Math.round(outerTeeth), r = Math.min(Math.round(innerTeeth), R - 1);
+  let scale = min(width, height) * 0.46 / Math.max(R, R - r + r * penPosition);
+  let laps = r / gcd(R, r);                    // turns needed before the pattern closes
+  let total = TWO_PI * laps;
+  let point = t => {
+    let k = (R - r) / r;
+    return [((R - r) * Math.cos(t) + r * penPosition * Math.cos(k * t)) * scale,
+            ((R - r) * Math.sin(t) - r * penPosition * Math.sin(k * t)) * scale];
+  };
+  let steps = Math.min(6000, Math.ceil(laps * 180));
+  let head = progress * total;                 // the pen goes round the whole pattern once per loop
+
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if (showGhost) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i <= steps; i++) { let q = point(i / steps * total); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }
+    ctx.stroke();
+  }
+
+  // Fading trail behind the pen, in short chunks so it can change colour and fade
+  let trailLen = trail * total, chunks = 120;
+  for (let c = 0; c < chunks; c++) {
+    let t0 = head - trailLen * (c + 1) / chunks, t1 = head - trailLen * c / chunks;
+    let fade = 1 - c / chunks;
+    ctx.strokeStyle = rainbow ? hsla(t1 / total * 360 * 2, fade) : penColor;
+    ctx.globalAlpha = rainbow ? 1 : fade;
+    ctx.lineWidth = lineWidth * (min(width, height) / 300) * (0.4 + 0.6 * fade);
+    ctx.beginPath();
+    let sub = 4;
+    for (let j = 0; j <= sub; j++) { let q = point(t0 + (t1 - t0) * j / sub); j ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  if (showGears) {
+    let gx = (R - r) * Math.cos(head) * scale, gy = (R - r) * Math.sin(head) * scale;
+    let pen = point(head);
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(0, 0, R * scale, 0, TWO_PI); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+    ctx.beginPath(); ctx.arc(gx, gy, r * scale, 0, TWO_PI); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(pen[0], pen[1]); ctx.stroke();
+    ctx.fillStyle = rainbow ? hsla(head / total * 720, 1) : penColor;
+    ctx.beginPath(); ctx.arc(pen[0], pen[1], 3, 0, TWO_PI); ctx.fill();
+  }
+  ctx.restore();
+}`, { maxFrames: 600 }),
+
+spiral_staircase: preset(`
+let stepsPerTurn = 16;    // steps in one full turn {slide:6,40} {incr:1} {limlow:3} {limhigh:120}
+let turns = 5;            // turns visible going down {slide:1,12} {incr:1} {limlow:1} {limhigh:30}
+let stepsPerLoop = 2;     // steps walked down per loop (even number) {incr:2}
+let stepDrop = 0.06;      // how far each step goes down (depth) {slide:0.01,0.2} {incr:0.005} {limlow:0.001}
+let wellSize = 0.55;      // size of the open stairwell in the middle {slide:0.2,0.9} {incr:0.01} {limlow:0.05}
+let stepColor = '#c9a27a';   // {color}
+let edgeColor = '#3b2614';   // step edges {color}
+let railColor = '#d8d0c0';   // banister posts {color}
+let fog = 1.2;            // how quickly the depth darkens {slide:0,4} {incr:0.1}
+
+function hexRgb(hex) { let h = hex.replace('#', ''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); }
+function shade(rgb, k, a = 1) { return 'rgba(' + rgb.map(v => Math.round(v * k)).join(',') + ',' + a + ')'; }
+
+function draw() {
+  let ctx = drawingContext;
+  let R = min(width, height) * 0.5;
+  let phase = progress * stepsPerLoop;
+  let stepAngle = TWO_PI / stepsPerTurn;
+  let total = stepsPerTurn * turns;
+  let col = hexRgb(stepColor), edge = hexRgb(edgeColor), rail = hexRgb(railColor);
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(-width, -height, width * 2, height * 2);
+
+  // Deepest steps first, so nearer ones cover them. Steps above you (d < 0)
+  // keep rising and growing until they have completely left the view.
+  let firstStep = Math.floor(phase);
+  let above = Math.ceil(1 / stepDrop) + 2;
+  let viewRadius = dist(0, 0, width, height) / 2;
+  for (let i = firstStep + total + 2; i >= firstStep - above; i--) {
+    let d = i - phase;                            // how many steps down this one is
+    let z = d * stepDrop;
+    if (1 + z <= 0.02) continue;                  // at or above the camera
+    let p = 1 / (1 + z);                          // perspective: deeper = smaller
+    if (R * wellSize * p > viewRadius) continue;  // completely outside the view
+    let light = Math.exp(-Math.max(0, z) * fog);
+    let a0 = d * stepAngle, a1 = a0 + stepAngle * 1.02;
+    let outer = R * 1.45 * p, inner = R * wellSize * p;
+    let tone = ((i % 2) + 2) % 2 ? 0.88 : 1;      // alternate steps slightly for definition
+
+    ctx.beginPath();
+    ctx.arc(0, 0, outer, a0, a1);
+    ctx.arc(0, 0, inner, a1, a0, true);
+    ctx.closePath();
+    ctx.fillStyle = shade(col, light * tone);
+    ctx.fill();
+
+    // Front edge (riser) of the step
+    ctx.strokeStyle = shade(edge, Math.max(0.25, light));
+    ctx.lineWidth = Math.max(0.5, 3 * p);
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a0) * inner, Math.sin(a0) * inner);
+    ctx.lineTo(Math.cos(a0) * outer, Math.sin(a0) * outer);
+    ctx.stroke();
+
+    // Banister post on the inner edge of every step
+    let post = inner * 1.04, am = a0 + stepAngle / 2;
+    ctx.fillStyle = shade(rail, light);
+    ctx.beginPath();
+    ctx.arc(Math.cos(am) * post, Math.sin(am) * post, Math.max(0.6, 3.5 * p), 0, TWO_PI);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}`, { maxFrames: 240 }),
 
 // --------------------------------------------------------------------- Circles
 pulsing: preset(`
@@ -825,6 +1099,101 @@ function drawRing(ctx, x, y, r, color, backHalf) {
   ctx.stroke();
 }`, { maxFrames: 360 }),
 
+orbital_rings: preset(`
+let rings = 6;            // nested rings {slide:1,12} {incr:1} {limlow:1} {limhigh:40}
+let size = 0.88;          // size of the biggest ring {slide:0.3,1.2} {incr:0.02}
+let beadsPerRing = 2;     // glowing beads travelling along each ring {slide:0,8} {incr:1} {limlow:0} {limhigh:30}
+let lineWidth = 1.8;      // {slide:0.4,6} {incr:0.1} {limlow:0.1}
+let coreSize = 14;        // glowing centre (px at 300px canvas) {slide:0,50} {incr:1} {limlow:0}
+let hueStart = 190;       // colour of the outer ring {slide:0,360} {incr:5}
+let hueSpread = 160;      // colour change towards the inner rings {slide:0,360} {incr:5}
+
+let ringData = [];
+
+// Every ring gets its own tilt and whole-number spin speeds, so the loop is seamless
+function setup() {
+  for (let k = 0; k < rings; k++) {
+    ringData.push({
+      tiltX: random(TWO_PI), tiltY: random(TWO_PI),
+      spinX: floor(random(1, 3)) * (random() < 0.5 ? -1 : 1),
+      spinY: floor(random(1, 3)) * (random() < 0.5 ? -1 : 1),
+      beadSpeed: floor(random(1, 4)) * (random() < 0.5 ? -1 : 1),
+      beadPhase: random(TWO_PI)
+    });
+  }
+}
+
+function hsla(h, l, a) { return 'hsla(' + (((h % 360) + 360) % 360).toFixed(1) + ',85%,' + l + '%,' + a + ')'; }
+
+// A point on a flat circle, turned around the X and then the Y axis; z > 0 is towards the viewer
+function ringPoint(a, rad, ax, ay) {
+  let x = Math.cos(a) * rad, y = Math.sin(a) * rad, z = 0;
+  let y1 = y * Math.cos(ax) - z * Math.sin(ax), z1 = y * Math.sin(ax) + z * Math.cos(ax);
+  let x2 = x * Math.cos(ay) + z1 * Math.sin(ay), z2 = -x * Math.sin(ay) + z1 * Math.cos(ay);
+  return [x2, y1, z2 / rad];
+}
+
+function draw() {
+  let ctx = drawingContext;
+  let s = min(width, height) / 300;
+  let t = progress * TWO_PI;
+  let maxR = min(width, height) / 2 * size;
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+
+  // Back halves of the rings and beads first, then the core, then the front halves
+  let parts = [];
+  for (let k = 0; k < ringData.length; k++) {
+    let rd = ringData[k];
+    let rad = maxR * (1 - k / Math.max(rings, 1) * 0.75);
+    let ax = rd.tiltX + t * rd.spinX, ay = rd.tiltY + t * rd.spinY;
+    let hue = hueStart + hueSpread * k / Math.max(1, rings - 1);
+    let segs = 96, prev = ringPoint(0, rad, ax, ay);
+    for (let i = 1; i <= segs; i++) {
+      let q = ringPoint(i / segs * TWO_PI, rad, ax, ay);
+      parts.push({ z: (prev[2] + q[2]) / 2, line: [prev, q], hue });
+      prev = q;
+    }
+    for (let b = 0; b < beadsPerRing; b++) {
+      let q = ringPoint(rd.beadPhase + b * TWO_PI / beadsPerRing + t * rd.beadSpeed, rad, ax, ay);
+      parts.push({ z: q[2], bead: q, hue });
+    }
+  }
+  let drawPart = pt => {
+    let near = (pt.z + 1) / 2;                       // 0 = far side, 1 = near side
+    if (pt.line) {
+      ctx.strokeStyle = hsla(pt.hue, 45 + 20 * near, 0.25 + 0.7 * near);
+      ctx.lineWidth = lineWidth * s * (0.6 + 0.6 * near);
+      ctx.beginPath();
+      ctx.moveTo(pt.line[0][0], pt.line[0][1]);
+      ctx.lineTo(pt.line[1][0], pt.line[1][1]);
+      ctx.stroke();
+    } else {
+      let r = (2 + 2.5 * near) * s;
+      let g = ctx.createRadialGradient(pt.bead[0], pt.bead[1], 0, pt.bead[0], pt.bead[1], r * 3);
+      g.addColorStop(0, hsla(pt.hue, 85, 0.95));
+      g.addColorStop(1, hsla(pt.hue, 60, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(pt.bead[0], pt.bead[1], r * 3, 0, TWO_PI); ctx.fill();
+    }
+  };
+  parts.filter(pt => pt.z < 0).forEach(drawPart);
+
+  if (coreSize > 0) {
+    let cr = coreSize * s * (1 + 0.08 * Math.sin(t * 3));
+    let g = ctx.createRadialGradient(0, 0, 0, 0, 0, cr * 2.5);
+    g.addColorStop(0, 'rgba(255,255,255,0.95)');
+    g.addColorStop(0.3, hsla(hueStart, 80, 0.6));
+    g.addColorStop(1, hsla(hueStart, 60, 0));
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, cr * 2.5, 0, TWO_PI); ctx.fill();
+  }
+  parts.filter(pt => pt.z >= 0).forEach(drawPart);
+  ctx.restore();
+}`, { maxFrames: 360 }),
+
 ripple_effect: preset(`
 let ripples = 9;
 let lineWeight = 4;
@@ -917,14 +1286,17 @@ function draw() {
 stopwatch: preset(`
 let swingsPerLoop = 3;     // full back-and-forth swings per loop
 let swingAngle = 32;       // degrees
+let pivotHeight = -10;    // height of the top tip (px at 300px canvas); negative = above the canvas, out of view. The object stays put {incr:5}
 let chainLinks = 14;
 
 function draw() {
   let s = min(width, height) / 300;
   let watchSize = 100 * s;
-  let len = height * 0.6;
-  let pivotX = width / 2, pivotY = -10 * s;
-  let angle = radians(swingAngle) * sin(progress * TWO_PI * swingsPerLoop);
+  let pivotX = width / 2, pivotY = pivotHeight * s;
+  let len = height * 0.6 - 10 * s - pivotY;      // longer rod when the pivot moves up
+  // Same side-to-side swing as with the default pivot: a longer rod swings through a smaller angle
+  let swingAmp = Math.asin(Math.min(1, height * 0.6 * Math.sin(radians(swingAngle)) / Math.max(1, len)));
+  let angle = swingAmp * sin(progress * TWO_PI * swingsPerLoop);
 
   push();
   translate(pivotX, pivotY);
@@ -1018,17 +1390,20 @@ function drawWatch(size, s) {
 pendulum: preset(`
 let swingsPerLoop = 3;
 let swingAngle = 36;    // degrees {slide:0,80} {incr:1}
+let pivotHeight = 12;     // height of the top tip (px at 300px canvas); negative = above the canvas, out of view. The object stays put {incr:5}
 let bobSize = 70;
 let ghosts = 0;         // motion-blur copies (e.g. 4) - looks nice, but makes GIFs bigger
 
 function draw() {
   let s = min(width, height) / 300;
-  let pivotX = width / 2, pivotY = 12 * s;
-  let len = height * 0.68;
+  let pivotX = width / 2, pivotY = pivotHeight * s;
+  let len = height * 0.68 + 12 * s - pivotY;     // longer rod when the pivot moves up
+  // Same side-to-side swing as with the default pivot: a longer rod swings through a smaller angle
+  let swingAmp = Math.asin(Math.min(1, height * 0.68 * Math.sin(radians(swingAngle)) / Math.max(1, len)));
 
   for (let g = ghosts; g >= 0; g--) {
     let p = progress - g * 0.006;
-    let a = radians(swingAngle) * sin(p * TWO_PI * swingsPerLoop);
+    let a = swingAmp * sin(p * TWO_PI * swingsPerLoop);
     let bx = pivotX + len * sin(a);
     let by = pivotY + len * cos(a);
     let alpha = g ? 18 : 100;
@@ -1048,6 +1423,93 @@ function draw() {
 
   fill(0, 0, 85);
   circle(pivotX, pivotY, 10 * s);
+}`, { maxFrames: 360 }),
+
+spiral_pendulum: preset(`
+let swingsPerLoop = 2;    // full back-and-forth swings per loop (whole number) {incr:1}
+let swingAngle = 30;      // degrees {slide:0,70} {incr:1}
+let pivotHeight = 10;     // height of the top tip (px at 300px canvas); negative = above the canvas, out of view. The object stays put {incr:5}
+let spinsPerLoop = 3;     // turns of the spiral per loop (whole number, negative = other way) {incr:1}
+let discSize = 92;        // diameter of the disc (px at 300px canvas) {slide:30,200} {incr:2} {limlow:10}
+let discHeight = 0.58;    // how far down the disc hangs, as a share of the canvas height {slide:0.2,0.9} {incr:0.02} {limlow:0.05}
+let arms = 2;             // arms of each colour {slide:1,6} {incr:1} {limlow:1}
+let bandWidth = 7;        // thickness of the spiral bands (px at 300px canvas) {incr:0.5} {limlow:1}
+let lightColor = '#f4f4f4';  // {color}
+let darkColor = '#111111';   // {color}
+let rimColor = '#c9a24a';    // metal rim and fittings {color}
+let rodColor = '#9a9a9a';    // {color}
+
+function draw() {
+  let s = min(width, height) / 300;
+  let ctx = drawingContext;
+  let r = discSize * s / 2;
+  let pivotX = width / 2, pivotY = pivotHeight * s;
+  let len = height * discHeight + 10 * s - pivotY;   // longer rod when the pivot moves up
+  // Same side-to-side swing as with the default pivot: a longer rod swings through a smaller angle
+  let swingAmp = Math.asin(Math.min(1, height * discHeight * Math.sin(radians(swingAngle)) / Math.max(1, len)));
+  let angle = swingAmp * Math.sin(progress * TWO_PI * swingsPerLoop);
+
+  push();
+  translate(pivotX, pivotY);
+  rotate(-angle);                     // rod and disc hang along the swing
+
+  // Rod
+  stroke(rodColor);
+  strokeWeight(2.5 * s);
+  line(0, 0, 0, len - r);
+
+  // Ring that joins the rod to the disc
+  noFill();
+  stroke(rimColor);
+  strokeWeight(2.5 * s);
+  circle(0, len - r - 3 * s, 8 * s);
+
+  translate(0, len);
+
+  // Rim
+  noStroke();
+  fill(rimColor);
+  circle(0, 0, r * 2 + 6 * s);
+  fill(0, 0, 0, 35);
+  circle(1.5 * s, 2 * s, r * 2);
+
+  // Spiral, clipped to the disc
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, TWO_PI);
+  ctx.clip();
+  fill(darkColor);
+  circle(0, 0, r * 2 + 2);
+  drawSpiral(r, s, progress * TWO_PI * spinsPerLoop);
+  ctx.restore();
+
+  pop();
+
+  // Pivot
+  noStroke();
+  fill(rimColor);
+  circle(pivotX, pivotY, 9 * s);
+}
+
+// Two-tone spiral whose bands interlock at the centre
+function drawSpiral(R, s, rot) {
+  let band = bandWidth * s;
+  let c = band * arms / PI;              // r = c * angle
+  let maxU = (R + band * 2) / c;
+  let step = 0.05;
+  noStroke();
+  fill(lightColor);
+  for (let k = 0; k < arms; k++) {
+    let off = k * TWO_PI / arms + rot;
+    beginShape();
+    for (let u = 0; u <= maxU; u += step) vertex(Math.cos(u + off) * c * u, Math.sin(u + off) * c * u);
+    for (let u = maxU; u >= -PI / arms; u -= step) {
+      let rr = Math.max(0, c * u + band);
+      vertex(Math.cos(u + off) * rr, Math.sin(u + off) * rr);
+    }
+    vertex(0, 0);
+    endShape(CLOSE);
+  }
 }`, { maxFrames: 360 }),
 
 mandala: preset(`
@@ -1211,14 +1673,17 @@ function draw() {
 coin: preset(`
 let swingsPerLoop = 3;
 let swingAngle = 40;     // degrees
+let pivotHeight = 0;      // height of the top tip (px at 300px canvas); negative = above the canvas, out of view. The object stays put {incr:5}
 let coinSize = 120;
 
 function draw() {
   let s = min(width, height) / 300;
   let size = coinSize * s;
-  let pivotX = width / 2, pivotY = 0;
-  let len = height * 0.62;
-  let angle = radians(swingAngle) * sin(progress * TWO_PI * swingsPerLoop + PI);
+  let pivotX = width / 2, pivotY = pivotHeight * s;
+  let len = height * 0.62 - pivotY;              // longer string when the pivot moves up
+  // Same side-to-side swing as with the default pivot: a longer rod swings through a smaller angle
+  let swingAmp = Math.asin(Math.min(1, height * 0.62 * Math.sin(radians(swingAngle)) / Math.max(1, len)));
+  let angle = swingAmp * sin(progress * TWO_PI * swingsPerLoop + PI);
 
   push();
   translate(pivotX, pivotY);
@@ -1305,6 +1770,7 @@ function drawCoin(size, s) {
 pendant: preset(`
 let swingsPerLoop = 3;
 let swingAngle = 30;      // degrees
+let pivotHeight = 0;      // height of the top tip (px at 300px canvas); negative = above the canvas, out of view. The object stays put {incr:5}
 let rotationMomentum = 1; // extra crystal tilt
 let chainLinks = 10;
 let crystalSize = 60;
@@ -1312,9 +1778,11 @@ let crystalSize = 60;
 function draw() {
   let s = min(width, height) / 300;
   let w = crystalSize * s, h = crystalSize * 2 * s;
-  let pivotX = width / 2, pivotY = -60 * s;
-  let len = height * 0.55 + 60 * s;
-  let angle = radians(swingAngle) * sin(progress * TWO_PI * swingsPerLoop);
+  let pivotX = width / 2, pivotY = pivotHeight * s;
+  let len = height * 0.55 - pivotY;              // longer chain when the pivot moves up
+  // Same side-to-side swing as with the default pivot: a longer rod swings through a smaller angle
+  let swingAmp = Math.asin(Math.min(1, height * 0.55 * Math.sin(radians(swingAngle)) / Math.max(1, len)));
+  let angle = swingAmp * sin(progress * TWO_PI * swingsPerLoop);
   let bobX = pivotX + len * sin(angle);
   let bobY = pivotY + len * cos(angle);
 
@@ -1360,7 +1828,7 @@ function draw() {
 
   noStroke();
   fill(40, 30, 85);
-  ellipse(pivotX, max(pivotY, 0), 12 * s, 8 * s);
+  ellipse(pivotX, pivotY, 12 * s, 8 * s);       // mounting point (hidden when the pivot is above the canvas)
 }`, { maxFrames: 360 }),
 
 metronome: preset(`
@@ -1730,6 +2198,7 @@ function draw() {
 }`, { maxFrames: 480 }),
 
 heat_waves: preset(`
+let heatSeed = 0;         // 0 = this layer's own random pattern, any other number = a fixed one {incr:1} {limlow:0}
 let detail = 4;           // grid step for tracing (px, smaller = smoother but slower) {slide:2,10} {incr:0.5} {limlow:1.5}
 let levels = 5;           // brightness levels traced as lines {slide:2,10} {incr:1} {limlow:1} {limhigh:20}
 let lineWidth = 1.4;      // {slide:0.4,4} {incr:0.1}
@@ -1741,15 +2210,29 @@ let heatColor = '#ffc46b';   // the hottest shimmer {color}
 let showBackground = true;   // fill the background colour behind the shimmer
 let iterations = 5;       // detail of the light pattern {limlow:1} {limhigh:20}
 let intensity = 0.005;
-let speeds = [1, -1, 2, -1, 1];   // whole numbers = seamless loop
+
+let speeds, phases, offsetX, offsetY;
+
+// Random pattern: where in the light field we look, and how fast (whole numbers,
+// so the loop stays seamless) and in which direction each part of it moves
+function setup() {
+  if (heatSeed > 0) randomSeed(heatSeed);
+  offsetX = random(-320, -180);
+  offsetY = random(-320, -180);
+  speeds = []; phases = [];
+  for (let n = 0; n < iterations; n++) {
+    speeds.push(floor(random(1, 3)) * (random() < 0.5 ? -1 : 1));
+    phases.push(random(TWO_PI));
+  }
+}
 
 // A rippling light field (the same maths as "Water (shader)"), sampled on a coarse grid
 function lightAt(u, v, t) {
   let TAU2 = Math.PI * 2;
-  let px = u * TAU2 - 250, py = v * TAU2 - 250;
+  let px = u * TAU2 + offsetX, py = v * TAU2 + offsetY;
   let ix = px, iy = py, c = 1;
   for (let n = 0; n < iterations; n++) {
-    let tt = t * speeds[n % speeds.length] + n * 1.7;
+    let tt = t * speeds[n] + phases[n];
     ix = px + Math.cos(tt - ix) + Math.sin(tt + iy);
     iy = py + Math.sin(tt - iy) + Math.cos(tt + ix);
     let ax = px / (Math.sin(ix + tt) / intensity);
@@ -1982,6 +2465,710 @@ function draw() {
   ctx.restore();
 }`, { maxFrames: 480 }),
 
+hourglass: preset(`
+let flipTime = 0.15;      // share of the loop spent turning the glass over {slide:0.05,0.4} {incr:0.01} {limlow:0.02} {limhigh:0.6}
+let glassHeight = 0.78;   // size of the hourglass, as a share of the canvas height {slide:0.4,0.95} {incr:0.01} {limlow:0.1}
+let glassWidth = 0.5;     // width compared with the height {slide:0.25,0.9} {incr:0.01} {limlow:0.1}
+let fallTime = 0.04;      // share of the loop the sand takes to fall from the neck to the bottom {slide:0.005,0.15} {incr:0.005} {limlow:0.002} {limhigh:0.3}
+let neck = 0.045;         // width of the narrow middle {slide:0.01,0.15} {incr:0.005} {limlow:0.005}
+let sandColor = '#e2b866';   // {color}
+let woodColor = '#6b3f1f';   // frame {color}
+let glassColor = '#cfe8ff';  // glass tint {color}
+
+function hexRgba(hex, a) { let h = hex.replace('#', ''); return 'rgba(' + [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)).join(',') + ',' + a + ')'; }
+
+// Half-width of the glass at height y (-H = top, 0 = neck, H = bottom)
+function glassHalf(y, H, W) {
+  let u = Math.min(1, Math.abs(y) / H);
+  let bulge = Math.sin(Math.min(1, u * 1.25) * Math.PI / 2);
+  let close = u > 0.88 ? 1 - (u - 0.88) * 1.6 : 1;
+  return W * neck * 2 + (W - W * neck * 2) * bulge * close;
+}
+
+function glassPath(ctx, H, W) {
+  ctx.beginPath();
+  for (let y = -H; y <= H; y += H / 60) ctx.lineTo(glassHalf(y, H, W), y);
+  for (let y = H; y >= -H; y -= H / 60) ctx.lineTo(-glassHalf(y, H, W), y);
+  ctx.closePath();
+}
+
+function draw() {
+  let ctx = drawingContext;
+  let H = height * glassHeight / 2 * 0.86, W = H * glassWidth;
+  let drainEnd = 1 - flipTime;                              // the flip starts once all sand has landed
+  let fall = Math.min(fallTime, drainEnd * 0.45);
+  let pour = drainEnd - fall;                               // time the top takes to empty
+  // The top starts emptying at once; the same sand reaches the bottom 'fall' later
+  let drained = Math.min(1, progress / pour);               // 0 = top full, 1 = top empty
+  let landed = Math.min(1, Math.max(0, (progress - fall) / pour));   // sand that has reached the pile
+  let flip = progress <= drainEnd ? 0 : (progress - drainEnd) / flipTime;
+  let turn = Math.PI * (flip < 0.5 ? 2 * flip * flip : 1 - Math.pow(-2 * flip + 2, 2) / 2);   // eased half-turn
+
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+  ctx.rotate(turn);
+
+  // Sand, clipped to the inside of the glass
+  ctx.save();
+  glassPath(ctx, H, W);
+  ctx.clip();
+  ctx.fillStyle = sandColor;
+  // Sand moves by AMOUNT, not height: the bulbs are wide in the middle and
+  // narrow at the neck, so equal heights hold very different amounts of sand.
+  // levelFromCap(a) = how high sand of amount a (0..1 of a bulb) reaches from the cap.
+  let slices = 160, cum = [0];
+  for (let k = 1; k <= slices; k++) {
+    let y = H - (k - 0.5) * H / slices;               // from the cap (y = H) up to the neck (y = 0)
+    cum.push(cum[k - 1] + glassHalf(y, H, W));
+  }
+  let levelFromCap = amount => {
+    let target = amount * cum[slices];
+    let k = 1;
+    while (k < slices && cum[k] < target) k++;
+    let frac = (target - cum[k - 1]) / Math.max(1e-9, cum[k] - cum[k - 1]);
+    return (k - 1 + Math.min(1, Math.max(0, frac))) * H / slices;
+  };
+
+  let top = 1 - drained;
+  if (top > 0.001) {
+    // Upper bulb: the sand left fills it from the neck upwards (same shape, mirrored),
+    // and its surface sinks into a funnel above the neck as it drains
+    let level = -(H - levelFromCap(1 - top));
+    let dip = H * 0.12 * Math.min(1, drained * 4) * Math.min(1, top / 0.12);
+    ctx.beginPath();
+    ctx.moveTo(-W, 0);
+    for (let x = -W; x <= W; x += W / 24) ctx.lineTo(x, Math.min(0, level + dip * (1 - Math.min(1, Math.abs(x) / (W * 0.9)))));
+    ctx.lineTo(W, 0);
+    ctx.closePath();
+    ctx.fill();
+  }
+  let pileTop = H;
+  if (landed > 0.001) {
+    // Lower bulb: the pile rises steadily by amount; its cone flattens as it fills
+    let h = levelFromCap(landed);
+    let peak = H * 0.16 * (1 - landed);
+    pileTop = H - h - peak * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(-W, H);
+    for (let x = -W; x <= W; x += W / 24) ctx.lineTo(x, H - h + peak * 0.5 - peak * (1 - Math.min(1, Math.abs(x) / W)));
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // Falling sand. At first it falls as separate grains that speed up and spread a
+  // little; once they land, the solid stream fades in and takes over. After the
+  // top has emptied, the end of the stream falls the rest of the way.
+  if (flip === 0) {
+    let floor = Math.max(0, pileTop);
+    let head = progress < fall ? floor * Math.pow(progress / fall, 2) : floor;
+    let tail = progress < pour ? 0 : floor * Math.pow(Math.min(1, (progress - pour) / fall), 2);
+    let solid = progress < fall ? 0 : Math.min(1, (progress - fall) / (fall * 1.5));
+    let grain = Math.max(0.6, W * 0.014);
+    ctx.fillStyle = sandColor;
+
+    // Solid stream (fades in after the first grains land)
+    if (solid > 0 && head > tail + 0.5) {
+      ctx.globalAlpha = solid;
+      ctx.fillRect(-W * neck * 0.6, tail, W * neck * 1.2, head - tail);
+      ctx.globalAlpha = 1;
+    }
+
+    // Separate grains: one released every 'dt'; each falls with gravity (distance ~ time²)
+    let gravity = floor / (fall * fall);
+    let dt = fall / 45;
+    let lastRelease = Math.min(progress, pour);
+    let grainAlpha = 1 - solid * 0.8;
+    if (grainAlpha > 0.02 && floor > 1) {
+      ctx.globalAlpha = grainAlpha;
+      for (let j = Math.max(0, Math.floor((progress - fall) / dt)); j * dt <= lastRelease; j++) {
+        let age = progress - j * dt;
+        if (age < 0) continue;
+        let y = gravity * age * age;
+        if (y > floor || y < tail) continue;                 // landed, or above the end of the stream
+        let jitter = Math.sin(j * 12.9898) * 43758.5453; jitter -= Math.floor(jitter);
+        let jitter2 = Math.sin(j * 78.233) * 12345.678; jitter2 -= Math.floor(jitter2);
+        let spread = W * neck * (0.6 + 2.2 * y / floor);
+        ctx.beginPath();
+        ctx.arc((jitter - 0.5) * spread, y, grain * (0.7 + 0.6 * jitter2), 0, TWO_PI);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // A few loose grains sparkling around the solid stream
+    if (solid > 0 && head > tail + 0.5) {
+      for (let k = 0; k < 6; k++) {
+        let gy = tail + ((progress * 40 + k / 6) % 1) * (head - tail);
+        ctx.beginPath();
+        ctx.arc((random() - 0.5) * W * neck * 2.5, gy, Math.max(0.6, W * 0.012), 0, TWO_PI);
+        ctx.fill();
+      }
+    }
+  }
+  ctx.restore();
+
+  // Glass
+  glassPath(ctx, H, W);
+  ctx.fillStyle = hexRgba(glassColor, 0.08);
+  ctx.fill();
+  ctx.strokeStyle = hexRgba(glassColor, 0.75);
+  ctx.lineWidth = Math.max(1, W * 0.025);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = Math.max(1, W * 0.02);
+  ctx.beginPath();
+  for (let y = -H * 0.8; y <= -H * 0.25; y += H / 40) ctx.lineTo(-glassHalf(y, H, W) * 0.7, y);
+  ctx.stroke();
+
+  // Wooden frame: two caps and three posts
+  let capW = W * 1.25, capH = H * 0.09;
+  ctx.fillStyle = woodColor;
+  for (let sgn of [-1, 1]) {
+    ctx.beginPath();
+    ctx.roundRect(-capW, sgn * H - (sgn < 0 ? capH : 0), capW * 2, capH, capH * 0.35);
+    ctx.fill();
+  }
+  ctx.fillStyle = hexRgba(woodColor, 0.95);
+  for (let px of [-capW * 0.88, capW * 0.88]) ctx.fillRect(px - W * 0.035, -H, W * 0.07, H * 2);
+  ctx.restore();
+}`, { maxFrames: 480 }),
+
+lava_lamp: preset(`
+let blobs = 7;            // wax blobs {slide:2,14} {incr:1} {limlow:1} {limhigh:30}
+let blobSize = 1;         // {slide:0.5,2} {incr:0.05} {limlow:0.2}
+let resolution = 90;      // detail of the wax (higher = smoother, slower) {incr:10} {limlow:30} {limhigh:240}
+let waxColor = '#ff5a3c';     // {color}
+let liquidColor = '#3a0a4a';  // {color}
+let metalColor = '#b8b8c4';   // lamp base and cap {color}
+
+let blobData = [], buffer, bctx, img;
+
+function setup() {
+  for (let i = 0; i < blobs; i++) {
+    blobData.push({ x: random(-0.5, 0.5), r: random(0.06, 0.11), speed: floor(random(1, 3)), phase: random(TWO_PI), wobble: random(TWO_PI), sway: floor(random(1, 4)) });
+  }
+}
+
+function hexRgb(hex) { let h = hex.replace('#', ''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); }
+
+// The lamp's glass: narrow at the top, wide near the bottom
+function lampPath(ctx, top, bottom, wTop, wBottom) {
+  ctx.beginPath();
+  ctx.moveTo(-wTop, top);
+  ctx.bezierCurveTo(-wTop * 1.2, (top + bottom) / 2, -wBottom * 1.1, bottom - (bottom - top) * 0.25, -wBottom, bottom);
+  ctx.lineTo(wBottom, bottom);
+  ctx.bezierCurveTo(wBottom * 1.1, bottom - (bottom - top) * 0.25, wTop * 1.2, (top + bottom) / 2, wTop, top);
+  ctx.closePath();
+}
+
+function draw() {
+  let ctx = drawingContext;
+  let s = min(width, height) / 300;
+  let top = -height * 0.36, bottom = height * 0.2, wTop = 26 * s, wBottom = 58 * s;
+  let t = progress * TWO_PI;
+  let cw = Math.ceil(resolution * 0.6), ch = resolution;
+  if (!buffer || buffer.width !== cw || buffer.height !== ch) {
+    buffer = document.createElement('canvas');
+    buffer.width = cw; buffer.height = ch;
+    bctx = buffer.getContext('2d');
+    img = bctx.createImageData(cw, ch);
+  }
+  // Blob positions: each rises and sinks a whole number of times per loop
+  let pos = blobData.map(b => ({
+    x: b.x * 0.7 + 0.12 * Math.sin(t * b.sway + b.wobble),
+    y: 0.5 - 0.46 * Math.cos(t * b.speed + b.phase),
+    r: b.r * blobSize * (1 + 0.15 * Math.sin(t * 2 + b.phase))
+  }));
+  let wax = hexRgb(waxColor), liquid = hexRgb(liquidColor), d = img.data;
+  for (let j = 0; j < ch; j++) {
+    let v = j / ch;
+    for (let i = 0; i < cw; i++) {
+      let u = i / cw - 0.5, f = 0;
+      for (let p of pos) { let dx = (u - p.x) * 0.6, dy = v - p.y; f += p.r * p.r / (dx * dx + dy * dy + 1e-4); }
+      let k = Math.min(1, Math.max(0, (f - 1) * 4));          // 0 = liquid, 1 = wax
+      let glow = Math.min(1, f * 0.18);
+      let o = (j * cw + i) * 4;
+      for (let c = 0; c < 3; c++) d[o + c] = liquid[c] * (1 - k) + wax[c] * k * (0.75 + 0.25 * (1 - v)) + glow * 30;
+      d[o + 3] = 255;
+    }
+  }
+  bctx.putImageData(img, 0, 0);
+
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+  // Soft glow around the lamp
+  let g = ctx.createRadialGradient(0, (top + bottom) / 2, 10 * s, 0, (top + bottom) / 2, 150 * s);
+  g.addColorStop(0, 'rgba(' + wax.join(',') + ',0.25)');
+  g.addColorStop(1, 'rgba(' + wax.join(',') + ',0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(-width, -height, width * 2, height * 2);
+
+  ctx.save();
+  lampPath(ctx, top, bottom, wTop, wBottom);
+  ctx.clip();
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(buffer, -wBottom * 1.15, top, wBottom * 2.3, bottom - top);
+  // glass highlight
+  let hl = ctx.createLinearGradient(-wBottom, 0, wBottom, 0);
+  hl.addColorStop(0, 'rgba(255,255,255,0)');
+  hl.addColorStop(0.25, 'rgba(255,255,255,0.18)');
+  hl.addColorStop(0.35, 'rgba(255,255,255,0)');
+  ctx.fillStyle = hl;
+  ctx.fillRect(-wBottom * 1.2, top, wBottom * 2.4, bottom - top);
+  ctx.restore();
+
+  // Metal cap and base
+  let metal = hexRgb(metalColor);
+  let mg = ctx.createLinearGradient(-wBottom * 1.3, 0, wBottom * 1.3, 0);
+  mg.addColorStop(0, 'rgb(' + metal.map(c => c * 0.45 | 0).join(',') + ')');
+  mg.addColorStop(0.4, 'rgb(' + metal.join(',') + ')');
+  mg.addColorStop(1, 'rgb(' + metal.map(c => c * 0.35 | 0).join(',') + ')');
+  ctx.fillStyle = mg;
+  ctx.beginPath();
+  ctx.moveTo(-wTop * 0.9, top);
+  ctx.lineTo(-wTop * 0.55, top - 34 * s);
+  ctx.lineTo(wTop * 0.55, top - 34 * s);
+  ctx.lineTo(wTop * 0.9, top);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-wBottom, bottom);
+  ctx.lineTo(-wBottom * 0.72, bottom + 34 * s);
+  ctx.lineTo(-wBottom * 1.15, bottom + 70 * s);
+  ctx.lineTo(wBottom * 1.15, bottom + 70 * s);
+  ctx.lineTo(wBottom * 0.72, bottom + 34 * s);
+  ctx.lineTo(wBottom, bottom);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}`, { maxFrames: 600 }),
+
+newtons_cradle: preset(`
+let balls = 5;            // {slide:2,9} {incr:1} {limlow:2} {limhigh:15}
+let hitsPerLoop = 4;      // knocks per loop (even number keeps it seamless) {incr:2} {limlow:2}
+let swingAngle = 32;      // how far the end balls swing out (degrees) {slide:5,70} {incr:1}
+let ballSize = 34;        // (px at 300px canvas) {slide:12,60} {incr:1} {limlow:4}
+let stringLength = 0.42;  // as a share of the canvas height {slide:0.15,0.7} {incr:0.01} {limlow:0.05}
+let ballColor = '#d9dde6';   // {color}
+let frameColor = '#3a3d46';  // {color}
+
+function hexRgb(hex) { let h = hex.replace('#', ''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); }
+
+function draw() {
+  let ctx = drawingContext;
+  let s = min(width, height) / 300;
+  let r = ballSize * s / 2;
+  let len = height * stringLength;
+  let topY = height * 0.5 - len * 0.62, bottomY = topY + len;
+  let spacing = r * 2.02;
+  let t = progress * Math.PI * hitsPerLoop;            // a swing out and back takes PI
+  let swing = Math.sin(t);
+  let leftA = swing < 0 ? radians(swingAngle) * swing : 0;     // the left ball swings on one half
+  let rightA = swing > 0 ? radians(swingAngle) * swing : 0;    // the right ball on the other
+  let col = hexRgb(ballColor), frame = hexRgb(frameColor);
+  ctx.save();
+  ctx.translate(width / 2, 0);
+
+  // Frame: base and top bar
+  let half = (balls - 1) / 2 * spacing + r * 3;
+  ctx.fillStyle = 'rgb(' + frame.join(',') + ')';
+  ctx.fillRect(-half, topY - 5 * s, half * 2, 6 * s);
+  ctx.fillRect(-half - 6 * s, topY - 5 * s, 6 * s, bottomY - topY + r * 2.6);
+  ctx.fillRect(half, topY - 5 * s, 6 * s, bottomY - topY + r * 2.6);
+  ctx.fillRect(-half - 18 * s, bottomY + r * 2.6, half * 2 + 36 * s, 7 * s);
+
+  for (let i = 0; i < balls; i++) {
+    let a = i === 0 ? leftA : i === balls - 1 ? rightA : 0;
+    let px = (i - (balls - 1) / 2) * spacing;
+    let bx = px + Math.sin(a) * len, by = topY + Math.cos(a) * len;
+
+    // Shadow on the base
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(bx, bottomY + r * 2.6, r * 0.9, r * 0.22, 0, 0, TWO_PI);
+    ctx.fill();
+
+    // Two strings in a V
+    ctx.strokeStyle = 'rgba(220,220,230,0.6)';
+    ctx.lineWidth = Math.max(0.6, s);
+    ctx.beginPath();
+    ctx.moveTo(px - r * 0.9, topY); ctx.lineTo(bx, by - r);
+    ctx.moveTo(px + r * 0.9, topY); ctx.lineTo(bx, by - r);
+    ctx.stroke();
+
+    // Steel ball
+    let g = ctx.createRadialGradient(bx - r * 0.35, by - r * 0.4, r * 0.08, bx, by, r);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(0.3, 'rgb(' + col.join(',') + ')');
+    g.addColorStop(1, 'rgb(' + col.map(c => c * 0.25 | 0).join(',') + ')');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(bx, by, r, 0, TWO_PI); ctx.fill();
+  }
+  ctx.restore();
+}`, { maxFrames: 360 }),
+
+film_grain: preset(`
+let grain = 0.35;         // strength of the grain {slide:0,1} {incr:0.05} {limlow:0}
+let grainSize = 1.5;      // size of each grain (px) {slide:1,4} {incr:0.5} {limlow:1}
+let flicker = 0.12;       // brightness flicker {slide:0,0.4} {incr:0.01} {limlow:0}
+let scratches = 2;        // scratch lines at a time {slide:0,8} {incr:1} {limlow:0} {limhigh:30}
+let dust = 6;             // specks of dust per frame {slide:0,40} {incr:1} {limlow:0} {limhigh:200}
+let vignette = 0.55;      // dark edges {slide:0,1} {incr:0.05} {limlow:0}
+let sepia = 0.15;         // warm old-film tint {slide:0,0.6} {incr:0.01} {limlow:0}
+let grainHold = 3;        // grain, dust and flicker change every N frames, like film (higher = smaller exports) {incr:1} {limlow:1} {limhigh:30}
+let buffer, bctx, img;
+
+// A see-through overlay: put this layer on top of the others.
+function draw() {
+  let ctx = drawingContext;
+  // Same random pattern for 'grainHold' frames in a row: looks like film and
+  // lets GIF/MP4 skip the unchanged frames
+  randomSeed(Math.floor(frameCount / grainHold) * 9973 + 17);
+  let w = Math.ceil(width / grainSize), h = Math.ceil(height / grainSize);
+  if (!buffer || buffer.width !== w || buffer.height !== h) {
+    buffer = document.createElement('canvas');
+    buffer.width = w; buffer.height = h;
+    bctx = buffer.getContext('2d');
+    img = bctx.createImageData(w, h);
+  }
+  // Grain: sparse light and dark specks (most pixels stay clear, which keeps exports small)
+  let d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    let v = random();
+    let light = v > 0.5;
+    d[i] = d[i + 1] = d[i + 2] = light ? 255 : 0;
+    d[i + 3] = Math.abs(v - 0.5) > 0.425 ? grain * 150 : 0;
+  }
+  bctx.putImageData(img, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(buffer, 0, 0, w * grainSize, h * grainSize);
+
+  // Warm tint and flicker
+  if (sepia > 0) { ctx.fillStyle = 'rgba(112,66,20,' + sepia + ')'; ctx.fillRect(0, 0, width, height); }
+  let fl = (random() - 0.5) * 2 * flicker;
+  ctx.fillStyle = fl > 0 ? 'rgba(255,245,220,' + fl + ')' : 'rgba(0,0,0,' + (-fl) + ')';
+  ctx.fillRect(0, 0, width, height);
+
+  // Vertical scratches that jump around
+  for (let k = 0; k < scratches; k++) {
+    if (random() < 0.35) continue;
+    let x = random(width);
+    ctx.strokeStyle = random() < 0.5 ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = random(0.5, 1.5);
+    ctx.beginPath();
+    let y0 = random(-0.2, 0.4) * height, y1 = y0 + random(0.4, 1.2) * height;
+    ctx.moveTo(x, y0);
+    ctx.bezierCurveTo(x + random(-3, 3), y0 + (y1 - y0) / 3, x + random(-3, 3), y0 + (y1 - y0) * 2 / 3, x + random(-2, 2), y1);
+    ctx.stroke();
+  }
+  // Dust and hairs
+  for (let k = 0; k < dust; k++) {
+    ctx.fillStyle = random() < 0.7 ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.5)';
+    ctx.beginPath();
+    ctx.ellipse(random(width), random(height), random(0.5, 2.5), random(0.5, 1.5), random(TWO_PI), 0, TWO_PI);
+    ctx.fill();
+  }
+  // Vignette
+  if (vignette > 0) {
+    let r = Math.hypot(width, height) / 2;
+    let g = ctx.createRadialGradient(width / 2, height / 2, r * 0.4, width / 2, height / 2, r);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,0,0,' + vignette + ')');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, width, height);
+  }
+}`, { maxFrames: 120, syncLoop: true }),
+
+scanline_crt: preset(`
+let lineGap = 3;          // distance between scanlines (px) {slide:2,8} {incr:1} {limlow:1}
+let lineDarkness = 0.35;  // {slide:0,1} {incr:0.05} {limlow:0}
+let pixelMask = 0.12;     // red/green/blue stripes of the screen {slide:0,0.5} {incr:0.01} {limlow:0}
+let rollingBand = 0.12;   // bright band rolling down the screen {slide:0,0.5} {incr:0.01} {limlow:0}
+let bandsPerLoop = 1;     // (whole number) {incr:1}
+let cornerRadius = 0.12;  // rounded screen corners {slide:0,0.4} {incr:0.01} {limlow:0}
+let edgeShadow = 0.5;     // darkening towards the screen edges {slide:0,1} {incr:0.05} {limlow:0}
+let flicker = 0.03;       // {slide:0,0.2} {incr:0.01} {limlow:0}
+let overlay;
+
+// A see-through overlay: put this layer on top of the others.
+function setup() {
+  // Everything that doesn't move is painted once
+  overlay = document.createElement('canvas');
+  overlay.width = width; overlay.height = height;
+  let g = overlay.getContext('2d');
+  g.fillStyle = 'rgba(0,0,0,' + lineDarkness + ')';
+  for (let y = 0; y < height; y += lineGap) g.fillRect(0, y, width, Math.max(1, lineGap / 2.5));
+  if (pixelMask > 0) {
+    let cols = ['255,0,0', '0,255,0', '0,0,255'];
+    for (let x = 0; x < width; x++) {
+      g.fillStyle = 'rgba(' + cols[x % 3] + ',' + pixelMask * 0.5 + ')';
+      g.fillRect(x, 0, 1, height);
+    }
+  }
+  if (edgeShadow > 0) {
+    let r = Math.hypot(width, height) / 2;
+    let v = g.createRadialGradient(width / 2, height / 2, r * 0.45, width / 2, height / 2, r);
+    v.addColorStop(0, 'rgba(0,0,0,0)');
+    v.addColorStop(1, 'rgba(0,0,0,' + edgeShadow + ')');
+    g.fillStyle = v;
+    g.fillRect(0, 0, width, height);
+  }
+  if (cornerRadius > 0) {
+    // black outside a rounded rectangle
+    let rr = cornerRadius * min(width, height);
+    g.fillStyle = '#000';
+    g.beginPath();
+    g.rect(0, 0, width, height);
+    g.roundRect(0, 0, width, height, rr);
+    g.fill('evenodd');
+  }
+}
+
+function draw() {
+  let ctx = drawingContext;
+  ctx.drawImage(overlay, 0, 0);
+  // Rolling bright band
+  if (rollingBand > 0) {
+    let y = ((progress * bandsPerLoop) % 1) * (height * 1.4) - height * 0.2;
+    let g = ctx.createLinearGradient(0, y - height * 0.12, 0, y + height * 0.12);
+    g.addColorStop(0, 'rgba(255,255,255,0)');
+    g.addColorStop(0.5, 'rgba(255,255,255,' + rollingBand + ')');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, y - height * 0.12, width, height * 0.24);
+  }
+  if (flicker > 0) {
+    ctx.fillStyle = 'rgba(255,255,255,' + (random() * flicker).toFixed(3) + ')';
+    ctx.fillRect(0, 0, width, height);
+  }
+}`, { maxFrames: 240, syncLoop: true }),
+
+blur_bloom: preset(`
+let blurAmount = 0;       // softens everything below (px) {slide:0,20} {incr:0.5} {limlow:0} {limhigh:60}
+let bloom = 1;            // strength of the glow around bright parts {slide:0,2} {incr:0.05} {limlow:0}
+let bloomSize = 10;       // how far the glow spreads (px) {slide:1,40} {incr:1} {limlow:0.5} {limhigh:100}
+let threshold = 0.55;     // how bright something must be to glow (0 = everything) {slide:0,0.95} {incr:0.05} {limlow:0} {limhigh:0.98}
+let pulsesPerLoop = 0;    // make the glow breathe (whole number, 0 = steady) {incr:1} {limlow:0}
+
+// An effect: it works on the layers below it.
+function draw() {
+  let ctx = drawingContext;
+  let below = belowImage();
+  let s = min(width, height) / 300;
+  ctx.save();
+  ctx.filter = blurAmount > 0 ? 'blur(' + (blurAmount * s).toFixed(1) + 'px)' : 'none';
+  ctx.drawImage(below, 0, 0, width, height);
+  if (bloom > 0) {
+    // Keep only the bright parts, blur them and add them on top. brightness + contrast
+    // together map 'threshold' to black and full brightness to full brightness.
+    let pulse = pulsesPerLoop > 0 ? 0.75 + 0.25 * Math.sin(progress * TWO_PI * pulsesPerLoop) : 1;
+    let th = Math.min(0.95, threshold);
+    let c = (1 + th) / (1 - th), b = 0.5 + 0.5 / c;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = Math.min(1, bloom * pulse);
+    ctx.filter = 'brightness(' + b.toFixed(3) + ') contrast(' + c.toFixed(3) + ') blur(' + (bloomSize * s).toFixed(1) + 'px)';
+    ctx.drawImage(below, 0, 0, width, height);
+    if (bloom > 1) {
+      ctx.globalAlpha = Math.min(1, bloom - 1);
+      ctx.drawImage(below, 0, 0, width, height);
+    }
+  }
+  ctx.restore();
+}`, { maxFrames: 120, syncLoop: true }),
+
+pixelate: preset(`
+let tileSize = 8;         // size of each pixel / tile (px at 300px canvas) {slide:2,40} {incr:1} {limlow:1} {limhigh:200}
+let roundDots = false;    // round mosaic dots instead of squares
+let dotSize = 0.9;        // dot size compared with the tile (when roundDots is on) {slide:0.2,1.2} {incr:0.05} {limlow:0.05}
+let gridLines = 0;        // dark lines between tiles (px) {slide:0,4} {incr:0.5} {limlow:0}
+let gridColor = '#000000';   // {color}
+let small, sctx;
+
+// An effect: it works on the layers below it.
+function draw() {
+  let ctx = drawingContext;
+  let below = belowImage();
+  let s = min(width, height) / 300;
+  let tile = Math.max(1, tileSize * s);
+  let cols = Math.max(1, Math.ceil(width / tile)), rows = Math.max(1, Math.ceil(height / tile));
+  if (!small || small.width !== cols || small.height !== rows) {
+    small = document.createElement('canvas');
+    small.width = cols; small.height = rows;
+    sctx = small.getContext('2d', { willReadFrequently: true });
+  }
+  // Shrink the picture to one pixel per tile (averaging each tile's colours)
+  sctx.imageSmoothingEnabled = true;
+  sctx.imageSmoothingQuality = 'high';
+  sctx.clearRect(0, 0, cols, rows);
+  sctx.drawImage(below, 0, 0, cols * tile, rows * tile * 1, 0, 0, cols, rows);
+
+  ctx.save();
+  if (!roundDots) {
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(small, 0, 0, cols, rows, 0, 0, cols * tile, rows * tile);
+  } else {
+    ctx.fillStyle = gridColor;
+    ctx.fillRect(0, 0, width, height);
+    let d = sctx.getImageData(0, 0, cols, rows).data;
+    for (let j = 0; j < rows; j++) {
+      for (let i = 0; i < cols; i++) {
+        let o = (j * cols + i) * 4;
+        ctx.fillStyle = 'rgb(' + d[o] + ',' + d[o + 1] + ',' + d[o + 2] + ')';
+        ctx.beginPath();
+        ctx.arc((i + 0.5) * tile, (j + 0.5) * tile, tile * dotSize / 2, 0, TWO_PI);
+        ctx.fill();
+      }
+    }
+  }
+  if (gridLines > 0 && !roundDots) {
+    ctx.fillStyle = gridColor;
+    let g = gridLines * s;
+    for (let i = 1; i < cols; i++) ctx.fillRect(i * tile - g / 2, 0, g, height);
+    for (let j = 1; j < rows; j++) ctx.fillRect(0, j * tile - g / 2, width, g);
+  }
+  ctx.restore();
+}`, { maxFrames: 120, syncLoop: true }),
+
+kaleido_mirror: preset(`
+let slices = 8;           // mirrored slices (even number looks best) {slide:2,24} {incr:2} {limlow:2} {limhigh:64}
+let spinsPerLoop = 1;     // turns of the source picture per loop (whole number, negative = other way) {incr:1}
+let rotateResult = 0;     // turns of the whole kaleidoscope per loop (whole number) {incr:1}
+let sourceZoom = 1.4;     // how much of the picture below is used (bigger = closer in) {slide:0.5,4} {incr:0.05} {limlow:0.1}
+let sourceOffset = 0.15;  // how far from the centre the slice is taken {slide:0,0.5} {incr:0.01}
+
+// An effect: it works on the layers below it.
+function draw() {
+  let ctx = drawingContext;
+  let below = belowImage();
+  let R = Math.hypot(width, height) / 2 + 2;
+  let seg = TWO_PI / slices;
+  let spin = progress * TWO_PI * spinsPerLoop;
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+  ctx.rotate(progress * TWO_PI * rotateResult);
+  for (let k = 0; k < slices; k++) {
+    ctx.save();
+    ctx.rotate(k * seg);
+    if (k % 2) { ctx.rotate(seg); ctx.scale(1, -1); }     // every other slice is mirrored
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, R, -0.002, seg + 0.002);
+    ctx.closePath();
+    ctx.clip();
+    // The same turning, zoomed piece of the picture below is shown in every slice
+    ctx.rotate(spin);
+    ctx.scale(sourceZoom, sourceZoom);
+    ctx.translate(-width / 2 - sourceOffset * width, -height / 2);
+    ctx.drawImage(below, 0, 0, width, height);
+    ctx.restore();
+  }
+  ctx.restore();
+}`, { maxFrames: 360, syncLoop: true }),
+
+wave_distortion: preset(`
+let amplitude = 8;        // how far things are pushed (px at 300px canvas) {slide:0,40} {incr:1} {limlow:0}
+let wavelength = 60;      // distance between waves (px at 300px canvas) {slide:10,200} {incr:5} {limlow:2}
+let wavesPerLoop = 2;     // how fast the waves travel (whole number) {incr:1}
+let horizontal = true;    // rows sway left and right
+let vertical = false;     // columns bob up and down
+let sliceSize = 2;        // thickness of each slice (px, smaller = smoother, slower) {slide:1,8} {incr:1} {limlow:1}
+let mid;
+
+// An effect: it works on the layers below it.
+function draw() {
+  let ctx = drawingContext;
+  let below = belowImage();
+  let s = min(width, height) / 300;
+  let amp = amplitude * s, wl = Math.max(2, wavelength * s), t = progress * TWO_PI * wavesPerLoop;
+  let step = Math.max(1, Math.round(sliceSize));
+  let source = below;
+  if (horizontal && vertical) {
+    if (!mid || mid.width !== width || mid.height !== height) { mid = document.createElement('canvas'); mid.width = width; mid.height = height; }
+    let m = mid.getContext('2d');
+    m.clearRect(0, 0, width, height);
+    for (let y = 0; y < height; y += step) {
+      let dx = Math.sin(y / wl * TWO_PI + t) * amp;
+      m.drawImage(below, 0, y, width, step, dx, y, width, step);
+      if (dx > 0) m.drawImage(below, width - dx, y, dx, step, 0, y, dx, step);           // wrap the edge
+      else if (dx < 0) m.drawImage(below, 0, y, -dx, step, width + dx, y, -dx, step);
+    }
+    source = mid;
+  }
+  if (horizontal && !vertical) {
+    for (let y = 0; y < height; y += step) {
+      let dx = Math.sin(y / wl * TWO_PI + t) * amp;
+      ctx.drawImage(source, 0, y, width, step, dx, y, width, step);
+      if (dx > 0) ctx.drawImage(source, width - dx, y, dx, step, 0, y, dx, step);
+      else if (dx < 0) ctx.drawImage(source, 0, y, -dx, step, width + dx, y, -dx, step);
+    }
+  } else if (vertical) {
+    for (let x = 0; x < width; x += step) {
+      let dy = Math.sin(x / wl * TWO_PI + t) * amp;
+      ctx.drawImage(source, x, 0, step, height, x, dy, step, height);
+      if (dy > 0) ctx.drawImage(source, x, height - dy, step, dy, x, 0, step, dy);
+      else if (dy < 0) ctx.drawImage(source, x, 0, step, -dy, x, height + dy, step, -dy);
+    }
+  } else {
+    ctx.drawImage(source, 0, 0);
+  }
+}`, { maxFrames: 120, syncLoop: true }),
+
+ascii_effect: preset(`
+let cellSize = 6;         // width of each character cell (px at 300px canvas) {slide:3,24} {incr:0.5} {limlow:2} {limhigh:80}
+let characters = ' .:-=+*#%@';   // from darkest to brightest
+let colorful = true;      // keep the original colours (off = one terminal colour)
+let textColor = '#33ff66';       // used when colorful is off {color}
+let backgroundColor = '#000000'; // {color}
+let invert = false;       // bright areas get the sparse characters
+let boost = 1.2;          // brighten the picture before choosing characters {slide:0.5,3} {incr:0.05} {limlow:0.1}
+let small, sctx;
+
+// An effect: it turns the layers below into text characters, like a console.
+function draw() {
+  let ctx = drawingContext;
+  let below = belowImage();
+  let s = min(width, height) / 300;
+  let cw = Math.max(2, cellSize * s), ch = cw * 1.5;          // console characters are taller than wide
+  let cols = Math.max(1, Math.ceil(width / cw)), rows = Math.max(1, Math.ceil(height / ch));
+  if (!small || small.width !== cols || small.height !== rows) {
+    small = document.createElement('canvas');
+    small.width = cols; small.height = rows;
+    sctx = small.getContext('2d', { willReadFrequently: true });
+  }
+  // One averaged colour per cell
+  sctx.imageSmoothingEnabled = true;
+  sctx.imageSmoothingQuality = 'high';
+  sctx.drawImage(below, 0, 0, cols * cw, rows * ch, 0, 0, cols, rows);
+  let d = sctx.getImageData(0, 0, cols, rows).data;
+
+  ctx.save();
+  ctx.fillStyle = backgroundColor;
+  ctx.fillRect(0, 0, width, height);
+  ctx.font = 'bold ' + (ch * 0.95).toFixed(1) + 'px "Courier New", Consolas, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  let chars = characters.length ? characters : ' #';
+  if (!colorful) ctx.fillStyle = textColor;
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      let o = (j * cols + i) * 4;
+      let r = d[o], g = d[o + 1], b = d[o + 2];
+      let lum = Math.min(1, (0.299 * r + 0.587 * g + 0.114 * b) / 255 * boost);
+      if (invert) lum = 1 - lum;
+      let k = Math.min(chars.length - 1, Math.floor(lum * chars.length));
+      let c = chars[k];
+      if (c === ' ') continue;
+      if (colorful) {
+        // brighten dim colours a little so the characters stay readable
+        let m = Math.max(r, g, b, 1), lift = Math.min(2.5, 200 / m);
+        ctx.fillStyle = 'rgb(' + Math.min(255, r * lift | 0) + ',' + Math.min(255, g * lift | 0) + ',' + Math.min(255, b * lift | 0) + ')';
+      }
+      ctx.fillText(c, (i + 0.5) * cw, (j + 0.5) * ch);
+    }
+  }
+  ctx.restore();
+}`, { maxFrames: 120, syncLoop: true }),
+
 wagon_wave: preset(`
 let gridSize = 30;        // {limlow:1} {limhigh:200}
 let offsetMultiplier = 5;
@@ -2157,7 +3344,7 @@ function setup() {
   g.addColorStop(1, 'rgba(0,0,0,' + vignetteStrength + ')');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, width, height);
-}`),
+}`, { syncLoop: true }),
 
 static: preset(`
 let grain = 2;           // size of each noise pixel {limlow:1}
@@ -2233,7 +3420,7 @@ function resetLayer(layer, type) {
     delete layer.images;
     delete layer.texts;
     Object.assign(layer, { hue: 360, saturation: 100, brightness: 100, opacity: 100,
-                           maxFrames: 120, fps: Math.min(60, animationFPS), speed: 1,
+                           maxFrames: 120, fps: Math.min(60, animationFPS), speed: 1, syncLoop: false,
                            startFrame: 0, endFrame: -1, fadeFrames: 0, zoom: 1,
                            visible: true, collapsed: false });
     initializeLayerTypeData(layer);
@@ -2270,6 +3457,7 @@ function applyPresetToLayer(layer, name) {
     layer.maxFrames = p.maxFrames;
     layer.fps = Math.min(p.fps, animationFPS);
     layer.speed = p.speed;
+    layer.syncLoop = !!p.syncLoop;
     return true;
 }
 
@@ -2287,7 +3475,19 @@ function presetDisplayName(name) {
     return el ? el.textContent.trim() : name.replace(/_/g, ' ');
 }
 
+// Effects work on the layers below them, so they are always added on top
+const EFFECT_PRESETS = ['vignette', 'film_grain', 'scanline_crt', 'blur_bloom', 'pixelate', 'ascii_effect', 'kaleido_mirror', 'wave_distortion'];
+
 function loadPreset(name) {
+    if (EFFECT_PRESETS.includes(name)) {
+        const before = presetAddsLayer;
+        presetAddsLayer = true;
+        try { return loadPresetInner(name); } finally { presetAddsLayer = before; }
+    }
+    return loadPresetInner(name);
+}
+
+function loadPresetInner(name) {
     if (name === 'bg_image') return loadBackgroundImagePreset();
     if (name === 'text_example') return loadTextExamplePreset();
     if (!presets[name]) {

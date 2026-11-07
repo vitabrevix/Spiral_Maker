@@ -76,7 +76,10 @@ function splitCodeHeader(code) {
     while (i < lines.length) {
         const t = lines[i].trim();
         if (t === '' || t.startsWith('//')) { i++; continue; }
-        if (parseVarLine(lines[i])) { lastVar = i; i++; continue; }
+        const v = parseVarLine(lines[i]);
+        // Empty containers ([] {} null) are internal storage filled by the code,
+        // not settings: the settings section ends before them
+        if (v && !/^(\[\s*\]|\{\s*\}|null|undefined)$/.test(v.value)) { lastVar = i; i++; continue; }
         break;
     }
     if (lastVar < 0) return { header: '', body: code || '', lines: [] };

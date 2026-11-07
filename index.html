@@ -41,6 +41,9 @@
                         <option value="fibonacci_spiral">Fibonacci Spiral</option>
                         <option value="vortex">Vortex</option>
                         <option value="circling_spiral">Circling Spiral</option>
+                        <option value="droste_zoom">Droste Zoom</option>
+                        <option value="op_art_spiral">Op-Art Spiral</option>
+                        <option value="spiral_staircase">Spiral Staircase</option>
                     </select>
                 </div>
                 <div class="preset-category">
@@ -61,9 +64,13 @@
                     <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
                         <option value="">More objects...</option>
                         <option value="pendulum">Pendulum</option>
+                        <option value="spiral_pendulum">Spiral Pendulum</option>
                         <option value="coin">Coin</option>
                         <option value="pendant">Crystal Pendant</option>
                         <option value="metronome">Metronome</option>
+                        <option value="hourglass">Hourglass</option>
+                        <option value="lava_lamp">Lava Lamp</option>
+                        <option value="newtons_cradle">Newton's Cradle</option>
                         <option value="mandala">Mandala</option>
                         <option value="particules">Particles</option>
                     </select>
@@ -89,11 +96,26 @@
                     <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
                         <option value="">More others...</option>
                         <option value="wagon_wave">Wagon Wave</option>
+                        <option value="spirograph">Spirograph</option>
+                        <option value="orbital_rings">Orbital Rings</option>
                         <option value="text_example">Text Example</option>
                         <option value="bg_gradient">BG Gradient</option>
                         <option value="bg_image">BG Image</option>
-                        <option value="vignette">Vignette</option>
                         <option value="static">Screen Static</option>
+                    </select>
+                </div>
+                <div class="preset-category">
+                    <div class="category-title">Effects</div>
+                    <button class="main-preset-btn" onclick="loadPreset('vignette')">Vignette</button>
+                    <select class="preset-dropdown" onchange="loadPresetFromDropdown(this)">
+                        <option value="">More effects...</option>
+                        <option value="film_grain">Film Grain + Flicker</option>
+                        <option value="scanline_crt">Scanline CRT</option>
+                        <option value="blur_bloom">Blur / Bloom</option>
+                        <option value="pixelate">Pixelate / Mosaic</option>
+                        <option value="ascii_effect">ASCII</option>
+                        <option value="kaleido_mirror">Kaleidoscope Mirror</option>
+                        <option value="wave_distortion">Wave Distortion</option>
                     </select>
                 </div>
             </div>
@@ -196,6 +218,7 @@
                 <div class="export-controls">
                     <button class="btn btn-primary export-btn" id="exportMP4Btn" onclick="exportAnimation('mp4')" disabled>MP4</button>
                     <button class="btn btn-primary export-btn" id="exportGifBtn" onclick="exportAnimation('gif')" disabled>GIF</button>
+                    <button class="btn btn-ghost-danger" id="cancelExportBtn" onclick="cancelExport()" style="display: none;" title="Stop the export">Cancel</button>
                 </div>
                 <div class="export-options">
                     <label class="field">

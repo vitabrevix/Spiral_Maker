@@ -329,10 +329,17 @@ function generateAnimationControls(layer) {
         </label>`;
     let controls = '';
     if (layer.type === 'code' || layer.type === 'text') {
-        controls += field('maxFrames', 'Frames', 'Length of this layer\'s loop, in frames', 'min="1" max="9999"');
-        controls += field('fps', 'FPS', 'Frames per second for this layer', 'min="1" max="240"');
+        controls += `
+        <label class="animation-control sync-control" title="Play one loop of this layer per loop of the whole animation, whatever its length. It then never makes the loop longer (good for effects).">
+            <span>Follow loop</span>
+            <input type="checkbox" ${layer.syncLoop ? 'checked' : ''} onchange="updateLayerAnimation(${layer.id}, 'syncLoop', this.checked)">
+        </label>`;
+        if (!layer.syncLoop) {
+            controls += field('maxFrames', 'Frames', 'Length of this layer\'s loop, in frames', 'min="1" max="9999"');
+            controls += field('fps', 'FPS', 'Frames per second for this layer', 'min="1" max="240"');
+        }
     }
-    controls += field('speed', 'Speed', 'Playback speed multiplier', 'min="0.1" max="10" step="0.1"');
+    if (!layer.syncLoop) controls += field('speed', 'Speed', 'Playback speed multiplier', 'min="0.1" max="10" step="0.1"');
     const showControls =
         field('startFrame', 'Show from', 'Frame of the main timeline where this layer appears', 'min="0"') +
         field('endFrame', 'to', 'Frame where this layer disappears (-1 = until the end of the loop)', 'min="-1"') +

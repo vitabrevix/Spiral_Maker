@@ -14,14 +14,34 @@
 // =====================================================================
 
 let isExporting = false;
+let exportCancelled = false;
+
+// Cancel button: the export stops at the next frame
+function cancelExport() {
+    if (!isExporting) return;
+    exportCancelled = true;
+    updateExportStatus('Cancelling...');
+}
+
+function checkCancelled() {
+    if (exportCancelled) {
+        const e = new Error('Export cancelled');
+        e.cancelled = true;
+        throw e;
+    }
+}
 
 const GIF_LIB_URL = 'https://cdn.jsdelivr.net/npm/gifenc@1.0.3/dist/gifenc.esm.js';
 const MP4_LIB_URL = 'https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.mjs';
 
+// GIF frame delays are stored in 1/100 s, so each quality uses one even delay
+// (2 = 50 fps, 3 = 33 fps, 5 = 20 fps) - uneven delays make motion judder.
 const EXPORT_QUALITY = {
-    high:   { gifFps: 50, gifColors: 256, mp4BitsPerPixel: 0.15 },
-    medium: { gifFps: 30, gifColors: 128, mp4BitsPerPixel: 0.08 },
-    small:  { gifFps: 20, gifColors: 64,  mp4BitsPerPixel: 0.04 },
+// gifStable: how far (squared RGB distance) a pixel's true colour may drift before
+// it switches palette colour - stops shades flickering between two palette colours.
+    high:   { gifDelayCs: 2, gifColors: 256, gifStable: 150, mp4BitsPerPixel: 0.15 },
+    medium: { gifDelayCs: 3, gifColors: 128, gifStable: 320, mp4BitsPerPixel: 0.08 },
+    small:  { gifDelayCs: 5, gifColors: 64,  gifStable: 700, mp4BitsPerPixel: 0.04 },
 };
 
 function updateExportProgress(percentage) {
@@ -65,15 +85,23 @@ function downloadBlob(blob, filename) {
 
 // Plans which global frames to sample and how long each output frame lasts,
 // so the total duration matches the preview exactly and the loop is seamless.
-function planFrames(targetFps) {
+// Each output frame is rendered at its exact moment in time (a fractional
+// frame), so motion advances by the same amount every frame.
+// Pass delayCs to get frames with one even GIF delay.
+function planFrames(targetFps, delayCs = 0) {
     const sourceFps = animationFPS * animationSpeed;
     const durationMs = framesPerLoop / sourceFps * 1000;
-    const fps = Math.min(targetFps, sourceFps);
-    const count = Math.max(1, Math.round(durationMs / 1000 * fps));
+    let count;
+    if (delayCs > 0) {
+        count = Math.max(1, Math.round(durationMs / 10 / delayCs));
+    } else {
+        const fps = Math.min(targetFps, sourceFps);
+        count = Math.max(1, Math.round(durationMs / 1000 * fps));
+    }
     const frames = [];
     for (let k = 0; k < count; k++) {
         frames.push({
-            globalFrame: Math.floor(k * framesPerLoop / count + 1e-9),
+            globalFrame: k * framesPerLoop / count,
             startMs: k * durationMs / count,
             endMs: (k + 1) * durationMs / count,
         });
@@ -105,6 +133,9 @@ async function exportAnimation(format) {
     if (isExporting) return;
 
     isExporting = true;
+    exportCancelled = false;
+    const cancelBtn = document.getElementById('cancelExportBtn');
+    if (cancelBtn) cancelBtn.style.display = '';
     const buttons = ['exportGifBtn', 'exportMP4Btn'].map(id => document.getElementById(id));
     buttons.forEach(b => b && (b.disabled = true));
     updateExportProgress(0);
@@ -122,11 +153,18 @@ async function exportAnimation(format) {
         updateExportProgress(100);
         updateExportStatus(`Saved ${result.filename} (${formatBytes(result.blob.size)})`);
     } catch (err) {
-        console.error('Export error:', err);
-        updateExportStatus('Export failed: ' + (err && err.message ? err.message : err));
+        if (err && err.cancelled) {
+            updateExportStatus('Export cancelled');
+            updateExportProgress(0);
+        } else {
+            console.error('Export error:', err);
+            updateExportStatus('Export failed: ' + (err && err.message ? err.message : err));
+        }
         updateExportProgress(0);
     } finally {
         isExporting = false;
+        exportCancelled = false;
+        if (cancelBtn) cancelBtn.style.display = 'none';
         buttons.forEach(b => b && (b.disabled = !isRunning));
         if (isRunning) {
             showFrame(virtualFrameCount, true);
@@ -140,7 +178,7 @@ async function exportGif(quality, scale) {
     updateExportStatus('Loading GIF encoder...');
     const { GIFEncoder, quantize, applyPalette } = await import(GIF_LIB_URL);
 
-    const plan = planFrames(quality.gifFps);
+    const plan = planFrames(0, quality.gifDelayCs);
     const { ctx, w, h } = makeExportCanvas(scale);
 
     // Pass 1: build one shared palette from a sample of frames
@@ -150,6 +188,7 @@ async function exportGif(quality, scale) {
     const stride = Math.max(1, Math.floor(pixelsPerFrame * sampleFrames / 400000));
     const samples = [];
     for (let i = 0; i < sampleFrames; i++) {
+        checkCancelled();
         const f = plan.frames[Math.floor(i * plan.frames.length / sampleFrames)];
         renderExportFrame(ctx, w, h, f.globalFrame);
         const data = ctx.getImageData(0, 0, w, h).data;
@@ -166,9 +205,11 @@ async function exportGif(quality, scale) {
 
     // Pass 2: encode, storing only pixels that changed since the previous frame
     const gif = GIFEncoder();
-    let prev = null;
+    let shown = null;                    // palette colour each pixel currently shows
     let lastCs = 0;
+    const stableTolerance = quality.gifStable;
     for (let k = 0; k < plan.frames.length; k++) {
+        checkCancelled();
         const f = plan.frames[k];
         renderExportFrame(ctx, w, h, f.globalFrame);
         const rgba = ctx.getImageData(0, 0, w, h).data;
@@ -179,16 +220,29 @@ async function exportGif(quality, scale) {
         const delayMs = Math.max(2, endCs - lastCs) * 10;
         lastCs = endCs;
 
-        if (prev) {
+        if (shown) {
+            // Only store pixels whose colour really changed. A pixel keeps the
+            // palette colour it is already showing while its true colour stays
+            // close to it - otherwise shades that sit between two palette colours
+            // flicker back and forth from frame to frame.
             const out = new Uint8Array(index.length);
-            for (let i = 0; i < index.length; i++) {
-                out[i] = index[i] === prev[i] ? transparentIndex : index[i];
+            for (let i = 0, o = 0; i < index.length; i++, o += 4) {
+                const cur = shown[i];
+                if (index[i] === cur) { out[i] = transparentIndex; continue; }
+                const pc = palette[cur];
+                const dr = rgba[o] - pc[0], dg = rgba[o + 1] - pc[1], db = rgba[o + 2] - pc[2];
+                if (dr * dr + dg * dg + db * db <= stableTolerance) {
+                    out[i] = transparentIndex;              // still close enough: keep showing it
+                } else {
+                    out[i] = index[i];
+                    shown[i] = index[i];
+                }
             }
             gif.writeFrame(out, w, h, { delay: delayMs, transparent: true, transparentIndex, dispose: 1 });
         } else {
             gif.writeFrame(index, w, h, { palette: fullPalette, delay: delayMs, repeat: 0, dispose: 1 });
+            shown = index.slice();
         }
-        prev = index;
 
         updateExportProgress(10 + (k + 1) / plan.frames.length * 90);
         updateExportStatus(`Encoding GIF... ${k + 1}/${plan.frames.length}`);
@@ -256,9 +310,14 @@ async function encodeMp4Chunks(config, plan, canvas, ctx, w, h, qp, attemptLabel
     encoder.configure(config);
 
     const fps = config.framerate;
-    const keyEvery = Math.max(1, Math.round(fps));      // a keyframe every second
+    // Keyframes are encoded sharper than the frames between them, so each one
+    // makes flat, slowly changing areas visibly 'pump'. Use one at the start and
+    // then only every 5 seconds in long animations.
+    const keyEvery = Math.max(1, Math.round(fps * 5));
     try {
         for (let k = 0; k < plan.frames.length; k++) {
+            checkCancelled();
+        checkCancelled();
             if (encodeError) throw encodeError;
             const f = plan.frames[k];
             renderExportFrame(ctx, w, h, f.globalFrame);
@@ -362,6 +421,7 @@ async function exportVideo(quality, scale) {
             console.info('MP4 exported with', config.codec, config.hardwareAcceleration, config.bitrateMode);
             return { blob: new Blob([muxer.target.buffer], { type: 'video/mp4' }), filename: `spiral-${Date.now()}.mp4` };
         } catch (e) {
+            if (e && e.cancelled) throw e;
             console.warn('MP4 encode attempt failed', config, e);
             lastError = e;
         }
@@ -384,6 +444,7 @@ async function exportWebmFallback(canvas, ctx, w, h, plan, bitrate) {
     recorder.start();
     const t0 = performance.now();
     for (let k = 0; k < plan.frames.length; k++) {
+        checkCancelled();
         const f = plan.frames[k];
         const wait = t0 + f.startMs - performance.now();
         if (wait > 0) await new Promise(r => setTimeout(r, wait));

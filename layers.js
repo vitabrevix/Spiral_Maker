@@ -119,6 +119,10 @@ function updateLayerAnimation(layerId, property, value) {
         const v = parseFloat(value);
         if (!(v > 0)) return;
         layer.speed = v;
+    } else if (property === 'syncLoop') {
+        layer.syncLoop = !!value;
+        LayerDOM.refresh(layerId);               // Frames / FPS / Speed show only when not following
+        updateLayerSelection();
     } else if (property === 'startFrame' || property === 'fadeFrames') {
         const v = parseInt(value);
         if (!(v >= 0)) return;

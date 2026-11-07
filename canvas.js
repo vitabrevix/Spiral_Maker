@@ -43,7 +43,7 @@ const JS_RESERVED = new Set(['break', 'case', 'catch', 'class', 'const', 'contin
 const ENGINE_NAMES = new Set(['width', 'height', 'frameCount', 'maxFrames', 'progress', 'mouseX', 'mouseY',
     'pixels', 'deltaTime', 'hue', 'saturation', 'brightness', 'opacity', 'layer', 'p',
     'background', 'createCanvas', 'resizeCanvas', 'frameRate', 'noLoop', 'loop', 'redraw', 'millis',
-    'loadPixels', 'drawingContext', 'setup', 'draw', 'preload', 'remove', 'constructor']);
+    'loadPixels', 'drawingContext', 'belowImage', 'setup', 'draw', 'preload', 'remove', 'constructor']);
 
 let p5ApiNamesCache = null;
 function getP5ApiNames() {
@@ -69,9 +69,11 @@ function compileLayerCode(code, p, ctl) {
 
     const body = `
 let width = __p.width, height = __p.height, frameCount = 0, progress = 0;
-let maxFrames = __ctl.layer.maxFrames, mouseX = 0, mouseY = 0, pixels = [], deltaTime = 1000 / 60;
+let maxFrames = layerLoopLength(__ctl.layer), mouseX = 0, mouseY = 0, pixels = [], deltaTime = 1000 / 60;
 let hue = 360, saturation = 100, brightness = 100, opacity = 100;
 const p = __p, layer = __ctl.layer, drawingContext = __p.drawingContext;
+// Effect layers: the finished picture of every layer below this one (and the background)
+const belowImage = () => __ctl.below();
 const background = (...a) => a.length ? __p.background(...a) : __p.clear();
 const loadPixels = () => { __p.loadPixels(); pixels = __p.pixels; };
 const millis = () => frameCount / __ctl.layer.fps * 1000;
@@ -80,7 +82,7 @@ const createCanvas = () => __p._renderer, resizeCanvas = () => {};
 const noLoop = () => {}, loop = () => {}, redraw = () => {};
 function __sync(f) {
     width = __p.width; height = __p.height;
-    maxFrames = __ctl.layer.maxFrames;
+    maxFrames = layerLoopLength(__ctl.layer);
     frameCount = f; progress = f / maxFrames;
     mouseX = __p.mouseX; mouseY = __p.mouseY;
     deltaTime = 1000 / __ctl.layer.fps;
@@ -101,13 +103,26 @@ ${code}
 // Layer renderers. Each one exposes:
 //   { layer, canvas, render(globalFrame), ready: Promise, remove() }
 // ---------------------------------------------------------------------
+// Loop length of a layer: its own Frames, or the main loop when it follows it
+function layerLoopLength(layer) {
+    return layer.syncLoop ? framesPerLoop : layer.maxFrames;
+}
+
 function layerFrameFor(layer, globalFrame) {
-    const ticks = Math.floor(globalFrame * layer.fps * layer.speed / animationFPS + 1e-6);
+    if (layer.syncLoop) {
+        // Follows the main loop: one of its loops per loop of the whole animation
+        return ((globalFrame % framesPerLoop) + framesPerLoop) % framesPerLoop;
+    }
+    let ticks = globalFrame * layer.fps * layer.speed / animationFPS;
+    // Whole frames while playing (and for deliberately choppy low-fps layers);
+    // exports ask for in-between moments so motion is perfectly even
+    if (Number.isInteger(globalFrame) || layer.fps < animationFPS) ticks = Math.floor(ticks + 1e-6);
     return ((ticks % layer.maxFrames) + layer.maxFrames) % layer.maxFrames;
 }
 
 function createCodeLayerRenderer(layer, layerIndex) {
-    const ctl = { layer, frame: -1 };
+    const ctl = { layer, frame: -1, below: () => belowImageFor(renderer) };
+    let renderer = null;
     const seed = 1000 + layer.id * 7919;
     let instance = null;
 
@@ -142,8 +157,10 @@ function createCodeLayerRenderer(layer, layerIndex) {
         throw e;
     }
 
-    const renderer = {
+    renderer = {
         layer,
+        usesBelow: false,
+        lastKey: undefined,
         canvas: p.canvas,
         p5: p,
         ready: Promise.resolve(),
@@ -152,7 +169,10 @@ function createCodeLayerRenderer(layer, layerIndex) {
         render(globalFrame, force) {
             if (this.failed || !api.draw) return; // static layers keep their setup() drawing
             const f = layerFrameFor(layer, globalFrame);
-            if (f === ctl.frame && !force) return;
+            // Effect layers depend on the layers below, so they redraw on every new frame
+            const key = this.usesBelow ? globalFrame : f;
+            if (key === this.lastKey && !force) return;
+            this.lastKey = key;
             ctl.frame = f;
             api.sync(f);
             p.randomSeed(seed + 1 + f);
@@ -283,7 +303,7 @@ function drawTextItem(ctx, t, f, maxFrames) {
     ctx.textAlign = (t.textAlign || 'CENTER').toLowerCase();
     ctx.textBaseline = 'middle';
     ctx.fillStyle = t.color || '#ffffff';
-    ctx.fillText(String(t.text).split('{frame}').join(String(f)), 0, 0);
+    ctx.fillText(String(t.text).split('{frame}').join(String(Math.floor(f))), 0, 0);
     ctx.restore();
 }
 
@@ -307,7 +327,7 @@ function createTextLayerRenderer(layer) {
                 ctx.scale(z, z);
                 ctx.translate(-canvasWidth / 2, -canvasHeight / 2);
             }
-            (layer.texts || []).forEach(t => drawTextItem(ctx, t, f, layer.maxFrames));
+            (layer.texts || []).forEach(t => drawTextItem(ctx, t, f, layerLoopLength(layer)));
             ctx.restore();
         },
         remove() { canvas.remove(); }
@@ -358,12 +378,29 @@ function refreshLayerStyles() {
 
 // Draws the full composition (background + every layer) onto a 2D context.
 function compositeFrame(ctx, w = canvasWidth, h = canvasHeight) {
+    compositeLayers(ctx, canvasLayers, w, h);
+}
+
+// The finished picture of everything below an effect layer, at the current frame
+function belowImageFor(renderer) {
+    renderer.usesBelow = true;
+    if (!renderer.belowCanvas) {
+        renderer.belowCanvas = document.createElement('canvas');
+        renderer.belowCanvas.width = canvasWidth;
+        renderer.belowCanvas.height = canvasHeight;
+    }
+    const index = canvasLayers.indexOf(renderer);
+    compositeLayers(renderer.belowCanvas.getContext('2d'), canvasLayers.slice(0, Math.max(0, index)), canvasWidth, canvasHeight);
+    return renderer.belowCanvas;
+}
+
+function compositeLayers(ctx, renderers, w, h) {
     ctx.save();
     ctx.globalAlpha = 1;
     ctx.filter = 'none';
     ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, w, h);
-    canvasLayers.forEach(r => {
+    renderers.forEach(r => {
         const vis = r.visibility === undefined ? 1 : r.visibility;
         if (vis <= 0) return;
         ctx.globalAlpha = r.layer.opacity / 100 * vis;
@@ -547,7 +584,8 @@ function gcd(a, b) { while (b) { [a, b] = [b, a % b]; } return a; }
 // Number of global frames after which every visible animated layer is back at frame 0.
 function computeAutoLoopLength() {
     const lengths = layers
-        .filter(l => l.visible && ((l.type === 'code' && l.code && l.code.trim()) || l.type === 'text'))
+        // Layers that follow the main loop adapt to it, so they don't count here
+        .filter(l => l.visible && !l.syncLoop && ((l.type === 'code' && l.code && l.code.trim()) || l.type === 'text'))
         .map(l => l.maxFrames * animationFPS / (l.fps * l.speed));
     if (!lengths.length) return framesPerLoop;
     const allIntegral = lengths.every(x => Math.abs(x - Math.round(x)) < 1e-6);

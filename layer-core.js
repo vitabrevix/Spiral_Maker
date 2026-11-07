@@ -97,6 +97,7 @@ function duplicateLayer(layerId) {
         newLayer.endFrame = layer.endFrame;
         newLayer.fadeFrames = layer.fadeFrames;
         newLayer.zoom = layer.zoom;
+        newLayer.syncLoop = layer.syncLoop;
         newLayer.visible = layer.visible;
         newLayer.name = layer.name ? layer.name + ' copy' : layer.name;
         
